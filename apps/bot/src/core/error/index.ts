@@ -24,6 +24,16 @@ export { StartupError } from "./startup-error.js";
 export { DiscordError } from "./discord-error.js";
 
 /**
+ * Error Utilities
+ */
+export {
+  getErrorMessage,
+  isNativeError,
+  isNexusError,
+  normalizeUnknownError,
+} from "./utilities.js";
+
+/**
  * Types
  */
 export type { NexusErrorOptions } from "./base-error.js";
