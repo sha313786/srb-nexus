@@ -6,8 +6,10 @@
  * Copyright (c) 2026 SRB Studios
  *
  * File    : index.ts
- * Purpose : Configuration exports.
+ * Purpose : Runtime Configuration Manager exports.
  * =========================================================
  */
 
-export * from "./env.js";
+export { runtimeConfig } from "./env.js";
+
+export type { RuntimeConfig } from "./env.js";

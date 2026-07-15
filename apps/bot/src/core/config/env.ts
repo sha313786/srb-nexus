@@ -6,37 +6,60 @@
  * Copyright (c) 2026 SRB Studios
  *
  * File    : env.ts
- * Purpose : Centralized environment configuration.
+ * Purpose : Runtime Configuration Manager.
  * =========================================================
  */
 
-import "dotenv/config";
+import { env } from "../../config/index.js";
 
-export class Env {
-  public static readonly DISCORD_TOKEN =
-    process.env.DISCORD_TOKEN ?? "";
+/**
+ * Runtime configuration for the bot.
+ *
+ * This module is the single runtime configuration source for
+ * the application. It must never read process.env directly.
+ *
+ * Environment variables are owned by the Environment Manager
+ * located in src/config.
+ */
+export const runtimeConfig = Object.freeze({
+  app: Object.freeze({
+    name: "SRB NEXUS",
+    environment: env.nodeEnv,
+    production: env.nodeEnv === "production",
+  }),
 
-  public static readonly CLIENT_ID =
-    process.env.CLIENT_ID ?? "";
+  bot: Object.freeze({
+    startupTimeout: 30_000,
+    shutdownTimeout: 15_000,
+    heartbeatInterval: 60_000,
+  }),
 
-  public static readonly NODE_ENV =
-    process.env.NODE_ENV ?? "development";
+  discord: Object.freeze({
+    token: env.discord.token,
+  }),
 
-  public static validate(): void {
-    const missing: string[] = [];
+  logging: Object.freeze({
+    level: env.nodeEnv === "production" ? "info" : "debug",
+    colors: true,
+    timestamps: true,
+  }),
 
-    if (!this.DISCORD_TOKEN) {
-      missing.push("DISCORD_TOKEN");
-    }
+  dashboard: Object.freeze({
+    enabled: true,
+    refreshInterval: 5_000,
+  }),
 
-    if (!this.CLIENT_ID) {
-      missing.push("CLIENT_ID");
-    }
+  api: Object.freeze({
+    enabled: true,
+    port: 3000,
+  }),
 
-    if (missing.length > 0) {
-      throw new Error(
-        `Missing required environment variables: ${missing.join(", ")}`
-      );
-    }
-  }
-}
+  features: Object.freeze({
+    dashboard: true,
+    api: true,
+    commands: true,
+    metrics: false,
+  }),
+});
+
+export type RuntimeConfig = typeof runtimeConfig;
