@@ -46,6 +46,11 @@ export { ResourceCleanup } from "./cleanup.js";
 export { ShutdownCoordinator } from "./coordinator.js";
 
 /**
+ * Shutdown Validation
+ */
+export { ShutdownValidation } from "./validation.js";
+
+/**
  * Types
  */
 export type { CleanupTask } from "./cleanup.js";
