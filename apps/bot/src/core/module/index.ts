@@ -32,6 +32,13 @@ export {
 } from "./resolver.js";
 
 /**
+ * Module Validation
+ */
+export {
+  ModuleValidation,
+} from "./validation.js";
+
+/**
  * Types
  */
 export type {
