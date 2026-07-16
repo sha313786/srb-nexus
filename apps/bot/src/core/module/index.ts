@@ -25,6 +25,13 @@ export {
 } from "./registration.js";
 
 /**
+ * Module Resolver
+ */
+export {
+  ModuleResolver,
+} from "./resolver.js";
+
+/**
  * Types
  */
 export type {
