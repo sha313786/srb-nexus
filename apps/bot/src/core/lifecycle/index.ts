@@ -29,3 +29,8 @@ export { StartupPipeline } from "./startup.js";
  * Shutdown Pipeline
  */
 export { ShutdownPipeline } from "./shutdown.js";
+
+/**
+ * Process Signal Handler
+ */
+export { ProcessSignalHandler } from "./signals.js";
