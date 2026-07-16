@@ -14,3 +14,8 @@
  * Lifecycle State
  */
 export { ApplicationState } from "./state.js";
+
+/**
+ * Lifecycle Manager
+ */
+export { LifecycleManager } from "./manager.js";
