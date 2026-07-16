@@ -10,15 +10,11 @@
  * =========================================================
  */
 
+import { ResourceCleanup } from "./cleanup.js";
 import { ShutdownPipeline } from "./shutdown.js";
 
 /**
  * Coordinates graceful application shutdown.
- *
- * Future milestones will register cleanup tasks
- * (Discord, Database, Dashboard, API, Scheduler,
- * AI, Plugins, etc.) before the shutdown pipeline
- * executes.
  */
 export class ShutdownCoordinator {
   /**
@@ -33,8 +29,6 @@ export class ShutdownCoordinator {
 
   /**
    * Executes a coordinated application shutdown.
-   *
-   * Safe to call multiple times.
    */
   public static async shutdown(): Promise<void> {
     if (ShutdownCoordinator.shuttingDown) {
@@ -43,15 +37,13 @@ export class ShutdownCoordinator {
 
     ShutdownCoordinator.shuttingDown = true;
 
-    /**
-     * Future cleanup coordinators will execute here.
-     */
+    await ResourceCleanup.execute();
 
     await ShutdownPipeline.stop();
   }
 
   /**
-   * Indicates whether shutdown is currently in progress.
+   * Indicates whether shutdown is in progress.
    *
    * @returns Shutdown status.
    */

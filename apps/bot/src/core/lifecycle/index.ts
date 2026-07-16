@@ -36,6 +36,16 @@ export { ShutdownPipeline } from "./shutdown.js";
 export { ProcessSignalHandler } from "./signals.js";
 
 /**
+ * Resource Cleanup
+ */
+export { ResourceCleanup } from "./cleanup.js";
+
+/**
  * Shutdown Coordinator
  */
 export { ShutdownCoordinator } from "./coordinator.js";
+
+/**
+ * Types
+ */
+export type { CleanupTask } from "./cleanup.js";
