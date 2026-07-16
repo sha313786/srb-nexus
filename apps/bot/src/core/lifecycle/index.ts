@@ -34,3 +34,8 @@ export { ShutdownPipeline } from "./shutdown.js";
  * Process Signal Handler
  */
 export { ProcessSignalHandler } from "./signals.js";
+
+/**
+ * Shutdown Coordinator
+ */
+export { ShutdownCoordinator } from "./coordinator.js";
