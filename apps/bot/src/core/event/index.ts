@@ -10,10 +10,23 @@
  * =========================================================
  */
 
+/**
+ * Event Dispatcher
+ */
 export {
   EventDispatcher,
 } from "./dispatcher.js";
 
+/**
+ * Event Emitter
+ */
+export {
+  EventEmitter,
+} from "./emitter.js";
+
+/**
+ * Types
+ */
 export type {
   EventHandler,
 } from "./dispatcher.js";
