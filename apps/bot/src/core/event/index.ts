@@ -13,27 +13,30 @@
 /**
  * Event Dispatcher
  */
-export {
-  EventDispatcher,
-} from "./dispatcher.js";
+export { EventDispatcher } from "./dispatcher.js";
 
 /**
  * Event Emitter
  */
-export {
-  EventEmitter,
-} from "./emitter.js";
+export { EventEmitter } from "./emitter.js";
 
 /**
  * Event Listener
  */
-export {
-  EventListener,
-} from "./listener.js";
+export { EventListener } from "./listener.js";
+
+/**
+ * Event Registry
+ */
+export { EventRegistry } from "./registry.js";
 
 /**
  * Types
  */
+export type {
+  EventDefinition,
+} from "./registry.js";
+
 export type {
   EventHandler,
 } from "./dispatcher.js";
