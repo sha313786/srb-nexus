@@ -24,3 +24,8 @@ export { ServiceRegistration } from "./registration.js";
  * Service Resolver
  */
 export { ServiceResolver } from "./resolver.js";
+
+/**
+ * Container Validation
+ */
+export { ContainerValidation } from "./validation.js";
