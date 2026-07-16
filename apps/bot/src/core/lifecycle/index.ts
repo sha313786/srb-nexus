@@ -19,3 +19,8 @@ export { ApplicationState } from "./state.js";
  * Lifecycle Manager
  */
 export { LifecycleManager } from "./manager.js";
+
+/**
+ * Startup Pipeline
+ */
+export { StartupPipeline } from "./startup.js";
