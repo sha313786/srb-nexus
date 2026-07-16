@@ -34,6 +34,13 @@ export {
 } from "./utilities.js";
 
 /**
+ * Global Error Handler
+ */
+export {
+  GlobalErrorHandler,
+} from "./handler.js";
+
+/**
  * Types
  */
 export type { NexusErrorOptions } from "./base-error.js";
@@ -41,3 +48,4 @@ export type { ConfigurationErrorOptions } from "./configuration-error.js";
 export type { ValidationErrorOptions } from "./validation-error.js";
 export type { StartupErrorOptions } from "./startup-error.js";
 export type { DiscordErrorOptions } from "./discord-error.js";
+export type { ErrorHandlerResult } from "./handler.js";
