@@ -24,3 +24,8 @@ export { LifecycleManager } from "./manager.js";
  * Startup Pipeline
  */
 export { StartupPipeline } from "./startup.js";
+
+/**
+ * Shutdown Pipeline
+ */
+export { ShutdownPipeline } from "./shutdown.js";
