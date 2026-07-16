@@ -19,3 +19,8 @@ export { ServiceContainer } from "./container.js";
  * Service Registration
  */
 export { ServiceRegistration } from "./registration.js";
+
+/**
+ * Service Resolver
+ */
+export { ServiceResolver } from "./resolver.js";
