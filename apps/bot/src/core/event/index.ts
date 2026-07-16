@@ -25,6 +25,13 @@ export {
 } from "./emitter.js";
 
 /**
+ * Event Listener
+ */
+export {
+  EventListener,
+} from "./listener.js";
+
+/**
  * Types
  */
 export type {
