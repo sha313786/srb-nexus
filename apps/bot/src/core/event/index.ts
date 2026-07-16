@@ -31,6 +31,11 @@ export { EventListener } from "./listener.js";
 export { EventRegistry } from "./registry.js";
 
 /**
+ * Event Registration
+ */
+export { EventRegistration } from "./registration.js";
+
+/**
  * Types
  */
 export type {
