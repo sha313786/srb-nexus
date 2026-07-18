@@ -16,6 +16,10 @@ import { Client, GatewayIntentBits } from "discord.js";
 
 import { env } from "./config/index.js";
 import { Logger } from "./core/logger/logger.js";
+import {
+  registerClientReadyEvent,
+  registerInteractionCreateEvent,
+} from "./events/index.js";
 
 Logger.info("Starting SRB NEXUS...");
 
@@ -25,10 +29,6 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
   ],
-});
-
-client.once("clientReady", (readyClient) => {
-  Logger.success(`Logged in as ${readyClient.user.tag}`);
 });
 
 client
