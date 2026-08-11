@@ -5,7 +5,7 @@ import { db } from '../../core/database';
 export async function healthRoutes(fastify: FastifyInstance) {
   fastify.get('/health', async () => {
     const isDiscordConnected = discordService.client.isReady();
-    const isDbConnected = db.isConnected();
+    const dbStatus = db.isConnected;
 
     const status = isDiscordConnected && isDbConnected ? 'HEALTHY' : 'DEGRADED';
 

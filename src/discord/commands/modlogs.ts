@@ -1,6 +1,13 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
 import { db } from '../../core/database';
 
+interface ModLog {
+  action: string;
+  moderator_user_id: string;
+  reason: string;
+  created_at: string | Date;
+}
+
 export const modlogsCommand = {
   data: new SlashCommandBuilder()
     .setName('nexus-modlogs')
@@ -13,7 +20,7 @@ export const modlogsCommand = {
 
     const targetUser = interaction.options.getUser('target', true);
 
-    const { rows } = await db.query(
+    const { rows } = await db.query<ModLog>(
       `SELECT action, moderator_user_id, reason, created_at 
        FROM moderation_logs 
        WHERE guild_id = $1 AND target_user_id = $2 
@@ -31,7 +38,7 @@ export const modlogsCommand = {
       .setColor(0x2b2d31)
       .setThumbnail(targetUser.displayAvatarURL());
 
-    rows.forEach((log, index) => {
+    rows.forEach((log: ModLog, index: number) => {
       const date = new Date(log.created_at).toLocaleDateString();
       embed.addFields({
         name: `#${index + 1} | ${log.action} (${date})`,
