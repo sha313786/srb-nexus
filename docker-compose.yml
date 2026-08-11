@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  srb-nexus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: srb-nexus-app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
+      - DATABASE_URL=${DATABASE_URL}
+      - LOG_LEVEL=info
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Local Postgres container (Optional: replace DATABASE_URL with Supabase URL if using cloud DB)
+  postgres:
+    image: postgres:16-alpine
+    container_name: srb-nexus-db
+    restart: always
+    environment:
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: nexuspassword
+      POSTGRES_DB: srb_nexus
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
