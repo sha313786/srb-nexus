@@ -1,17 +1,25 @@
+import { Pool } from 'pg';
 import { logger } from './logger';
 
 export class DatabaseService {
   private connected: boolean = false;
-  private client: any; // Replace 'any' with your actual database client type (e.g., Pool or SupabaseClient)
+  private client: Pool | null = null;
 
-  // Getter for health check
   public get isConnected(): boolean {
     return this.connected;
   }
 
   public async connect(): Promise<void> {
     try {
-      // Connect logic
+      // Initialize the database connection client/pool
+      this.client = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      });
+
+      // Verify connection with a ping
+      await this.client.query('SELECT 1');
+
       this.connected = true;
       logger.info('Database connection established successfully');
     } catch (err) {
@@ -22,16 +30,17 @@ export class DatabaseService {
   }
 
   public async disconnect(): Promise<void> {
+    if (this.client) {
+      await this.client.end();
+    }
     this.connected = false;
     logger.info('Database disconnected');
   }
 
-  // Wrapper method for SQL queries
-  public async query<T = any>(text: string, params?: any[]): Promise<T> {
-    if (!this.connected) {
+  public async query<T = any>(text: string, params?: any[]): Promise<any> {
+    if (!this.client || !this.connected) {
       throw new Error('Database is not connected');
     }
-    // If using pg Pool / Client:
     return this.client.query(text, params);
   }
 }
