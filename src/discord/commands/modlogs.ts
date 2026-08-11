@@ -20,7 +20,8 @@ export const modlogsCommand = {
 
     const targetUser = interaction.options.getUser('target', true);
 
-    const { rows } = await db.query<ModLog>(
+    // Typing query output to return an object with a 'rows' array
+    const { rows } = await db.query<{ rows: ModLog[] }>(
       `SELECT action, moderator_user_id, reason, created_at 
        FROM moderation_logs 
        WHERE guild_id = $1 AND target_user_id = $2 
@@ -28,7 +29,7 @@ export const modlogsCommand = {
       [interaction.guild.id, targetUser.id]
     );
 
-    if (rows.length === 0) {
+    if (!rows || rows.length === 0) {
       await interaction.reply({ content: `No moderation records found for **${targetUser.tag}**.`, ephemeral: true });
       return;
     }

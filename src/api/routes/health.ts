@@ -1,22 +1,18 @@
 import { FastifyInstance } from 'fastify';
-import { discordService } from '../../discord/client';
 import { db } from '../../core/database';
 
 export async function healthRoutes(fastify: FastifyInstance) {
-  fastify.get('/health', async () => {
-    const isDiscordConnected = discordService.client.isReady();
-    const dbStatus = db.isConnected;
+  fastify.get('/health', async (request, reply) => {
+    const isDbConnected = db.isConnected;
 
-    const status = isDiscordConnected && isDbConnected ? 'HEALTHY' : 'DEGRADED';
-
-    return {
-      status,
+    const healthStatus = {
+      status: isDbConnected ? 'ok' : 'degraded',
       timestamp: new Date().toISOString(),
-      services: {
-        discord: isDiscordConnected ? 'UP' : 'DOWN',
-        database: isDbConnected ? 'UP' : 'DOWN',
-        pingMs: discordService.client.ws.ping,
-      },
+      database: isDbConnected ? 'connected' : 'disconnected',
+      uptime: process.uptime(),
     };
+
+    const statusCode = isDbConnected ? 200 : 503;
+    return reply.status(statusCode).send(healthStatus);
   });
 }
