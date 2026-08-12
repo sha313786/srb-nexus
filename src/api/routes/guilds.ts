@@ -2,20 +2,12 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import axios from 'axios';
 import { db } from '../../core/database';
 
-// Augment @fastify/jwt module to properly type request.user
-declare module '@fastify/jwt' {
-  interface FastifyJWT {
-    user: {
-      id: string;
-      username: string;
-      avatar: string | null;
-      accessToken: string;
-    };
-  }
+interface AuthUserPayload {
+  id: string;
+  username: string;
+  avatar: string | null;
+  accessToken: string;
 }
-
-const MANAGE_GUILD_PERMISSION = 0x20;
-const ADMIN_PERMISSION = 0x8;
 
 interface DiscordGuild {
   id: string;
@@ -29,17 +21,20 @@ interface GuildSettingRow {
   guild_id: string;
 }
 
+const MANAGE_GUILD_PERMISSION = 0x20;
+const ADMIN_PERMISSION = 0x8;
+
 export async function guildRoutes(fastify: FastifyInstance) {
   fastify.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      await request.jwtVerify();
+      await (request as any).jwtVerify();
     } catch (err) {
       return reply.status(401).send({ error: 'Unauthorized access' });
     }
   });
 
   fastify.get('/api/guilds', async (request: FastifyRequest, reply: FastifyReply) => {
-    const user = request.user;
+    const user = (request as any).user as AuthUserPayload | undefined;
 
     if (!user || !user.accessToken) {
       return reply.status(401).send({ error: 'Invalid or missing authentication token' });
