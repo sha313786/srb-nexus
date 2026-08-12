@@ -4,7 +4,7 @@ import fastifyJwt from '@fastify/jwt';
 import fastifyStatic from '@fastify/static';
 import path from 'path';
 import dotenv from 'dotenv';
-import { Client, GatewayIntentBits, Guild } from 'discord.js';
+import { Client, GatewayIntentBits, Guild, Events } from 'discord.js';
 
 import { db } from './core/database';
 import { authRoutes } from './api/routes/auth';
@@ -23,17 +23,25 @@ export const bot = new Client({
   ],
 });
 
-// 1. Ready listener: Syncs active guilds into DB when bot logs in
-bot.once('ready', async () => {
+// Helper function to insert/sync guild
+async function registerGuild(guildId: string, guildName?: string) {
+  await db.query(
+    `INSERT INTO guild_settings (guild_id) VALUES ($1) ON CONFLICT (guild_id) DO NOTHING`,
+    [guildId]
+  );
+  if (guildName) {
+    app.log.info(`[BOT] Registered server in database: ${guildName} (${guildId})`);
+  }
+}
+
+// 1. Ready listener
+bot.once(Events.ClientReady, async () => {
   app.log.info(`[BOT] Discord bot online and logged in as ${bot.user?.tag}`);
 
   try {
     const activeGuilds = bot.guilds.cache.map((g) => g.id);
     for (const guildId of activeGuilds) {
-      await db.query(
-        `INSERT INTO guild_settings (guild_id) VALUES ($1) ON CONFLICT (guild_id) DO NOTHING`,
-        [guildId]
-      );
+      await registerGuild(guildId);
     }
     app.log.info(`[BOT] Synced ${activeGuilds.length} joined guilds into database.`);
   } catch (err) {
@@ -41,14 +49,10 @@ bot.once('ready', async () => {
   }
 });
 
-// 2. Guild join listener: Registers new guilds when bot is invited
-bot.on('guildCreate', async (guild: Guild) => {
+// 2. Guild join listener
+bot.on(Events.GuildCreate, async (guild: Guild) => {
   try {
-    await db.query(
-      `INSERT INTO guild_settings (guild_id) VALUES ($1) ON CONFLICT (guild_id) DO NOTHING`,
-      [guild.id]
-    );
-    app.log.info(`[BOT] Registered server in database: ${guild.name} (${guild.id})`);
+    await registerGuild(guild.id, guild.name);
   } catch (err) {
     app.log.error({ err }, `[BOT] Failed to register guild ${guild.id} on join`);
   }
@@ -70,6 +74,11 @@ async function start() {
       prefix: '/',
     });
 
+    // Health check endpoint for Render
+    app.get('/health', async () => {
+      return { status: 'ok' };
+    });
+
     await app.register(authRoutes);
     await app.register(guildRoutes);
 
@@ -80,8 +89,15 @@ async function start() {
     if (typeof (db as any).connect === 'function') {
       await (db as any).connect();
     }
-    await db.query('SELECT 1');
-    app.log.info('Database connection established successfully');
+    
+    // Ensure table exists before executing queries
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS guild_settings (
+        guild_id VARCHAR(32) PRIMARY KEY,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    app.log.info('Database connection established & tables initialized');
 
     const port = Number(process.env.PORT) || 10000;
     await app.listen({ port, host: '0.0.0.0' });
