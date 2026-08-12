@@ -186,7 +186,7 @@ export async function guildRoutes(fastify: FastifyInstance) {
             guild_id: id,
             prefix: '!',
             welcome_channel_id: null,
-            welcome_message: null,
+            welcome_message: 'Welcome to the server, {user}!',
             autorole_id: null,
           },
         });
@@ -213,30 +213,79 @@ export async function guildRoutes(fastify: FastifyInstance) {
       return reply.status(403).send({ error: 'You do not have permission to manage this server' });
     }
 
-    const { prefix, welcome_channel_id, welcome_message, autorole_id } = (request.body as any) || {};
+    const body = (request.body as Record<string, any>) || {};
+
+    // 1. Dynamic Prefix Resolution
+    const prefix = body.prefix || body.cmdPrefix || body.botPrefix || '!';
+
+    // 2. Dynamic Channel ID Resolution (Checks all possible UI key variations)
+    const rawChannelId =
+      body.welcome_channel_id ??
+      body.welcomeChannelId ??
+      body.welcome_channel ??
+      body.welcomeChannel ??
+      body.channel_id ??
+      body.channelId;
+
+    // 3. Dynamic Message Resolution (Checks all possible text field keys)
+    const rawMessage =
+      body.welcome_message ??
+      body.welcomeMessage ??
+      body.welcome_text ??
+      body.welcomeText ??
+      body.welcome_msg ??
+      body.welcomeMsg ??
+      body.message;
+
+    // 4. Dynamic Role ID Resolution
+    const rawRoleId =
+      body.autorole_id ??
+      body.autoroleId ??
+      body.auto_role_id ??
+      body.autoRoleId ??
+      body.role_id ??
+      body.roleId;
+
+    // Sanitize IDs down to raw numbers
+    const cleanChannelId = rawChannelId
+      ? String(rawChannelId).replace(/[<#@!&>]/g, '').trim()
+      : null;
+
+    const cleanRoleId = rawRoleId
+      ? String(rawRoleId).replace(/[<#@!&>]/g, '').trim()
+      : null;
+
+    // Normalize Message: handle non-empty strings or supply a default fallback
+    let cleanMessage: string | null = null;
+    if (rawMessage !== undefined && rawMessage !== null) {
+      const trimmed = String(rawMessage).trim();
+      if (trimmed.length > 0) {
+        cleanMessage = trimmed;
+      }
+    }
+
+    // Fallback: If a channel is selected but message text was omitted or mismatched, provide a working default
+    if (cleanChannelId && !cleanMessage) {
+      cleanMessage = 'Welcome to the server, {user}!';
+    }
 
     try {
-      // Clean IDs to ensure only raw numerical Snowflake IDs are stored in PostgreSQL
-      const cleanChannelId = welcome_channel_id
-        ? String(welcome_channel_id).replace(/[<#@!&>]/g, '').trim()
-        : null;
-      const cleanRoleId = autorole_id
-        ? String(autorole_id).replace(/[<#@!&>]/g, '').trim()
-        : null;
-
       await db.query(
         `INSERT INTO guild_settings (guild_id, prefix, welcome_channel_id, welcome_message, autorole_id, updated_at)
-         VALUES ($1, $2, $3, $4, $5, NOW())
+         VALUES ($1, $2, $3, COALESCE(NULLIF($4, ''), 'Welcome to the server, {user}!'), $5, NOW())
          ON CONFLICT (guild_id) DO UPDATE SET
            prefix = EXCLUDED.prefix,
            welcome_channel_id = EXCLUDED.welcome_channel_id,
-           welcome_message = EXCLUDED.welcome_message,
+           welcome_message = COALESCE(NULLIF(EXCLUDED.welcome_message, ''), 'Welcome to the server, {user}!'),
            autorole_id = EXCLUDED.autorole_id,
            updated_at = NOW()`,
-        [id, prefix || '!', cleanChannelId || null, welcome_message || null, cleanRoleId || null]
+        [id, prefix, cleanChannelId, cleanMessage, cleanRoleId]
       );
 
-      request.log.info(`[API] Saved guild settings for ${id}: Channel=${cleanChannelId}, Role=${cleanRoleId}`);
+      request.log.info({
+        receivedBodyKeys: Object.keys(body),
+        resolvedValues: { cleanChannelId, cleanMessage, cleanRoleId }
+      }, `[API] Saved guild settings for ${id}`);
 
       return reply.send({ success: true, message: 'Settings saved successfully' });
     } catch (err: any) {
