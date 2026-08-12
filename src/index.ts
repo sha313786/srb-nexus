@@ -172,11 +172,12 @@ async function start() {
     await app.register(authRoutes);
     await app.register(guildRoutes);
 
-    // Serve index.html on root / and /dashboard routes
+    // Root route fallback -> serves index.html
     app.get('/', async (request, reply) => {
       return reply.sendFile('index.html');
     });
 
+    // /dashboard fallback -> serves index.html
     app.get('/dashboard', async (request, reply) => {
       return reply.sendFile('index.html');
     });
@@ -185,30 +186,54 @@ async function start() {
       await (db as any).connect();
     }
 
-    // Ensure database table and columns exist
+    // Ensure database table and columns exist for all modules
     await db.query(`
       CREATE TABLE IF NOT EXISTS guild_settings (
         guild_id VARCHAR(32) PRIMARY KEY,
         prefix VARCHAR(10) DEFAULT '!',
         welcome_channel_id VARCHAR(32),
         welcome_message TEXT,
+        leave_channel_id VARCHAR(32),
         autorole_id VARCHAR(32),
+        log_channel_id VARCHAR(32),
+        anti_links BOOLEAN DEFAULT FALSE,
+        anti_spam BOOLEAN DEFAULT FALSE,
+        level_channel_id VARCHAR(32),
+        xp_rate NUMERIC DEFAULT 1.0,
+        dj_role_id VARCHAR(32),
+        default_volume INTEGER DEFAULT 80,
+        currency_symbol VARCHAR(10) DEFAULT '🪙',
+        daily_reward INTEGER DEFAULT 100,
+        transcript_channel_id VARCHAR(32),
+        support_role_id VARCHAR(32),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
-    // Safety migrations for existing database setups
+    // Safety migrations for existing database setups to prevent column missing errors
     await db.query(`
       ALTER TABLE guild_settings 
       ADD COLUMN IF NOT EXISTS prefix VARCHAR(10) DEFAULT '!',
       ADD COLUMN IF NOT EXISTS welcome_channel_id VARCHAR(32),
       ADD COLUMN IF NOT EXISTS welcome_message TEXT,
+      ADD COLUMN IF NOT EXISTS leave_channel_id VARCHAR(32),
       ADD COLUMN IF NOT EXISTS autorole_id VARCHAR(32),
+      ADD COLUMN IF NOT EXISTS log_channel_id VARCHAR(32),
+      ADD COLUMN IF NOT EXISTS anti_links BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS anti_spam BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS level_channel_id VARCHAR(32),
+      ADD COLUMN IF NOT EXISTS xp_rate NUMERIC DEFAULT 1.0,
+      ADD COLUMN IF NOT EXISTS dj_role_id VARCHAR(32),
+      ADD COLUMN IF NOT EXISTS default_volume INTEGER DEFAULT 80,
+      ADD COLUMN IF NOT EXISTS currency_symbol VARCHAR(10) DEFAULT '🪙',
+      ADD COLUMN IF NOT EXISTS daily_reward INTEGER DEFAULT 100,
+      ADD COLUMN IF NOT EXISTS transcript_channel_id VARCHAR(32),
+      ADD COLUMN IF NOT EXISTS support_role_id VARCHAR(32),
       ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
     `);
 
-    app.log.info('Database connection established & tables initialized');
+    app.log.info('Database connection established & tables initialized with module columns');
 
     const port = Number(process.env.PORT) || 10000;
     await app.listen({ port, host: '0.0.0.0' });
