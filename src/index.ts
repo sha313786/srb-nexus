@@ -79,14 +79,21 @@ bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
       }
     }
 
-    // Welcome Message Delivery
+    // Welcome Message Delivery (with Fetch Fallback)
     if (welcome_channel_id && welcome_message) {
-      const channel = member.guild.channels.cache.get(welcome_channel_id);
+      // Try cache first, fallback to API fetch if channel isn't cached
+      let channel = member.guild.channels.cache.get(welcome_channel_id);
+      if (!channel) {
+        channel = await member.guild.channels.fetch(welcome_channel_id).catch(() => undefined);
+      }
+
       if (channel && channel.isTextBased()) {
         const formattedMsg = welcome_message.replace('{user}', `<@${member.id}>`);
         await channel.send(formattedMsg).catch((err) =>
           app.log.error({ err }, `[BOT] Failed to send welcome message in guild ${member.guild.id}`)
         );
+      } else {
+        app.log.warn(`[BOT] Welcome channel ${welcome_channel_id} not found or is not text-based.`);
       }
     }
   } catch (err) {
@@ -163,8 +170,8 @@ async function start() {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    
-    // Safety migrations for existing deployments
+
+    // Safety migrations for existing database setups
     await db.query(`
       ALTER TABLE guild_settings 
       ADD COLUMN IF NOT EXISTS prefix VARCHAR(10) DEFAULT '!',
