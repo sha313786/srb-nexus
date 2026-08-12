@@ -1,6 +1,8 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import axios from 'axios';
 import { db } from '../../core/database';
+import { bot } from '../../index'; // Import the running bot client
+import { ChannelType } from 'discord.js';
 
 interface AuthUserPayload {
   id: string;
@@ -20,10 +22,35 @@ interface DiscordGuild {
 
 interface GuildSettingRow {
   guild_id: string;
+  prefix?: string;
+  welcome_channel_id?: string | null;
+  welcome_message?: string | null;
+  autorole_id?: string | null;
+  updated_at?: Date;
 }
 
 const ADMIN_BIT = BigInt(0x8);
 const MANAGE_GUILD_BIT = BigInt(0x20);
+
+async function verifyUserGuildAccess(accessToken: string, guildId: string): Promise<boolean> {
+  try {
+    const response = await axios.get<DiscordGuild[]>('https://discord.com/api/users/@me/guilds', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    
+    const targetGuild = (response.data || []).find((g) => g.id === guildId);
+    if (!targetGuild) return false;
+    if (targetGuild.owner) return true;
+
+    const permStr = targetGuild.permissions_new || targetGuild.permissions;
+    if (!permStr) return false;
+
+    const perms = BigInt(permStr);
+    return (perms & ADMIN_BIT) !== BigInt(0) || (perms & MANAGE_GUILD_BIT) !== BigInt(0);
+  } catch {
+    return false;
+  }
+}
 
 export async function guildRoutes(fastify: FastifyInstance) {
   fastify.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -34,6 +61,7 @@ export async function guildRoutes(fastify: FastifyInstance) {
     }
   });
 
+  // GET /api/guilds
   fastify.get('/api/guilds', async (request: FastifyRequest, reply: FastifyReply) => {
     const user = (request as any).user as AuthUserPayload | undefined;
 
@@ -42,7 +70,6 @@ export async function guildRoutes(fastify: FastifyInstance) {
       return reply.status(401).send({ error: 'Invalid or missing authentication token' });
     }
 
-    // 1. Fetch guilds from Discord API
     let discordGuilds: DiscordGuild[] = [];
     try {
       const response = await axios.get<DiscordGuild[]>('https://discord.com/api/users/@me/guilds', {
@@ -60,7 +87,6 @@ export async function guildRoutes(fastify: FastifyInstance) {
       });
     }
 
-    // 2. Filter down to servers where user has management rights
     const manageableGuilds = discordGuilds.filter((guild) => {
       if (guild.owner) return true;
       const permStr = guild.permissions_new || guild.permissions;
@@ -73,7 +99,6 @@ export async function guildRoutes(fastify: FastifyInstance) {
       }
     });
 
-    // 3. Fetch configured guild IDs from Database (with safe fallback)
     const botGuildIds = new Set<string>();
     try {
       const dbResult = await db.query<GuildSettingRow>('SELECT guild_id FROM guild_settings');
@@ -84,7 +109,6 @@ export async function guildRoutes(fastify: FastifyInstance) {
       request.log.warn({ dbErr }, 'Database query failed in /api/guilds, defaulting to empty set');
     }
 
-    // 4. Map final result array cleanly
     const result = manageableGuilds.map((guild) => ({
       id: guild.id,
       name: guild.name,
@@ -93,5 +117,119 @@ export async function guildRoutes(fastify: FastifyInstance) {
     }));
 
     return reply.send({ guilds: result });
+  });
+
+  // NEW: GET /api/guilds/:id/data - Fetch server channels and roles for dropdowns
+  fastify.get('/api/guilds/:id/data', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) {
+      return reply.status(403).send({ error: 'You do not have permission to manage this server' });
+    }
+
+    const guild = bot.guilds.cache.get(id);
+    if (!guild) {
+      return reply.status(404).send({ error: 'Bot is not in this guild' });
+    }
+
+    try {
+      // Fetch text channels
+      const channels = guild.channels.cache
+        .filter((c) => c.type === ChannelType.GuildText)
+        .map((c) => ({ id: c.id, name: c.name }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      // Fetch assignable roles (excluding @everyone)
+      const roles = guild.roles.cache
+        .filter((r) => r.name !== '@everyone' && !r.managed)
+        .map((r) => ({ id: r.id, name: r.name }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      return reply.send({ channels, roles });
+    } catch (err) {
+      request.log.error({ err }, 'Failed to fetch channels and roles');
+      return reply.status(500).send({ error: 'Failed to fetch server data' });
+    }
+  });
+
+  // GET /api/guilds/:id/settings
+  fastify.get('/api/guilds/:id/settings', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) {
+      return reply.status(403).send({ error: 'You do not have permission to manage this server' });
+    }
+
+    try {
+      const result = await db.query<GuildSettingRow>(
+        'SELECT * FROM guild_settings WHERE guild_id = $1',
+        [id]
+      );
+
+      if (result.rows.length === 0) {
+        return reply.send({
+          settings: {
+            guild_id: id,
+            prefix: '!',
+            welcome_channel_id: null,
+            welcome_message: null,
+            autorole_id: null,
+          },
+        });
+      }
+
+      return reply.send({ settings: result.rows[0] });
+    } catch (err: any) {
+      request.log.error({ err }, 'Failed to fetch guild settings');
+      return reply.status(500).send({ error: 'Internal server error' });
+    }
+  });
+
+  // POST /api/guilds/:id/settings
+  fastify.post('/api/guilds/:id/settings', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) {
+      return reply.status(403).send({ error: 'You do not have permission to manage this server' });
+    }
+
+    const { prefix, welcome_channel_id, welcome_message, autorole_id } = (request.body as any) || {};
+
+    try {
+      await db.query(
+        `INSERT INTO guild_settings (guild_id, prefix, welcome_channel_id, welcome_message, autorole_id, updated_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())
+         ON CONFLICT (guild_id) DO UPDATE SET
+           prefix = EXCLUDED.prefix,
+           welcome_channel_id = EXCLUDED.welcome_channel_id,
+           welcome_message = EXCLUDED.welcome_message,
+           autorole_id = EXCLUDED.autorole_id,
+           updated_at = NOW()`,
+        [id, prefix || '!', welcome_channel_id || null, welcome_message || null, autorole_id || null]
+      );
+
+      return reply.send({ success: true, message: 'Settings saved successfully' });
+    } catch (err: any) {
+      request.log.error({ err }, 'Failed to update guild settings');
+      return reply.status(500).send({ error: 'Failed to update settings' });
+    }
   });
 }

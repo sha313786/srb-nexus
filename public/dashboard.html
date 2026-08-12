@@ -51,8 +51,10 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-slate-300 mb-2">Welcome Channel ID</label>
-            <input type="text" id="welcome-channel-input" placeholder="123456789012345678" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition">
+            <label class="block text-sm font-medium text-slate-300 mb-2">Welcome Channel</label>
+            <select id="welcome-channel-select" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition">
+              <option value="">Disabled / Select a Channel</option>
+            </select>
           </div>
 
           <div>
@@ -61,8 +63,10 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-slate-300 mb-2">Auto-Role ID</label>
-            <input type="text" id="autorole-input" placeholder="123456789012345678" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition">
+            <label class="block text-sm font-medium text-slate-300 mb-2">Auto-Role</label>
+            <select id="autorole-select" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition">
+              <option value="">Disabled / Select a Role</option>
+            </select>
           </div>
 
           <div class="flex items-center space-x-4 pt-4 border-t border-slate-800">
@@ -137,18 +141,35 @@
       const statusEl = document.getElementById('save-status');
       statusEl.innerText = '';
 
+      const channelSelect = document.getElementById('welcome-channel-select');
+      const roleSelect = document.getElementById('autorole-select');
+
+      channelSelect.innerHTML = '<option value="">Loading channels...</option>';
+      roleSelect.innerHTML = '<option value="">Loading roles...</option>';
+
       try {
+        // Fetch server options (channels & roles)
+        const dataRes = await fetch(`/api/guilds/${guildId}/data`);
+        const { channels, roles } = await dataRes.json();
+
+        channelSelect.innerHTML = '<option value="">Disabled / Select a Channel</option>' + 
+          (channels || []).map(c => `<option value="${c.id}">#${c.name}</option>`).join('');
+
+        roleSelect.innerHTML = '<option value="">Disabled / Select a Role</option>' + 
+          (roles || []).map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+
+        // Fetch current settings
         const res = await fetch(`/api/guilds/${guildId}/settings`);
         const { settings } = await res.json();
         
         if (settings) {
           document.getElementById('prefix-input').value = settings.prefix || '!';
-          document.getElementById('welcome-channel-input').value = settings.welcome_channel_id || '';
+          channelSelect.value = settings.welcome_channel_id || '';
           document.getElementById('welcome-msg-input').value = settings.welcome_message || '';
-          document.getElementById('autorole-input').value = settings.autorole_id || '';
+          roleSelect.value = settings.autorole_id || '';
         }
       } catch (err) {
-        console.error('Failed to load guild settings', err);
+        console.error('Failed to load guild options or settings', err);
       }
     }
 
@@ -169,9 +190,9 @@
 
       const payload = {
         prefix: document.getElementById('prefix-input').value,
-        welcome_channel_id: document.getElementById('welcome-channel-input').value || null,
+        welcome_channel_id: document.getElementById('welcome-channel-select').value || null,
         welcome_message: document.getElementById('welcome-msg-input').value || null,
-        autorole_id: document.getElementById('autorole-input').value || null
+        autorole_id: document.getElementById('autorole-select').value || null
       };
 
       try {
