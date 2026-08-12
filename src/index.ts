@@ -1,8 +1,20 @@
+import Fastify from 'fastify';
+import fastifyCookie from '@fastify/cookie';
+import fastifyJwt from '@fastify/jwt';
+import fastifyStatic from '@fastify/static';
+import path from 'path';
+import dotenv from 'dotenv';
 import { Client, GatewayIntentBits } from 'discord.js';
-import { fastify } from './api'; // adjust to your fastify setup path
-import { db } from './core/database';
 
-// 1. Initialize Discord Client with required Intents
+import { db } from './core/database';
+import { authRoutes } from './api/routes/auth';
+import { guildRoutes } from './api/routes/guilds';
+
+dotenv.config();
+
+const app = Fastify({ logger: true });
+
+// 1. Initialize Discord Bot Client
 export const bot = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -12,27 +24,55 @@ export const bot = new Client({
   ],
 });
 
-// 2. Bot Event Handlers
 bot.once('ready', () => {
-  console.log(`[BOT] Logged in and active as ${bot.user?.tag}!`);
+  app.log.info(`[BOT] Discord bot online and logged in as ${bot.user?.tag}`);
 });
 
-async function startServer() {
+async function start() {
   try {
-    // Connect DB & Start REST API
-    await fastify.listen({ port: Number(process.env.PORT) || 10000, host: '0.0.0.0' });
-    console.log('[API] Fastify REST API running');
+    // 2. Register Plugins
+    await app.register(fastifyCookie);
+    await app.register(fastifyJwt, {
+      secret: process.env.JWT_SECRET || 'nexus-super-secret-key-change-in-prod',
+      cookie: {
+        cookieName: 'nexus_token',
+        signed: false,
+      },
+    });
 
-    // Start Discord Bot
+    await app.register(fastifyStatic, {
+      root: path.join(__dirname, '../public'),
+      prefix: '/',
+    });
+
+    // 3. Register Routes
+    await app.register(authRoutes);
+    await app.register(guildRoutes);
+
+    // Serve Dashboard HTML
+    app.get('/dashboard', async (request, reply) => {
+      return reply.sendFile('dashboard.html');
+    });
+
+    // 4. Test Database Connection
+    await db.query('SELECT 1');
+    app.log.info('Database connection established successfully');
+
+    // 5. Start Fastify Server
+    const port = Number(process.env.PORT) || 10000;
+    await app.listen({ port, host: '0.0.0.0' });
+    app.log.info(`Fastify REST API server running on http://0.0.0.0:${port}`);
+
+    // 6. Log in to Discord Gateway
     if (process.env.DISCORD_TOKEN) {
       await bot.login(process.env.DISCORD_TOKEN);
     } else {
-      console.error('[BOT ERROR] DISCORD_TOKEN is missing in environment variables!');
+      app.log.warn('DISCORD_TOKEN is missing in environment variables. Bot client offline.');
     }
   } catch (err) {
-    console.error('Failed to start engine:', err);
+    app.log.error(err, 'Failed to start SRB NEXUS engine');
     process.exit(1);
   }
 }
 
-startServer();
+start();
