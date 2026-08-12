@@ -2,6 +2,18 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import axios from 'axios';
 import { db } from '../../core/database';
 
+// Augment @fastify/jwt module to properly type request.user
+declare module '@fastify/jwt' {
+  interface FastifyJWT {
+    user: {
+      id: string;
+      username: string;
+      avatar: string | null;
+      accessToken: string;
+    };
+  }
+}
+
 const MANAGE_GUILD_PERMISSION = 0x20;
 const ADMIN_PERMISSION = 0x8;
 
@@ -27,14 +39,18 @@ export async function guildRoutes(fastify: FastifyInstance) {
   });
 
   fastify.get('/api/guilds', async (request: FastifyRequest, reply: FastifyReply) => {
-    const user = request.user as { accessToken: string };
+    const user = request.user;
+
+    if (!user || !user.accessToken) {
+      return reply.status(401).send({ error: 'Invalid or missing authentication token' });
+    }
 
     try {
       const response = await axios.get<DiscordGuild[]>('https://discord.com/api/users/@me/guilds', {
         headers: { Authorization: `Bearer ${user.accessToken}` },
       });
 
-      const manageableGuilds = response.data.filter((guild) => {
+      const manageableGuilds = response.data.filter((guild: DiscordGuild) => {
         const perms = BigInt(guild.permissions);
         return guild.owner || (perms & BigInt(ADMIN_PERMISSION)) !== BigInt(0) || (perms & BigInt(MANAGE_GUILD_PERMISSION)) !== BigInt(0);
       });
@@ -42,7 +58,7 @@ export async function guildRoutes(fastify: FastifyInstance) {
       const { rows } = await db.query<GuildSettingRow>('SELECT guild_id FROM guild_settings');
       const botGuildIds = new Set(rows ? rows.map((row: GuildSettingRow) => row.guild_id) : []);
 
-      const result = manageableGuilds.map((guild) => ({
+      const result = manageableGuilds.map((guild: DiscordGuild) => ({
         id: guild.id,
         name: guild.name,
         icon: guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : null,
