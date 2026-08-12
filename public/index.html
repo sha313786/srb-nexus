@@ -3,13 +3,403 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SRB NEXUS</title>
+  <title>Dashboard — SRB NEXUS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
-  <!-- React Mount Point -->
-  <div id="root"></div>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+  <!-- Top Navigation Bar -->
+  <nav class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center space-x-3 cursor-pointer" onclick="showServerList()">
+      <div class="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center font-black">SN</div>
+      <span class="font-bold tracking-tight text-lg">SRB NEXUS</span>
+    </div>
+    <div id="user-profile" class="flex items-center space-x-3">
+      <span class="text-sm text-slate-400">Loading profile...</span>
+    </div>
+  </nav>
 
-  <!-- Compiled Bundle -->
-  <script type="module" src="/src/main.tsx"></script>
+  <main class="max-w-7xl mx-auto px-6 py-10 w-full flex-1">
+    <!-- Server Selection Section -->
+    <section id="server-selection-section">
+      <h2 class="text-2xl font-bold mb-2">Select a Server</h2>
+      <p class="text-slate-400 text-sm mb-8">Choose a server you manage to configure SRB NEXUS settings.</p>
+
+      <div id="guild-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="p-6 bg-slate-900 border border-slate-800 rounded-2xl animate-pulse text-slate-400">
+          Loading servers...
+        </div>
+      </div>
+    </section>
+
+    <!-- Server Management Panel Section with Sidebar -->
+    <section id="server-manage-section" class="hidden">
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center space-x-4">
+          <button onclick="showServerList()" class="px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition">
+            ← Back to Servers
+          </button>
+          <h2 id="active-guild-name" class="text-2xl font-bold">Server Settings</h2>
+        </div>
+      </div>
+
+      <!-- Dashboard Grid: Sidebar Navigation + Settings Panel -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <!-- Sidebar Navigation -->
+        <aside class="bg-slate-900 border border-slate-800 rounded-2xl p-4 h-fit space-y-1">
+          <button type="button" onclick="switchTab('welcome')" id="tab-welcome" class="tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition bg-indigo-600 text-white">
+            👋 Welcome & Leave
+          </button>
+          <button type="button" onclick="switchTab('moderation')" id="tab-moderation" class="tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-slate-800 hover:text-white">
+            🛡️ Moderation
+          </button>
+          <button type="button" onclick="switchTab('levels')" id="tab-levels" class="tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-slate-800 hover:text-white">
+            ⭐ Leveling & XP
+          </button>
+          <button type="button" onclick="switchTab('music')" id="tab-music" class="tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-slate-800 hover:text-white">
+            🎵 Music Player
+          </button>
+          <button type="button" onclick="switchTab('economy')" id="tab-economy" class="tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-slate-800 hover:text-white">
+            🪙 Economy System
+          </button>
+          <button type="button" onclick="switchTab('tickets')" id="tab-tickets" class="tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-slate-800 hover:text-white">
+            🎫 Support Tickets
+          </button>
+        </aside>
+
+        <!-- Dynamic Form Panels -->
+        <div class="md:col-span-3 bg-slate-900 border border-slate-800 rounded-2xl p-6">
+          <form id="settings-form" onsubmit="saveSettings(event)" class="space-y-6">
+            <input type="hidden" id="guild-id-input">
+
+            <!-- Welcome Panel -->
+            <div id="panel-welcome" class="module-panel space-y-6">
+              <h3 class="text-xl font-bold border-b border-slate-800 pb-3">Welcome & Leave Configuration</h3>
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Welcome Channel</label>
+                <select id="welcome_channel_id" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition channel-select">
+                  <option value="">Disabled / Select a Channel</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Welcome Message</label>
+                <textarea id="welcome_message" rows="3" placeholder="Welcome to the server, {user}!" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition"></textarea>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Leave Channel</label>
+                <select id="leave_channel_id" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition channel-select">
+                  <option value="">Disabled / Select a Channel</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Auto-Role</label>
+                <select id="autorole_id" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition role-select">
+                  <option value="">Disabled / Select a Role</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Moderation Panel -->
+            <div id="panel-moderation" class="module-panel space-y-6 hidden">
+              <h3 class="text-xl font-bold border-b border-slate-800 pb-3">Moderation Settings</h3>
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Audit Log Channel</label>
+                <select id="log_channel_id" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition channel-select">
+                  <option value="">Disabled / Select a Channel</option>
+                </select>
+              </div>
+              <div class="flex items-center space-x-3">
+                <input type="checkbox" id="anti_links" class="w-4 h-4 rounded bg-slate-950 border-slate-800 text-indigo-600 focus:ring-0">
+                <label for="anti_links" class="text-sm text-slate-300 font-medium">Block Unauthorized Links</label>
+              </div>
+              <div class="flex items-center space-x-3">
+                <input type="checkbox" id="anti_spam" class="w-4 h-4 rounded bg-slate-950 border-slate-800 text-indigo-600 focus:ring-0">
+                <label for="anti_spam" class="text-sm text-slate-300 font-medium">Anti-Spam Auto-Mute</label>
+              </div>
+            </div>
+
+            <!-- Levels Panel -->
+            <div id="panel-levels" class="module-panel space-y-6 hidden">
+              <h3 class="text-xl font-bold border-b border-slate-800 pb-3">Leveling & XP Configuration</h3>
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Level-up Channel</label>
+                <select id="level_channel_id" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition channel-select">
+                  <option value="">Send in same channel</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">XP Multiplier</label>
+                <input type="number" id="xp_rate" step="0.1" min="0.5" max="5.0" value="1.0" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition">
+              </div>
+            </div>
+
+            <!-- Music Panel -->
+            <div id="panel-music" class="module-panel space-y-6 hidden">
+              <h3 class="text-xl font-bold border-b border-slate-800 pb-3">Music Player Settings</h3>
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">DJ Role</label>
+                <select id="dj_role_id" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition role-select">
+                  <option value="">Everyone can use player controls</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Default Volume (%)</label>
+                <input type="number" id="default_volume" min="1" max="100" value="80" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition">
+              </div>
+            </div>
+
+            <!-- Economy Panel -->
+            <div id="panel-economy" class="module-panel space-y-6 hidden">
+              <h3 class="text-xl font-bold border-b border-slate-800 pb-3">Economy System</h3>
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Currency Symbol / Emoji</label>
+                <input type="text" id="currency_symbol" value="🪙" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Daily Reward Amount</label>
+                <input type="number" id="daily_reward" value="100" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition">
+              </div>
+            </div>
+
+            <!-- Tickets Panel -->
+            <div id="panel-tickets" class="module-panel space-y-6 hidden">
+              <h3 class="text-xl font-bold border-b border-slate-800 pb-3">Support Ticket System</h3>
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Transcript Channel</label>
+                <select id="transcript_channel_id" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition channel-select">
+                  <option value="">Disabled / Select a Channel</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Support Staff Role</label>
+                <select id="support_role_id" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition role-select">
+                  <option value="">Disabled / Select a Role</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Form Submit Section -->
+            <div class="flex items-center space-x-4 pt-6 border-t border-slate-800">
+              <button type="submit" id="save-btn" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 font-semibold text-sm rounded-xl text-white transition">
+                Save Changes
+              </button>
+              <span id="save-status" class="text-sm"></span>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    let cachedGuilds = [];
+    let currentTab = 'welcome';
+
+    async function initDashboard() {
+      try {
+        const userRes = await fetch('/api/auth/me');
+        if (!userRes.ok) return window.location.href = '/api/auth/login';
+        const { user, clientId } = await userRes.json();
+
+        document.getElementById('user-profile').innerHTML = `
+          <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" class="w-8 h-8 rounded-full border border-indigo-500">
+          <span class="text-sm font-medium">${user.username}</span>
+        `;
+
+        const guildRes = await fetch('/api/guilds');
+        const { guilds } = await guildRes.json();
+        cachedGuilds = guilds || [];
+
+        renderGuildGrid(clientId);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderGuildGrid(clientId) {
+      const grid = document.getElementById('guild-grid');
+      if (!cachedGuilds || cachedGuilds.length === 0) {
+        grid.innerHTML = '<p class="text-slate-400">No manageable servers found.</p>';
+        return;
+      }
+
+      grid.innerHTML = cachedGuilds.map(g => {
+        const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot%20applications.commands&permissions=8&guild_id=${g.id}&disable_guild_select=true`;
+
+        return `
+          <div class="p-6 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl flex items-center justify-between transition">
+            <div class="flex items-center space-x-4">
+              ${g.icon ? `<img src="${g.icon}" class="w-12 h-12 rounded-xl">` : `<div class="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center font-bold text-slate-400">${g.name[0]}</div>`}
+              <div>
+                <h3 class="font-semibold text-white">${g.name}</h3>
+                <span class="text-xs ${g.hasBot ? 'text-emerald-400' : 'text-slate-400'}">${g.hasBot ? '● Active' : 'Not Setup'}</span>
+              </div>
+            </div>
+            ${g.hasBot 
+              ? `<button onclick="openGuildManage('${g.id}', '${escape(g.name)}')" class="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition">Manage</button>`
+              : `<a href="${inviteUrl}" target="_blank" class="px-4 py-2 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition">Invite</a>`
+            }
+          </div>
+        `;
+      }).join('');
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.className = 'tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-slate-800 hover:text-white';
+      });
+      const activeBtn = document.getElementById(`tab-${tab}`);
+      if (activeBtn) {
+        activeBtn.className = 'tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition bg-indigo-600 text-white';
+      }
+
+      document.querySelectorAll('.module-panel').forEach(panel => panel.classList.add('hidden'));
+      const activePanel = document.getElementById(`panel-${tab}`);
+      if (activePanel) {
+        activePanel.classList.remove('hidden');
+      }
+
+      fetchTabSettings();
+    }
+
+    async function openGuildManage(guildId, encodedName) {
+      document.getElementById('server-selection-section').classList.add('hidden');
+      document.getElementById('server-manage-section').classList.remove('hidden');
+      document.getElementById('active-guild-name').innerText = unescape(encodedName);
+      document.getElementById('guild-id-input').value = guildId;
+
+      document.getElementById('save-status').innerText = '';
+
+      try {
+        const dataRes = await fetch(`/api/guilds/${guildId}/data`);
+        const { channels, roles } = await dataRes.json();
+
+        const channelOptions = '<option value="">Disabled / Select a Channel</option>' + 
+          (channels || []).map(c => `<option value="${c.id}">#${c.name}</option>`).join('');
+
+        const roleOptions = '<option value="">Disabled / Select a Role</option>' + 
+          (roles || []).map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+
+        document.querySelectorAll('.channel-select').forEach(sel => sel.innerHTML = channelOptions);
+        document.querySelectorAll('.role-select').forEach(sel => sel.innerHTML = roleOptions);
+
+        switchTab('welcome');
+      } catch (err) {
+        console.error('Failed to load server data', err);
+      }
+    }
+
+    async function fetchTabSettings() {
+      const guildId = document.getElementById('guild-id-input').value;
+      if (!guildId) return;
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/modules/${currentTab}`);
+        const { settings } = await res.json();
+        if (!settings) return;
+
+        if (currentTab === 'welcome') {
+          document.getElementById('welcome_channel_id').value = settings.welcome_channel_id || '';
+          document.getElementById('welcome_message').value = settings.welcome_message || '';
+          document.getElementById('leave_channel_id').value = settings.leave_channel_id || '';
+          document.getElementById('autorole_id').value = settings.autorole_id || '';
+        } else if (currentTab === 'moderation') {
+          document.getElementById('log_channel_id').value = settings.log_channel_id || '';
+          document.getElementById('anti_links').checked = !!settings.anti_links;
+          document.getElementById('anti_spam').checked = !!settings.anti_spam;
+        } else if (currentTab === 'levels') {
+          document.getElementById('level_channel_id').value = settings.level_channel_id || '';
+          document.getElementById('xp_rate').value = settings.xp_rate || 1.0;
+        } else if (currentTab === 'music') {
+          document.getElementById('dj_role_id').value = settings.dj_role_id || '';
+          document.getElementById('default_volume').value = settings.default_volume || 80;
+        } else if (currentTab === 'economy') {
+          document.getElementById('currency_symbol').value = settings.currency_symbol || '🪙';
+          document.getElementById('daily_reward').value = settings.daily_reward || 100;
+        } else if (currentTab === 'tickets') {
+          document.getElementById('transcript_channel_id').value = settings.transcript_channel_id || '';
+          document.getElementById('support_role_id').value = settings.support_role_id || '';
+        }
+      } catch (err) {
+        console.error(`Failed to load ${currentTab} settings`, err);
+      }
+    }
+
+    function showServerList() {
+      document.getElementById('server-manage-section').classList.add('hidden');
+      document.getElementById('server-selection-section').classList.remove('hidden');
+    }
+
+    async function saveSettings(e) {
+      e.preventDefault();
+      const guildId = document.getElementById('guild-id-input').value;
+      const statusEl = document.getElementById('save-status');
+      const saveBtn = document.getElementById('save-btn');
+
+      saveBtn.disabled = true;
+      statusEl.className = 'text-sm text-slate-400';
+      statusEl.innerText = 'Saving...';
+
+      let payload = {};
+      if (currentTab === 'welcome') {
+        payload = {
+          welcome_channel_id: document.getElementById('welcome_channel_id').value || null,
+          welcome_message: document.getElementById('welcome_message').value || null,
+          leave_channel_id: document.getElementById('leave_channel_id').value || null,
+          autorole_id: document.getElementById('autorole_id').value || null
+        };
+      } else if (currentTab === 'moderation') {
+        payload = {
+          log_channel_id: document.getElementById('log_channel_id').value || null,
+          anti_links: document.getElementById('anti_links').checked,
+          anti_spam: document.getElementById('anti_spam').checked
+        };
+      } else if (currentTab === 'levels') {
+        payload = {
+          level_channel_id: document.getElementById('level_channel_id').value || null,
+          xp_rate: parseFloat(document.getElementById('xp_rate').value)
+        };
+      } else if (currentTab === 'music') {
+        payload = {
+          dj_role_id: document.getElementById('dj_role_id').value || null,
+          default_volume: parseInt(document.getElementById('default_volume').value, 10)
+        };
+      } else if (currentTab === 'economy') {
+        payload = {
+          currency_symbol: document.getElementById('currency_symbol').value,
+          daily_reward: parseInt(document.getElementById('daily_reward').value, 10)
+        };
+      } else if (currentTab === 'tickets') {
+        payload = {
+          transcript_channel_id: document.getElementById('transcript_channel_id').value || null,
+          support_role_id: document.getElementById('support_role_id').value || null
+        };
+      }
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/modules/${currentTab}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          statusEl.className = 'text-sm text-emerald-400';
+          statusEl.innerText = 'Settings saved successfully!';
+        } else {
+          statusEl.className = 'text-sm text-rose-400';
+          statusEl.innerText = 'Failed to save settings.';
+        }
+      } catch (err) {
+        statusEl.className = 'text-sm text-rose-400';
+        statusEl.innerText = 'Network error saving settings.';
+      } finally {
+        saveBtn.disabled = false;
+      }
+    }
+
+    initDashboard();
+  </script>
 </body>
 </html>
