@@ -45,10 +45,17 @@ export async function guildRoutes(fastify: FastifyInstance) {
         headers: { Authorization: `Bearer ${user.accessToken}` },
       });
 
-      const manageableGuilds = response.data.filter((guild: DiscordGuild) => {
-        const perms = BigInt(guild.permissions);
-        return guild.owner || (perms & BigInt(ADMIN_PERMISSION)) !== BigInt(0) || (perms & BigInt(MANAGE_GUILD_PERMISSION)) !== BigInt(0);
-      });
+      // Replace the filter logic in src/api/routes/guilds.ts with this robust check:
+const manageableGuilds = response.data.filter((guild: DiscordGuild) => {
+  if (guild.owner) return true;
+  if (!guild.permissions) return false;
+
+  const perms = BigInt(guild.permissions);
+  const ADMINISTRATOR = BigInt(0x8);
+  const MANAGE_GUILD = BigInt(0x20);
+
+  return (perms & ADMINISTRATOR) === ADMINISTRATOR || (perms & MANAGE_GUILD) === MANAGE_GUILD;
+});
 
       const { rows } = await db.query<GuildSettingRow>('SELECT guild_id FROM guild_settings');
       const botGuildIds = new Set(rows ? rows.map((row: GuildSettingRow) => row.guild_id) : []);
