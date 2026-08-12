@@ -13,11 +13,17 @@ interface DiscordGuild {
   id: string;
   name: string;
   icon: string | null;
+  owner?: boolean;
+  permissions?: string;
+  permissions_new?: string;
 }
 
 interface GuildSettingRow {
   guild_id: string;
 }
+
+const ADMIN_BIT = BigInt(0x8);
+const MANAGE_GUILD_BIT = BigInt(0x20);
 
 export async function guildRoutes(fastify: FastifyInstance) {
   fastify.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -54,7 +60,20 @@ export async function guildRoutes(fastify: FastifyInstance) {
       });
     }
 
-    // 2. Fetch configured guild IDs from Database (with safe fallback)
+    // 2. Filter down to servers where user has management rights
+    const manageableGuilds = discordGuilds.filter((guild) => {
+      if (guild.owner) return true;
+      const permStr = guild.permissions_new || guild.permissions;
+      if (!permStr) return false;
+      try {
+        const perms = BigInt(permStr);
+        return (perms & ADMIN_BIT) !== BigInt(0) || (perms & MANAGE_GUILD_BIT) !== BigInt(0);
+      } catch {
+        return false;
+      }
+    });
+
+    // 3. Fetch configured guild IDs from Database (with safe fallback)
     const botGuildIds = new Set<string>();
     try {
       const dbResult = await db.query<GuildSettingRow>('SELECT guild_id FROM guild_settings');
@@ -65,8 +84,8 @@ export async function guildRoutes(fastify: FastifyInstance) {
       request.log.warn({ dbErr }, 'Database query failed in /api/guilds, defaulting to empty set');
     }
 
-    // 3. Map final result array safely
-    const result = discordGuilds.map((guild) => ({
+    // 4. Map final result array cleanly
+    const result = manageableGuilds.map((guild) => ({
       id: guild.id,
       name: guild.name,
       icon: guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : null,
