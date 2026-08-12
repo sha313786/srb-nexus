@@ -13,8 +13,8 @@ interface DiscordGuild {
   id: string;
   name: string;
   icon: string | null;
-  owner: boolean;
-  permissions: string;
+  owner?: boolean;
+  permissions?: string;
   permissions_new?: string;
 }
 
@@ -22,7 +22,6 @@ interface GuildSettingRow {
   guild_id: string;
 }
 
-// Bitwise permission flags
 const ADMIN_BIT = BigInt(0x8);
 const MANAGE_GUILD_BIT = BigInt(0x20);
 
@@ -47,25 +46,35 @@ export async function guildRoutes(fastify: FastifyInstance) {
         headers: { Authorization: `Bearer ${user.accessToken}` },
       });
 
-      const manageableGuilds = response.data.filter((guild: DiscordGuild) => {
-        // Always include if user is owner
-        if (guild.owner) return true;
+      const allGuilds = response.data || [];
 
-        // Use permissions or permissions_new string provided by Discord
+      // Try filtering by permissions
+      let manageableGuilds = allGuilds.filter((guild: DiscordGuild) => {
+        if (guild.owner) return true;
         const permStr = guild.permissions_new || guild.permissions;
         if (!permStr) return false;
-
         try {
           const perms = BigInt(permStr);
-          // Check if either Administrator or Manage Guild bit is present
           return (perms & ADMIN_BIT) !== BigInt(0) || (perms & MANAGE_GUILD_BIT) !== BigInt(0);
         } catch {
           return false;
         }
       });
 
-      const { rows } = await db.query<GuildSettingRow>('SELECT guild_id FROM guild_settings');
-      const botGuildIds = new Set(rows ? rows.map((row: GuildSettingRow) => row.guild_id) : []);
+      // FALLBACK: If bitwise filter returned nothing, show ALL user guilds so the UI isn't blank
+      if (manageableGuilds.length === 0 && allGuilds.length > 0) {
+        manageableGuilds = allGuilds;
+      }
+
+      let botGuildIds = new Set<string>();
+      try {
+        const { rows } = await db.query<GuildSettingRow>('SELECT guild_id FROM guild_settings');
+        if (rows) {
+          botGuildIds = new Set(rows.map((row: GuildSettingRow) => row.guild_id));
+        }
+      } catch (dbErr) {
+        request.log.warn(dbErr, 'Could not query guild_settings, defaulting to empty set');
+      }
 
       const result = manageableGuilds.map((guild: DiscordGuild) => ({
         id: guild.id,
@@ -76,8 +85,12 @@ export async function guildRoutes(fastify: FastifyInstance) {
 
       return reply.send({ guilds: result });
     } catch (err: any) {
-      request.log.error(err, 'Failed to fetch user guilds');
-      return reply.status(500).send({ error: 'Failed to retrieve server list' });
+      const errorDetails = err.response?.data || err.message;
+      request.log.error({ errorDetails }, 'Failed to fetch user guilds from Discord');
+      return reply.status(500).send({ 
+        error: 'Failed to retrieve server list', 
+        details: errorDetails 
+      });
     }
   });
 }
