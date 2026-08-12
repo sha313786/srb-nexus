@@ -84,7 +84,8 @@ bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
       // Try cache first, fallback to API fetch if channel isn't cached
       let channel = member.guild.channels.cache.get(welcome_channel_id);
       if (!channel) {
-        channel = await member.guild.channels.fetch(welcome_channel_id).catch(() => undefined);
+        const fetched = await member.guild.channels.fetch(welcome_channel_id).catch(() => null);
+        if (fetched) channel = fetched;
       }
 
       if (channel && channel.isTextBased()) {
