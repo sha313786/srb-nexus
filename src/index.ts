@@ -54,7 +54,10 @@ async function start() {
       return reply.sendFile('dashboard.html');
     });
 
-    // 4. Test Database Connection
+    // 4. Connect and Test Database Connection
+    if (typeof (db as any).connect === 'function') {
+      await (db as any).connect();
+    }
     await db.query('SELECT 1');
     app.log.info('Database connection established successfully');
 
