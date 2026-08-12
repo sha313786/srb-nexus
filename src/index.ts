@@ -172,8 +172,13 @@ async function start() {
     await app.register(authRoutes);
     await app.register(guildRoutes);
 
+    // Serve index.html on root / and /dashboard routes
+    app.get('/', async (request, reply) => {
+      return reply.sendFile('index.html');
+    });
+
     app.get('/dashboard', async (request, reply) => {
-      return reply.sendFile('dashboard.html');
+      return reply.sendFile('index.html');
     });
 
     if (typeof (db as any).connect === 'function') {
