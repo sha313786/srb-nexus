@@ -3,6 +3,7 @@ import fastifyCookie from '@fastify/cookie';
 import fastifyJwt from '@fastify/jwt';
 import fastifyStatic from '@fastify/static';
 import path from 'path';
+import fs from 'fs';
 import { logger } from '../core/logger';
 import { authRoutes } from './routes/auth';
 import { guildRoutes } from './routes/guilds';
@@ -12,13 +13,18 @@ export const apiServer: FastifyInstance = Fastify({
   logger: false,
 });
 
-// Register Static Files (public directory)
+// Resolve correct public folder path whether running TS source or compiled JS in dist/
+const publicPath = fs.existsSync(path.join(__dirname, '../../public'))
+  ? path.join(__dirname, '../../public')
+  : path.join(__dirname, '../public');
+
+// Register Static Files Plugin
 apiServer.register(fastifyStatic, {
-  root: path.join(__dirname, '../../public'),
+  root: publicPath,
   prefix: '/',
 });
 
-// Register Fastify Cookie and JWT Plugins
+// Register Cookie and JWT Plugins
 apiServer.register(fastifyCookie);
 apiServer.register(fastifyJwt, {
   secret: process.env.JWT_SECRET || 'fallback_secret_key_change_in_production',
@@ -28,7 +34,7 @@ apiServer.register(fastifyJwt, {
   },
 });
 
-// Serve HTML Dashboard Views
+// Serve HTML Views
 apiServer.get('/', async (req, reply) => {
   return reply.sendFile('index.html');
 });
