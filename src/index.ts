@@ -60,45 +60,63 @@ bot.on(Events.GuildCreate, async (guild: Guild) => {
 
 // 3. Welcome Message & Autorole Event
 bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
+  app.log.info(`[BOT] New member joined ${member.guild.name} (${member.guild.id}): ${member.user.tag}`);
+
   try {
     const res = await db.query(
       'SELECT welcome_channel_id, welcome_message, autorole_id FROM guild_settings WHERE guild_id = $1',
       [member.guild.id]
     );
 
-    if (res.rows.length === 0) return;
+    if (res.rows.length === 0) {
+      app.log.warn(`[BOT] No settings found in DB for guild ${member.guild.id}`);
+      return;
+    }
+
     const { welcome_channel_id, welcome_message, autorole_id } = res.rows[0];
 
     // Auto-Role Assignment
     if (autorole_id) {
       const role = member.guild.roles.cache.get(autorole_id);
       if (role) {
-        await member.roles.add(role).catch((err) =>
+        await member.roles.add(role).then(() => {
+          app.log.info(`[BOT] Successfully assigned autorole ${role.name} to ${member.user.tag}`);
+        }).catch((err) =>
           app.log.error({ err }, `[BOT] Failed to assign autorole in guild ${member.guild.id}`)
         );
+      } else {
+        app.log.warn(`[BOT] Configured autorole ID ${autorole_id} not found in guild cache.`);
       }
     }
 
-    // Welcome Message Delivery (with Fetch Fallback)
+    // Welcome Message Delivery
     if (welcome_channel_id && welcome_message) {
-      // Try cache first, fallback to API fetch if channel isn't cached
       let channel = member.guild.channels.cache.get(welcome_channel_id);
       if (!channel) {
-        const fetched = await member.guild.channels.fetch(welcome_channel_id).catch(() => null);
+        app.log.info(`[BOT] Channel ${welcome_channel_id} not in cache, fetching via API...`);
+        const fetched = await member.guild.channels.fetch(welcome_channel_id).catch((err) => {
+          app.log.error({ err }, `[BOT] API fetch failed for channel ${welcome_channel_id}`);
+          return null;
+        });
         if (fetched) channel = fetched;
       }
 
       if (channel && channel.isTextBased()) {
         const formattedMsg = welcome_message.replace('{user}', `<@${member.id}>`);
-        await channel.send(formattedMsg).catch((err) =>
-          app.log.error({ err }, `[BOT] Failed to send welcome message in guild ${member.guild.id}`)
-        );
+
+        await channel.send({ content: formattedMsg }).then(() => {
+          app.log.info(`[BOT] Successfully sent welcome message to channel ${channel.id}`);
+        }).catch((err) => {
+          app.log.error({ err }, `[BOT] Failed to send message to channel ${welcome_channel_id}. Check Send Messages permissions!`);
+        });
       } else {
-        app.log.warn(`[BOT] Welcome channel ${welcome_channel_id} not found or is not text-based.`);
+        app.log.warn(`[BOT] Target welcome channel ${welcome_channel_id} is null or not text-based.`);
       }
+    } else {
+      app.log.warn(`[BOT] Welcome message skipped: channel (${welcome_channel_id}) or message (${welcome_message}) missing.`);
     }
   } catch (err) {
-    app.log.error({ err }, '[BOT] Error in GuildMemberAdd event handler');
+    app.log.error({ err }, '[BOT] Unhandled error in GuildMemberAdd event');
   }
 });
 
