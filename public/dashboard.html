@@ -8,7 +8,7 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
   <nav class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex items-center justify-between">
-    <div class="flex items-center space-x-3">
+    <div class="flex items-center space-x-3 cursor-pointer" onclick="showServerList()">
       <div class="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center font-black">SN</div>
       <span class="font-bold tracking-tight text-lg">SRB NEXUS</span>
     </div>
@@ -18,17 +18,67 @@
   </nav>
 
   <main class="max-w-6xl mx-auto px-6 py-10">
-    <h2 class="text-2xl font-bold mb-2">Select a Server</h2>
-    <p class="text-slate-400 text-sm mb-8">Choose a server you manage to configure SRB NEXUS settings.</p>
+    <!-- Server Selection Section -->
+    <section id="server-selection-section">
+      <h2 class="text-2xl font-bold mb-2">Select a Server</h2>
+      <p class="text-slate-400 text-sm mb-8">Choose a server you manage to configure SRB NEXUS settings.</p>
 
-    <div id="guild-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <div class="p-6 bg-slate-900 border border-slate-800 rounded-2xl animate-pulse text-slate-400">
-        Loading servers...
+      <div id="guild-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="p-6 bg-slate-900 border border-slate-800 rounded-2xl animate-pulse text-slate-400">
+          Loading servers...
+        </div>
       </div>
-    </div>
+    </section>
+
+    <!-- Server Management Panel Section -->
+    <section id="server-manage-section" class="hidden">
+      <div class="flex items-center justify-between mb-8">
+        <div class="flex items-center space-x-4">
+          <button onclick="showServerList()" class="px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition">
+            ← Back to Servers
+          </button>
+          <h2 id="active-guild-name" class="text-2xl font-bold">Server Settings</h2>
+        </div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-2xl">
+        <form id="settings-form" onsubmit="saveSettings(event)" class="space-y-6">
+          <input type="hidden" id="guild-id-input">
+
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-2">Command Prefix</label>
+            <input type="text" id="prefix-input" placeholder="!" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition">
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-2">Welcome Channel ID</label>
+            <input type="text" id="welcome-channel-input" placeholder="123456789012345678" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition">
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-2">Welcome Message</label>
+            <textarea id="welcome-msg-input" rows="3" placeholder="Welcome to the server, {user}!" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition"></textarea>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-2">Auto-Role ID</label>
+            <input type="text" id="autorole-input" placeholder="123456789012345678" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 transition">
+          </div>
+
+          <div class="flex items-center space-x-4 pt-4 border-t border-slate-800">
+            <button type="submit" id="save-btn" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 font-semibold text-sm rounded-xl text-white transition">
+              Save Changes
+            </button>
+            <span id="save-status" class="text-sm"></span>
+          </div>
+        </form>
+      </div>
+    </section>
   </main>
 
   <script>
+    let cachedGuilds = [];
+
     async function initDashboard() {
       try {
         const userRes = await fetch('/api/auth/me');
@@ -42,36 +92,110 @@
 
         const guildRes = await fetch('/api/guilds');
         const { guilds } = await guildRes.json();
-        
-        const grid = document.getElementById('guild-grid');
-        if (!guilds || guilds.length === 0) {
-          grid.innerHTML = '<p class="text-slate-400">No manageable servers found.</p>';
-          return;
-        }
+        cachedGuilds = guilds || [];
 
-        grid.innerHTML = guilds.map(g => {
-          const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot%20applications.commands&permissions=8&guild_id=${g.id}&disable_guild_select=true`;
-
-          return `
-            <div class="p-6 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl flex items-center justify-between transition">
-              <div class="flex items-center space-x-4">
-                ${g.icon ? `<img src="${g.icon}" class="w-12 h-12 rounded-xl">` : `<div class="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center font-bold text-slate-400">${g.name[0]}</div>`}
-                <div>
-                  <h3 class="font-semibold text-white">${g.name}</h3>
-                  <span class="text-xs ${g.hasBot ? 'text-emerald-400' : 'text-slate-400'}">${g.hasBot ? '● Active' : 'Not Setup'}</span>
-                </div>
-              </div>
-              ${g.hasBot 
-                ? `<button class="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition">Manage</button>`
-                : `<a href="${inviteUrl}" target="_blank" class="px-4 py-2 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition">Invite</a>`
-              }
-            </div>
-          `;
-        }).join('');
+        renderGuildGrid(clientId);
       } catch (err) {
         console.error(err);
       }
     }
+
+    function renderGuildGrid(clientId) {
+      const grid = document.getElementById('guild-grid');
+      if (!cachedGuilds || cachedGuilds.length === 0) {
+        grid.innerHTML = '<p class="text-slate-400">No manageable servers found.</p>';
+        return;
+      }
+
+      grid.innerHTML = cachedGuilds.map(g => {
+        const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot%20applications.commands&permissions=8&guild_id=${g.id}&disable_guild_select=true`;
+
+        return `
+          <div class="p-6 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl flex items-center justify-between transition">
+            <div class="flex items-center space-x-4">
+              ${g.icon ? `<img src="${g.icon}" class="w-12 h-12 rounded-xl">` : `<div class="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center font-bold text-slate-400">${g.name[0]}</div>`}
+              <div>
+                <h3 class="font-semibold text-white">${g.name}</h3>
+                <span class="text-xs ${g.hasBot ? 'text-emerald-400' : 'text-slate-400'}">${g.hasBot ? '● Active' : 'Not Setup'}</span>
+              </div>
+            </div>
+            ${g.hasBot 
+              ? `<button onclick="openGuildManage('${g.id}', '${escape(g.name)}')" class="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition">Manage</button>`
+              : `<a href="${inviteUrl}" target="_blank" class="px-4 py-2 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition">Invite</a>`
+            }
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function openGuildManage(guildId, encodedName) {
+      document.getElementById('server-selection-section').classList.add('hidden');
+      document.getElementById('server-manage-section').classList.remove('hidden');
+      document.getElementById('active-guild-name').innerText = unescape(encodedName);
+      document.getElementById('guild-id-input').value = guildId;
+
+      const statusEl = document.getElementById('save-status');
+      statusEl.innerText = '';
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/settings`);
+        const { settings } = await res.json();
+        
+        if (settings) {
+          document.getElementById('prefix-input').value = settings.prefix || '!';
+          document.getElementById('welcome-channel-input').value = settings.welcome_channel_id || '';
+          document.getElementById('welcome-msg-input').value = settings.welcome_message || '';
+          document.getElementById('autorole-input').value = settings.autorole_id || '';
+        }
+      } catch (err) {
+        console.error('Failed to load guild settings', err);
+      }
+    }
+
+    function showServerList() {
+      document.getElementById('server-manage-section').classList.add('hidden');
+      document.getElementById('server-selection-section').classList.remove('hidden');
+    }
+
+    async function saveSettings(e) {
+      e.preventDefault();
+      const guildId = document.getElementById('guild-id-input').value;
+      const statusEl = document.getElementById('save-status');
+      const saveBtn = document.getElementById('save-btn');
+
+      saveBtn.disabled = true;
+      statusEl.className = 'text-sm text-slate-400';
+      statusEl.innerText = 'Saving...';
+
+      const payload = {
+        prefix: document.getElementById('prefix-input').value,
+        welcome_channel_id: document.getElementById('welcome-channel-input').value || null,
+        welcome_message: document.getElementById('welcome-msg-input').value || null,
+        autorole_id: document.getElementById('autorole-input').value || null
+      };
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/settings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          statusEl.className = 'text-sm text-emerald-400';
+          statusEl.innerText = 'Settings saved successfully!';
+        } else {
+          statusEl.className = 'text-sm text-rose-400';
+          statusEl.innerText = 'Failed to save settings.';
+        }
+      } catch (err) {
+        statusEl.className = 'text-sm text-rose-400';
+        statusEl.innerText = 'Network error saving settings.';
+      } finally {
+        saveBtn.disabled = false;
+      }
+    }
+
     initDashboard();
   </script>
 </body>
