@@ -7,7 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
-  <!-- Navbar -->
+  <!-- Top Navigation Bar -->
   <nav class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex items-center justify-between">
     <div class="flex items-center space-x-3 cursor-pointer" onclick="showServerList()">
       <div class="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center font-black">SN</div>
@@ -42,31 +42,31 @@
         </div>
       </div>
 
-      <!-- Dashboard Layout: Sidebar + Main Panel -->
+      <!-- Dashboard Grid: Sidebar Navigation + Settings Panel -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         <!-- Sidebar Navigation -->
         <aside class="bg-slate-900 border border-slate-800 rounded-2xl p-4 h-fit space-y-1">
-          <button onclick="switchTab('welcome')" id="tab-welcome" class="tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition bg-indigo-600 text-white">
+          <button type="button" onclick="switchTab('welcome')" id="tab-welcome" class="tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition bg-indigo-600 text-white">
             👋 Welcome & Leave
           </button>
-          <button onclick="switchTab('moderation')" id="tab-moderation" class="tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-slate-800 hover:text-white">
+          <button type="button" onclick="switchTab('moderation')" id="tab-moderation" class="tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-slate-800 hover:text-white">
             🛡️ Moderation
           </button>
-          <button onclick="switchTab('levels')" id="tab-levels" class="tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-slate-800 hover:text-white">
+          <button type="button" onclick="switchTab('levels')" id="tab-levels" class="tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-slate-800 hover:text-white">
             ⭐ Leveling & XP
           </button>
-          <button onclick="switchTab('music')" id="tab-music" class="tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-slate-800 hover:text-white">
+          <button type="button" onclick="switchTab('music')" id="tab-music" class="tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-slate-800 hover:text-white">
             🎵 Music Player
           </button>
-          <button onclick="switchTab('economy')" id="tab-economy" class="tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-slate-800 hover:text-white">
+          <button type="button" onclick="switchTab('economy')" id="tab-economy" class="tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-slate-800 hover:text-white">
             🪙 Economy System
           </button>
-          <button onclick="switchTab('tickets')" id="tab-tickets" class="tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-slate-800 hover:text-white">
+          <button type="button" onclick="switchTab('tickets')" id="tab-tickets" class="tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-slate-800 hover:text-white">
             🎫 Support Tickets
           </button>
         </aside>
 
-        <!-- Main Form Panel -->
+        <!-- Dynamic Form Panels -->
         <div class="md:col-span-3 bg-slate-900 border border-slate-800 rounded-2xl p-6">
           <form id="settings-form" onsubmit="saveSettings(event)" class="space-y-6">
             <input type="hidden" id="guild-id-input">
@@ -177,7 +177,7 @@
               </div>
             </div>
 
-            <!-- Form Submit -->
+            <!-- Form Submit Section -->
             <div class="flex items-center space-x-4 pt-6 border-t border-slate-800">
               <button type="submit" id="save-btn" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 font-semibold text-sm rounded-xl text-white transition">
                 Save Changes
@@ -246,7 +246,7 @@
     function switchTab(tab) {
       currentTab = tab;
       
-      // Update sidebar styles
+      // Reset sidebar style
       document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.className = 'tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-slate-800 hover:text-white';
       });
@@ -255,14 +255,13 @@
         activeBtn.className = 'tab-btn w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition bg-indigo-600 text-white';
       }
 
-      // Hide all panels, show active panel
+      // Hide panels and show selected one
       document.querySelectorAll('.module-panel').forEach(panel => panel.classList.add('hidden'));
       const activePanel = document.getElementById(`panel-${tab}`);
       if (activePanel) {
         activePanel.classList.remove('hidden');
       }
 
-      // Load settings for the selected module tab
       fetchTabSettings();
     }
 
@@ -274,7 +273,6 @@
 
       document.getElementById('save-status').innerText = '';
 
-      // Load channels and roles into all drop-downs
       try {
         const dataRes = await fetch(`/api/guilds/${guildId}/data`);
         const { channels, roles } = await dataRes.json();
@@ -303,7 +301,6 @@
         const { settings } = await res.json();
         if (!settings) return;
 
-        // Populate active tab fields
         if (currentTab === 'welcome') {
           document.getElementById('welcome_channel_id').value = settings.welcome_channel_id || '';
           document.getElementById('welcome_message').value = settings.welcome_message || '';
