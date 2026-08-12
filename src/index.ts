@@ -4,7 +4,7 @@ import fastifyJwt from '@fastify/jwt';
 import fastifyStatic from '@fastify/static';
 import path from 'path';
 import dotenv from 'dotenv';
-import { Client, GatewayIntentBits, Guild, Events } from 'discord.js';
+import { Client, GatewayIntentBits, Guild, Events, GuildMember, Message } from 'discord.js';
 
 import { db } from './core/database';
 import { authRoutes } from './api/routes/auth';
@@ -58,6 +58,67 @@ bot.on(Events.GuildCreate, async (guild: Guild) => {
   }
 });
 
+// 3. Welcome Message & Autorole Event
+bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
+  try {
+    const res = await db.query(
+      'SELECT welcome_channel_id, welcome_message, autorole_id FROM guild_settings WHERE guild_id = $1',
+      [member.guild.id]
+    );
+
+    if (res.rows.length === 0) return;
+    const { welcome_channel_id, welcome_message, autorole_id } = res.rows[0];
+
+    // Auto-Role Assignment
+    if (autorole_id) {
+      const role = member.guild.roles.cache.get(autorole_id);
+      if (role) {
+        await member.roles.add(role).catch((err) =>
+          app.log.error({ err }, `[BOT] Failed to assign autorole in guild ${member.guild.id}`)
+        );
+      }
+    }
+
+    // Welcome Message Delivery
+    if (welcome_channel_id && welcome_message) {
+      const channel = member.guild.channels.cache.get(welcome_channel_id);
+      if (channel && channel.isTextBased()) {
+        const formattedMsg = welcome_message.replace('{user}', `<@${member.id}>`);
+        await channel.send(formattedMsg).catch((err) =>
+          app.log.error({ err }, `[BOT] Failed to send welcome message in guild ${member.guild.id}`)
+        );
+      }
+    }
+  } catch (err) {
+    app.log.error({ err }, '[BOT] Error in GuildMemberAdd event handler');
+  }
+});
+
+// 4. Custom Prefix Command Handling
+bot.on(Events.MessageCreate, async (message: Message) => {
+  if (message.author.bot || !message.guild) return;
+
+  try {
+    const res = await db.query(
+      'SELECT prefix FROM guild_settings WHERE guild_id = $1',
+      [message.guild.id]
+    );
+
+    const prefix = res.rows[0]?.prefix || '!';
+
+    if (!message.content.startsWith(prefix)) return;
+
+    const args = message.content.slice(prefix.length).trim().split(/\s+/);
+    const commandName = args.shift()?.toLowerCase();
+
+    if (commandName === 'ping') {
+      await message.reply('Pong!');
+    }
+  } catch (err) {
+    app.log.error({ err }, '[BOT] Error in MessageCreate event handler');
+  }
+});
+
 async function start() {
   try {
     await app.register(fastifyCookie);
@@ -89,14 +150,30 @@ async function start() {
     if (typeof (db as any).connect === 'function') {
       await (db as any).connect();
     }
-    
-    // Ensure table exists before executing queries
+
+    // Ensure database table and columns exist
     await db.query(`
       CREATE TABLE IF NOT EXISTS guild_settings (
         guild_id VARCHAR(32) PRIMARY KEY,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        prefix VARCHAR(10) DEFAULT '!',
+        welcome_channel_id VARCHAR(32),
+        welcome_message TEXT,
+        autorole_id VARCHAR(32),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    
+    // Safety migrations for existing deployments
+    await db.query(`
+      ALTER TABLE guild_settings 
+      ADD COLUMN IF NOT EXISTS prefix VARCHAR(10) DEFAULT '!',
+      ADD COLUMN IF NOT EXISTS welcome_channel_id VARCHAR(32),
+      ADD COLUMN IF NOT EXISTS welcome_message TEXT,
+      ADD COLUMN IF NOT EXISTS autorole_id VARCHAR(32),
+      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+    `);
+
     app.log.info('Database connection established & tables initialized');
 
     const port = Number(process.env.PORT) || 10000;
