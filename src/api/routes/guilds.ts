@@ -15,14 +15,16 @@ interface DiscordGuild {
   icon: string | null;
   owner: boolean;
   permissions: string;
+  permissions_new?: string;
 }
 
 interface GuildSettingRow {
   guild_id: string;
 }
 
-const MANAGE_GUILD_PERMISSION = 0x20;
-const ADMIN_PERMISSION = 0x8;
+// Bitwise permission flags
+const ADMIN_BIT = BigInt(0x8);
+const MANAGE_GUILD_BIT = BigInt(0x20);
 
 export async function guildRoutes(fastify: FastifyInstance) {
   fastify.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -45,17 +47,22 @@ export async function guildRoutes(fastify: FastifyInstance) {
         headers: { Authorization: `Bearer ${user.accessToken}` },
       });
 
-      // Replace the filter logic in src/api/routes/guilds.ts with this robust check:
-const manageableGuilds = response.data.filter((guild: DiscordGuild) => {
-  if (guild.owner) return true;
-  if (!guild.permissions) return false;
+      const manageableGuilds = response.data.filter((guild: DiscordGuild) => {
+        // Always include if user is owner
+        if (guild.owner) return true;
 
-  const perms = BigInt(guild.permissions);
-  const ADMINISTRATOR = BigInt(0x8);
-  const MANAGE_GUILD = BigInt(0x20);
+        // Use permissions or permissions_new string provided by Discord
+        const permStr = guild.permissions_new || guild.permissions;
+        if (!permStr) return false;
 
-  return (perms & ADMINISTRATOR) === ADMINISTRATOR || (perms & MANAGE_GUILD) === MANAGE_GUILD;
-});
+        try {
+          const perms = BigInt(permStr);
+          // Check if either Administrator or Manage Guild bit is present
+          return (perms & ADMIN_BIT) !== BigInt(0) || (perms & MANAGE_GUILD_BIT) !== BigInt(0);
+        } catch {
+          return false;
+        }
+      });
 
       const { rows } = await db.query<GuildSettingRow>('SELECT guild_id FROM guild_settings');
       const botGuildIds = new Set(rows ? rows.map((row: GuildSettingRow) => row.guild_id) : []);
