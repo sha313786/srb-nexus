@@ -17,13 +17,16 @@ interface DiscordUserResponse {
 }
 
 export async function authRoutes(fastify: FastifyInstance) {
-  // 1. Redirect user to Discord OAuth2 Authorization Page
+  // 1. Redirect user to Discord OAuth2 Authorization Page (Clears old token)
   fastify.get('/api/auth/discord/login', async (request: FastifyRequest, reply: FastifyReply) => {
+    // Clear existing session cookie to force fresh login
+    reply.clearCookie('nexus_token', { path: '/' });
+
     const clientId = process.env.DISCORD_CLIENT_ID;
     const redirectUri = encodeURIComponent(process.env.DISCORD_REDIRECT_URI || '');
     const scope = encodeURIComponent('identify guilds');
 
-    const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
+    const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&prompt=consent`;
     
     return reply.redirect(discordAuthUrl);
   });
