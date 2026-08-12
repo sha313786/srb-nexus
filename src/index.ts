@@ -4,7 +4,7 @@ import fastifyJwt from '@fastify/jwt';
 import fastifyStatic from '@fastify/static';
 import path from 'path';
 import dotenv from 'dotenv';
-import { Client, GatewayIntentBits } from 'discord.js';
+import { Client, GatewayIntentBits, Guild } from 'discord.js';
 
 import { db } from './core/database';
 import { authRoutes } from './api/routes/auth';
@@ -14,7 +14,6 @@ dotenv.config();
 
 const app = Fastify({ logger: true });
 
-// 1. Initialize Discord Bot Client
 export const bot = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -24,13 +23,39 @@ export const bot = new Client({
   ],
 });
 
-bot.once('ready', () => {
+// 1. Ready listener: Syncs active guilds into DB when bot logs in
+bot.once('ready', async () => {
   app.log.info(`[BOT] Discord bot online and logged in as ${bot.user?.tag}`);
+
+  try {
+    const activeGuilds = bot.guilds.cache.map((g) => g.id);
+    for (const guildId of activeGuilds) {
+      await db.query(
+        `INSERT INTO guild_settings (guild_id) VALUES ($1) ON CONFLICT (guild_id) DO NOTHING`,
+        [guildId]
+      );
+    }
+    app.log.info(`[BOT] Synced ${activeGuilds.length} joined guilds into database.`);
+  } catch (err) {
+    app.log.error({ err }, '[BOT] Failed to sync joined guilds to database');
+  }
+});
+
+// 2. Guild join listener: Registers new guilds when bot is invited
+bot.on('guildCreate', async (guild: Guild) => {
+  try {
+    await db.query(
+      `INSERT INTO guild_settings (guild_id) VALUES ($1) ON CONFLICT (guild_id) DO NOTHING`,
+      [guild.id]
+    );
+    app.log.info(`[BOT] Registered server in database: ${guild.name} (${guild.id})`);
+  } catch (err) {
+    app.log.error({ err }, `[BOT] Failed to register guild ${guild.id} on join`);
+  }
 });
 
 async function start() {
   try {
-    // 2. Register Plugins
     await app.register(fastifyCookie);
     await app.register(fastifyJwt, {
       secret: process.env.JWT_SECRET || 'nexus-super-secret-key-change-in-prod',
@@ -45,28 +70,23 @@ async function start() {
       prefix: '/',
     });
 
-    // 3. Register Routes
     await app.register(authRoutes);
     await app.register(guildRoutes);
 
-    // Serve Dashboard HTML
     app.get('/dashboard', async (request, reply) => {
       return reply.sendFile('dashboard.html');
     });
 
-    // 4. Connect and Test Database Connection
     if (typeof (db as any).connect === 'function') {
       await (db as any).connect();
     }
     await db.query('SELECT 1');
     app.log.info('Database connection established successfully');
 
-    // 5. Start Fastify Server
     const port = Number(process.env.PORT) || 10000;
     await app.listen({ port, host: '0.0.0.0' });
     app.log.info(`Fastify REST API server running on http://0.0.0.0:${port}`);
 
-    // 6. Log in to Discord Gateway
     if (process.env.DISCORD_TOKEN) {
       await bot.login(process.env.DISCORD_TOKEN);
     } else {
