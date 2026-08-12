@@ -22,7 +22,9 @@
     <p class="text-slate-400 text-sm mb-8">Choose a server you manage to configure SRB NEXUS settings.</p>
 
     <div id="guild-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <div class="p-6 bg-slate-900 border border-slate-800 rounded-2xl animate-pulse">Loading servers...</div>
+      <div class="p-6 bg-slate-900 border border-slate-800 rounded-2xl animate-pulse text-slate-400">
+        Loading servers...
+      </div>
     </div>
   </main>
 
@@ -31,7 +33,7 @@
       try {
         const userRes = await fetch('/api/auth/me');
         if (!userRes.ok) return window.location.href = '/';
-        const { user } = await userRes.json();
+        const { user, clientId } = await userRes.json();
 
         document.getElementById('user-profile').innerHTML = `
           <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" class="w-8 h-8 rounded-full border border-indigo-500">
@@ -47,21 +49,25 @@
           return;
         }
 
-        grid.innerHTML = guilds.map(g => `
-          <div class="p-6 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl flex items-center justify-between transition">
-            <div class="flex items-center space-x-4">
-              ${g.icon ? `<img src="${g.icon}" class="w-12 h-12 rounded-xl">` : `<div class="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center font-bold text-slate-400">${g.name[0]}</div>`}
-              <div>
-                <h3 class="font-semibold text-white">${g.name}</h3>
-                <span class="text-xs ${g.hasBot ? 'text-emerald-400' : 'text-slate-400'}">${g.hasBot ? '● Active' : 'Not Setup'}</span>
+        grid.innerHTML = guilds.map(g => {
+          const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot%20applications.commands&permissions=8&guild_id=${g.id}&disable_guild_select=true`;
+
+          return `
+            <div class="p-6 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl flex items-center justify-between transition">
+              <div class="flex items-center space-x-4">
+                ${g.icon ? `<img src="${g.icon}" class="w-12 h-12 rounded-xl">` : `<div class="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center font-bold text-slate-400">${g.name[0]}</div>`}
+                <div>
+                  <h3 class="font-semibold text-white">${g.name}</h3>
+                  <span class="text-xs ${g.hasBot ? 'text-emerald-400' : 'text-slate-400'}">${g.hasBot ? '● Active' : 'Not Setup'}</span>
+                </div>
               </div>
+              ${g.hasBot 
+                ? `<button class="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition">Manage</button>`
+                : `<a href="${inviteUrl}" target="_blank" class="px-4 py-2 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition">Invite</a>`
+              }
             </div>
-            ${g.hasBot 
-              ? `<button class="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition">Manage</button>`
-              : `<a href="https://discord.com/oauth2/authorize?client_id=${user.id}&scope=bot" target="_blank" class="px-4 py-2 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition">Invite</a>`
-            }
-          </div>
-        `).join('');
+          `;
+        }).join('');
       } catch (err) {
         console.error(err);
       }

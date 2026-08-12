@@ -89,7 +89,10 @@ export async function authRoutes(fastify: FastifyInstance) {
   fastify.get('/api/auth/me', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       await request.jwtVerify();
-      return reply.send({ user: request.user });
+      return reply.send({ 
+        user: request.user,
+        clientId: process.env.DISCORD_CLIENT_ID 
+      });
     } catch (err) {
       return reply.status(401).send({ error: 'Unauthorized' });
     }
