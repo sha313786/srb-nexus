@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — SRB NEXUS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+  <nav class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center font-black">SN</div>
+      <span class="font-bold tracking-tight text-lg">SRB NEXUS</span>
+    </div>
+    <div id="user-profile" class="flex items-center space-x-3">
+      <span class="text-sm text-slate-400">Loading profile...</span>
+    </div>
+  </nav>
+
+  <main class="max-w-6xl mx-auto px-6 py-10">
+    <h2 class="text-2xl font-bold mb-2">Select a Server</h2>
+    <p class="text-slate-400 text-sm mb-8">Choose a server you manage to configure SRB NEXUS settings.</p>
+
+    <div id="guild-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div class="p-6 bg-slate-900 border border-slate-800 rounded-2xl animate-pulse">Loading servers...</div>
+    </div>
+  </main>
+
+  <script>
+    async function initDashboard() {
+      try {
+        const userRes = await fetch('/api/auth/me');
+        if (!userRes.ok) return window.location.href = '/';
+        const { user } = await userRes.json();
+
+        document.getElementById('user-profile').innerHTML = `
+          <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" class="w-8 h-8 rounded-full border border-indigo-500">
+          <span class="text-sm font-medium">${user.username}</span>
+        `;
+
+        const guildRes = await fetch('/api/guilds');
+        const { guilds } = await guildRes.json();
+        
+        const grid = document.getElementById('guild-grid');
+        if (!guilds || guilds.length === 0) {
+          grid.innerHTML = '<p class="text-slate-400">No manageable servers found.</p>';
+          return;
+        }
+
+        grid.innerHTML = guilds.map(g => `
+          <div class="p-6 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl flex items-center justify-between transition">
+            <div class="flex items-center space-x-4">
+              ${g.icon ? `<img src="${g.icon}" class="w-12 h-12 rounded-xl">` : `<div class="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center font-bold text-slate-400">${g.name[0]}</div>`}
+              <div>
+                <h3 class="font-semibold text-white">${g.name}</h3>
+                <span class="text-xs ${g.hasBot ? 'text-emerald-400' : 'text-slate-400'}">${g.hasBot ? '● Active' : 'Not Setup'}</span>
+              </div>
+            </div>
+            ${g.hasBot 
+              ? `<button class="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition">Manage</button>`
+              : `<a href="https://discord.com/oauth2/authorize?client_id=${user.id}&scope=bot" target="_blank" class="px-4 py-2 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition">Invite</a>`
+            }
+          </div>
+        `).join('');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    initDashboard();
+  </script>
+</body>
+</html>
