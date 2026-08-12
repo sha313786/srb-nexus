@@ -37,7 +37,7 @@ async function verifyUserGuildAccess(accessToken: string, guildId: string): Prom
     const response = await axios.get<DiscordGuild[]>('https://discord.com/api/users/@me/guilds', {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
-    
+
     const targetGuild = (response.data || []).find((g) => g.id === guildId);
     if (!targetGuild) return false;
     if (targetGuild.owner) return true;
@@ -119,7 +119,7 @@ export async function guildRoutes(fastify: FastifyInstance) {
     return reply.send({ guilds: result });
   });
 
-  // NEW: GET /api/guilds/:id/data - Fetch server channels and roles for dropdowns
+  // GET /api/guilds/:id/data - Fetch server channels and roles for dropdowns
   fastify.get('/api/guilds/:id/data', async (request: FastifyRequest, reply: FastifyReply) => {
     const user = (request as any).user as AuthUserPayload | undefined;
     const { id } = request.params as { id: string };
@@ -139,14 +139,16 @@ export async function guildRoutes(fastify: FastifyInstance) {
     }
 
     try {
-      // Fetch text channels
-      const channels = guild.channels.cache
-        .filter((c) => c.type === ChannelType.GuildText)
-        .map((c) => ({ id: c.id, name: c.name }))
+      // Fetch text channels via API fallback to avoid cache miss issues
+      const fetchedChannels = await guild.channels.fetch();
+      const channels = fetchedChannels
+        .filter((c) => c !== null && (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement))
+        .map((c) => ({ id: c!.id, name: c!.name }))
         .sort((a, b) => a.name.localeCompare(b.name));
 
-      // Fetch assignable roles (excluding @everyone)
-      const roles = guild.roles.cache
+      // Fetch assignable roles via API fallback
+      const fetchedRoles = await guild.roles.fetch();
+      const roles = fetchedRoles
         .filter((r) => r.name !== '@everyone' && !r.managed)
         .map((r) => ({ id: r.id, name: r.name }))
         .sort((a, b) => a.name.localeCompare(b.name));
@@ -214,6 +216,14 @@ export async function guildRoutes(fastify: FastifyInstance) {
     const { prefix, welcome_channel_id, welcome_message, autorole_id } = (request.body as any) || {};
 
     try {
+      // Clean IDs to ensure only raw numerical Snowflake IDs are stored in PostgreSQL
+      const cleanChannelId = welcome_channel_id
+        ? String(welcome_channel_id).replace(/[<#@!&>]/g, '').trim()
+        : null;
+      const cleanRoleId = autorole_id
+        ? String(autorole_id).replace(/[<#@!&>]/g, '').trim()
+        : null;
+
       await db.query(
         `INSERT INTO guild_settings (guild_id, prefix, welcome_channel_id, welcome_message, autorole_id, updated_at)
          VALUES ($1, $2, $3, $4, $5, NOW())
@@ -223,8 +233,10 @@ export async function guildRoutes(fastify: FastifyInstance) {
            welcome_message = EXCLUDED.welcome_message,
            autorole_id = EXCLUDED.autorole_id,
            updated_at = NOW()`,
-        [id, prefix || '!', welcome_channel_id || null, welcome_message || null, autorole_id || null]
+        [id, prefix || '!', cleanChannelId || null, welcome_message || null, cleanRoleId || null]
       );
+
+      request.log.info(`[API] Saved guild settings for ${id}: Channel=${cleanChannelId}, Role=${cleanRoleId}`);
 
       return reply.send({ success: true, message: 'Settings saved successfully' });
     } catch (err: any) {
