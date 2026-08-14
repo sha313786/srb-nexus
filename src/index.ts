@@ -4,7 +4,7 @@ import fastifyJwt from '@fastify/jwt';
 import fastifyStatic from '@fastify/static';
 import path from 'path';
 import dotenv from 'dotenv';
-import { Client, GatewayIntentBits, Guild, Events, GuildMember, Message } from 'discord.js';
+import { Client, GatewayIntentBits, Guild, Events, GuildMember, Message, EmbedBuilder } from 'discord.js';
 
 import { db } from './core/database';
 import { authRoutes } from './api/routes/auth';
@@ -58,7 +58,7 @@ bot.on(Events.GuildCreate, async (guild: Guild) => {
   }
 });
 
-// 3. Welcome Message & Autorole Event
+// 3. Welcome Message & Autorole Event (With Rich Embed Card)
 bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
   console.log(`\n========================================`);
   app.log.info(`[BOT] NEW MEMBER JOIN DETECTED: ${member.user.tag} (${member.id}) in guild ${member.guild.name} (${member.guild.id})`);
@@ -93,8 +93,8 @@ bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
       }
     }
 
-    // Welcome Message Delivery
-    if (welcome_channel_id && welcome_message) {
+    // Welcome Embed Delivery
+    if (welcome_channel_id) {
       const cleanChannelId = String(welcome_channel_id).replace(/[<#@!&>]/g, '').trim();
       
       let channel = member.guild.channels.cache.get(cleanChannelId);
@@ -107,15 +107,42 @@ bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
       }
 
       if (channel && channel.isTextBased()) {
-        const formattedMsg = welcome_message.replace('{user}', `<@${member.id}>`);
-        await channel.send({ content: formattedMsg })
-          .then(() => app.log.info(`[BOT] SUCCESS: Sent welcome message to channel ${cleanChannelId}`))
+        const customMsg = welcome_message || 'Welcome to {server}, {user}!';
+        const formattedMsg = customMsg
+          .replace('{user}', `<@${member.id}>`)
+          .replace('{server}', member.guild.name);
+
+        const createdTimestamp = Math.floor(member.user.createdTimestamp / 1000);
+
+        const welcomeEmbed = new EmbedBuilder()
+          .setColor('#E74C3C')
+          .setAuthor({
+            name: member.guild.name,
+            iconURL: member.guild.iconURL() || undefined,
+          })
+          .setTitle(`Welcome to ${member.guild.name}`)
+          .setDescription(`${formattedMsg} 🎉\n\nWe're glad to have you here.\nPlease read the rules and enjoy your stay.`)
+          .addFields(
+            { name: '👤 Member', value: member.user.username, inline: true },
+            { name: '👥 Count', value: `${member.guild.memberCount}`, inline: true },
+            { name: '📅 Created', value: `<t:${createdTimestamp}:R>`, inline: true }
+          )
+          .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
+          .setImage(`https://api.popcat.xyz/welcomecard?background=https://i.imgur.com/8Q9Z51m.png&avatar=${encodeURIComponent(member.user.displayAvatarURL({ extension: 'png' }))}&text1=${encodeURIComponent(member.user.username)}&text2=${encodeURIComponent(`WELCOME TO ${member.guild.name.toUpperCase()}`)}&text3=${encodeURIComponent(`Member #${member.guild.memberCount}`)}`)
+          .setFooter({
+            text: `© ${member.guild.name}`,
+            iconURL: member.guild.iconURL() || undefined,
+          })
+          .setTimestamp();
+
+        await channel.send({ content: `<@${member.id}>`, embeds: [welcomeEmbed] })
+          .then(() => app.log.info(`[BOT] SUCCESS: Sent welcome embed to channel ${cleanChannelId}`))
           .catch((err) => app.log.error({ err }, `[BOT] ERROR: Discord API rejected message send`));
       } else {
         app.log.warn(`[BOT] WARN: Channel ${cleanChannelId} is not text-based or null`);
       }
     } else {
-      app.log.warn(`[BOT] WARN: welcome_channel_id or welcome_message is null/empty in DB`);
+      app.log.warn(`[BOT] WARN: welcome_channel_id is null/empty in DB`);
     }
   } catch (err) {
     app.log.error({ err }, '[BOT] UNHANDLED ERROR in GuildMemberAdd');
@@ -211,7 +238,7 @@ async function start() {
       );
     `);
 
-    // Safety migrations for existing database setups to prevent column missing errors
+    // Safety migrations for existing database setups
     await db.query(`
       ALTER TABLE guild_settings 
       ADD COLUMN IF NOT EXISTS prefix VARCHAR(10) DEFAULT '!',
