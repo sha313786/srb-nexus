@@ -125,173 +125,243 @@
       <div class="row g-4">
         <!-- Sidebar Navigation -->
         <div class="col-md-3">
-         <div class="sidebar">
-  <button class="nav-pill-btn active" onclick="switchTab('welcome', this)">
-    <i class="fa-solid fa-hand-wave me-2"></i> Welcome & Leave
-  </button>
-  <button class="nav-pill-btn" onclick="switchTab('moderation', this)">
-    <i class="fa-solid fa-shield-halved me-2"></i> Moderation
-  </button>
-  <button class="nav-pill-btn" onclick="switchTab('levels', this)">
-    <i class="fa-solid fa-star me-2"></i> Leveling & XP
-  </button>
-  <button class="nav-pill-btn" onclick="switchTab('music', this)">
-    <i class="fa-solid fa-music me-2"></i> Music Player
-  </button>
-  <button class="nav-pill-btn" onclick="switchTab('economy', this)">
-    <i class="fa-solid fa-coins me-2"></i> Economy System
-  </button>
-  <button class="nav-pill-btn" onclick="switchTab('tickets', this)">
-    <i class="fa-solid fa-ticket me-2"></i> Support Tickets
-  </button>
-</div>
+          <div class="sidebar">
+            <button class="nav-pill-btn active" onclick="switchTab('overview', this)">
+              <i class="fa-solid fa-gauge me-2"></i> Overview
+            </button>
+            <button class="nav-pill-btn" onclick="switchTab('welcome', this)">
+              <i class="fa-solid fa-hand-wave me-2"></i> Welcome & Leave
+            </button>
+            <button class="nav-pill-btn" onclick="switchTab('moderation', this)">
+              <i class="fa-solid fa-shield-halved me-2"></i> Moderation
+            </button>
+            <button class="nav-pill-btn" onclick="switchTab('levels', this)">
+              <i class="fa-solid fa-star me-2"></i> Leveling & XP
+            </button>
+            <button class="nav-pill-btn" onclick="switchTab('music', this)">
+              <i class="fa-solid fa-music me-2"></i> Music Player
+            </button>
+            <button class="nav-pill-btn" onclick="switchTab('economy', this)">
+              <i class="fa-solid fa-coins me-2"></i> Economy System
+            </button>
+            <button class="nav-pill-btn" onclick="switchTab('tickets', this)">
+              <i class="fa-solid fa-ticket me-2"></i> Support Tickets
+            </button>
+          </div>
         </div>
 
         <!-- Main Content View -->
         <div class="col-md-9">
           <div class="content-card">
 
-  <!-- 1. Welcome Module -->
-  <div id="module-welcome" class="module-tab">
-    <h4 class="fw-bold mb-4">Welcome & Leave Configuration</h4>
-    <form id="welcome-form" onsubmit="saveModuleConfig('welcome', event)">
-      <div class="mb-4">
-        <label for="welcome_channel_id" class="form-label fw-semibold">Welcome Channel</label>
-        <select id="welcome_channel_id" class="form-select">
-          <option value="">Disabled</option>
-        </select>
-      </div>
+            <!-- 0. Overview / General Module -->
+            <div id="module-overview" class="module-tab">
+              <h4 class="fw-bold mb-4">Server Overview & General Settings</h4>
+              
+              <!-- Quick Stat Cards -->
+              <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                  <div class="p-3 border rounded-3" style="background-color: #0b0e14; border-color: #1f2430 !important;">
+                    <div class="d-flex align-items-center gap-3">
+                      <i class="fa-solid fa-users fa-2x text-primary"></i>
+                      <div>
+                        <div class="text-secondary small">Total Channels</div>
+                        <div class="fs-4 fw-bold text-white" id="stat-channels-count">0</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="p-3 border rounded-3" style="background-color: #0b0e14; border-color: #1f2430 !important;">
+                    <div class="d-flex align-items-center gap-3">
+                      <i class="fa-solid fa-user-shield fa-2x text-success"></i>
+                      <div>
+                        <div class="text-secondary small">Total Roles</div>
+                        <div class="fs-4 fw-bold text-white" id="stat-roles-count">0</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="p-3 border rounded-3" style="background-color: #0b0e14; border-color: #1f2430 !important;">
+                    <div class="d-flex align-items-center gap-3">
+                      <i class="fa-solid fa-robot fa-2x text-warning"></i>
+                      <div>
+                        <div class="text-secondary small">Bot Status</div>
+                        <div class="fs-6 fw-bold text-success">Online & Ready</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-      <div class="mb-4">
-        <label for="welcome_message" class="form-label fw-semibold">Welcome Message</label>
-        <textarea id="welcome_message" rows="3" class="form-control" placeholder="Welcome to the server, {user}!"></textarea>
-      </div>
+              <hr class="border-secondary my-4" />
 
-      <div class="mb-4">
-        <label for="welcome_bg_url" class="form-label fw-semibold">Welcome Banner Background Image (URL)</label>
-        <input 
-          type="text" 
-          id="welcome_bg_url" 
-          class="form-control" 
-          placeholder="https://example.com/banner.png" 
-          autocomplete="off"
-          style="pointer-events: auto !important; user-select: text !important;"
-        />
-      </div>
+              <!-- Overview Settings Form -->
+              <form id="overview-form" onsubmit="saveModuleConfig('overview', event)">
+                <div class="mb-4">
+                  <label for="prefix" class="form-label fw-semibold">Bot Command Prefix</label>
+                  <input 
+                    type="text" 
+                    id="prefix" 
+                    class="form-control" 
+                    placeholder="!" 
+                    maxlength="5"
+                    style="max-width: 200px;" 
+                  />
+                  <small class="form-text mt-1 d-block" style="color: #a0a5b5;">
+                    The prefix symbol used before bot commands (e.g., <code>!ping</code>).
+                  </small>
+                </div>
 
-      <div class="mb-4">
-        <label for="leave_channel_id" class="form-label fw-semibold">Leave Channel</label>
-        <select id="leave_channel_id" class="form-select">
-          <option value="">Disabled</option>
-        </select>
-      </div>
+                <button type="submit" class="btn btn-primary" style="background-color: #5865f2; border: none; padding: 10px 24px; border-radius: 8px;">Save Changes</button>
+              </form>
+            </div>
 
-      <div class="mb-4">
-        <label for="autorole_id" class="form-label fw-semibold">Auto-Role</label>
-        <select id="autorole_id" class="form-select">
-          <option value="">Disabled</option>
-        </select>
-      </div>
+            <!-- 1. Welcome Module Form -->
+            <div id="module-welcome" class="module-tab d-none">
+              <h4 class="fw-bold mb-4">Welcome & Leave Configuration</h4>
+              <form id="welcome-form" onsubmit="saveModuleConfig('welcome', event)">
+                <div class="mb-4">
+                  <label for="welcome_channel_id" class="form-label fw-semibold">Welcome Channel</label>
+                  <select id="welcome_channel_id" class="form-select">
+                    <option value="">Disabled</option>
+                  </select>
+                </div>
 
-      <button type="submit" class="btn btn-primary" style="background-color: #5865f2; border: none; padding: 10px 24px; border-radius: 8px;">Save Changes</button>
-    </form>
-  </div>
+                <div class="mb-4">
+                  <label for="welcome_message" class="form-label fw-semibold">Welcome Message</label>
+                  <textarea id="welcome_message" rows="3" class="form-control" placeholder="Welcome to the server, {user}!"></textarea>
+                </div>
 
-  <!-- 2. Moderation Module -->
-  <div id="module-moderation" class="module-tab d-none">
-    <h4 class="fw-bold mb-4">Moderation Configuration</h4>
-    <form id="moderation-form" onsubmit="saveModuleConfig('moderation', event)">
-      <div class="mb-4">
-        <label for="log_channel_id" class="form-label fw-semibold">Mod Log Channel</label>
-        <select id="log_channel_id" class="form-select">
-          <option value="">Disabled</option>
-        </select>
-      </div>
-      <div class="form-check form-switch mb-3">
-        <input class="form-check-input" type="checkbox" id="anti_links">
-        <label class="form-check-label fw-semibold" for="anti_links">Enable Anti-Links Protection</label>
-      </div>
-      <div class="form-check form-switch mb-4">
-        <input class="form-check-input" type="checkbox" id="anti_spam">
-        <label class="form-check-label fw-semibold" for="anti_spam">Enable Anti-Spam Filter</label>
-      </div>
-      <button type="submit" class="btn btn-primary" style="background-color: #5865f2; border: none; padding: 10px 24px; border-radius: 8px;">Save Changes</button>
-    </form>
-  </div>
+                <div class="mb-4">
+                  <label for="welcome_bg_url" class="form-label fw-semibold">Welcome Banner Background Image (URL)</label>
+                  <input 
+                    type="text" 
+                    id="welcome_bg_url" 
+                    class="form-control" 
+                    placeholder="https://example.com/banner.png" 
+                    autocomplete="off"
+                    style="pointer-events: auto !important; user-select: text !important; -webkit-user-select: text !important;"
+                  />
+                  <small class="form-text mt-1 d-block" style="color: #a0a5b5;">
+                    Direct link to an image file (PNG/JPG) used on welcome card canvases.
+                  </small>
+                </div>
 
-  <!-- 3. Leveling Module -->
-  <div id="module-levels" class="module-tab d-none">
-    <h4 class="fw-bold mb-4">Leveling & XP Configuration</h4>
-    <form id="levels-form" onsubmit="saveModuleConfig('levels', event)">
-      <div class="mb-4">
-        <label for="level_channel_id" class="form-label fw-semibold">Level Up Announcement Channel</label>
-        <select id="level_channel_id" class="form-select">
-          <option value="">Disabled</option>
-        </select>
-      </div>
-      <div class="mb-4">
-        <label for="xp_rate" class="form-label fw-semibold">XP Multiplier Rate</label>
-        <input type="number" step="0.1" id="xp_rate" class="form-control" placeholder="1.0" />
-      </div>
-      <button type="submit" class="btn btn-primary" style="background-color: #5865f2; border: none; padding: 10px 24px; border-radius: 8px;">Save Changes</button>
-    </form>
-  </div>
+                <div class="mb-4">
+                  <label for="leave_channel_id" class="form-label fw-semibold">Leave Channel</label>
+                  <select id="leave_channel_id" class="form-select">
+                    <option value="">Disabled</option>
+                  </select>
+                </div>
 
-  <!-- 4. Music Module -->
-  <div id="module-music" class="module-tab d-none">
-    <h4 class="fw-bold mb-4">Music Player Settings</h4>
-    <form id="music-form" onsubmit="saveModuleConfig('music', event)">
-      <div class="mb-4">
-        <label for="dj_role_id" class="form-label fw-semibold">DJ Role</label>
-        <select id="dj_role_id" class="form-select">
-          <option value="">Disabled</option>
-        </select>
-      </div>
-      <div class="mb-4">
-        <label for="default_volume" class="form-label fw-semibold">Default Playback Volume (%)</label>
-        <input type="number" id="default_volume" class="form-control" placeholder="80" min="1" max="100" />
-      </div>
-      <button type="submit" class="btn btn-primary" style="background-color: #5865f2; border: none; padding: 10px 24px; border-radius: 8px;">Save Changes</button>
-    </form>
-  </div>
+                <div class="mb-4">
+                  <label for="autorole_id" class="form-label fw-semibold">Auto-Role</label>
+                  <select id="autorole_id" class="form-select">
+                    <option value="">Disabled</option>
+                  </select>
+                </div>
 
-  <!-- 5. Economy Module -->
-  <div id="module-economy" class="module-tab d-none">
-    <h4 class="fw-bold mb-4">Economy System Settings</h4>
-    <form id="economy-form" onsubmit="saveModuleConfig('economy', event)">
-      <div class="mb-4">
-        <label for="currency_symbol" class="form-label fw-semibold">Currency Symbol</label>
-        <input type="text" id="currency_symbol" class="form-control" placeholder="🪙" />
-      </div>
-      <div class="mb-4">
-        <label for="daily_reward" class="form-label fw-semibold">Daily Claim Amount</label>
-        <input type="number" id="daily_reward" class="form-control" placeholder="100" />
-      </div>
-      <button type="submit" class="btn btn-primary" style="background-color: #5865f2; border: none; padding: 10px 24px; border-radius: 8px;">Save Changes</button>
-    </form>
-  </div>
+                <button type="submit" class="btn btn-primary" style="background-color: #5865f2; border: none; padding: 10px 24px; border-radius: 8px;">Save Changes</button>
+              </form>
+            </div>
 
-  <!-- 6. Support Tickets Module -->
-  <div id="module-tickets" class="module-tab d-none">
-    <h4 class="fw-bold mb-4">Support Ticket Settings</h4>
-    <form id="tickets-form" onsubmit="saveModuleConfig('tickets', event)">
-      <div class="mb-4">
-        <label for="transcript_channel_id" class="form-label fw-semibold">Transcript Channel</label>
-        <select id="transcript_channel_id" class="form-select">
-          <option value="">Disabled</option>
-        </select>
-      </div>
-      <div class="mb-4">
-        <label for="support_role_id" class="form-label fw-semibold">Support Staff Role</label>
-        <select id="support_role_id" class="form-select">
-          <option value="">Disabled</option>
-        </select>
-      </div>
-      <button type="submit" class="btn btn-primary" style="background-color: #5865f2; border: none; padding: 10px 24px; border-radius: 8px;">Save Changes</button>
-    </form>
-  </div>
+            <!-- 2. Moderation Module Form -->
+            <div id="module-moderation" class="module-tab d-none">
+              <h4 class="fw-bold mb-4">Moderation Configuration</h4>
+              <form id="moderation-form" onsubmit="saveModuleConfig('moderation', event)">
+                <div class="mb-4">
+                  <label for="log_channel_id" class="form-label fw-semibold">Mod Log Channel</label>
+                  <select id="log_channel_id" class="form-select">
+                    <option value="">Disabled</option>
+                  </select>
+                </div>
+                <div class="form-check form-switch mb-3">
+                  <input class="form-check-input" type="checkbox" id="anti_links">
+                  <label class="form-check-label fw-semibold" for="anti_links">Enable Anti-Links Protection</label>
+                </div>
+                <div class="form-check form-switch mb-4">
+                  <input class="form-check-input" type="checkbox" id="anti_spam">
+                  <label class="form-check-label fw-semibold" for="anti_spam">Enable Anti-Spam Filter</label>
+                </div>
+                <button type="submit" class="btn btn-primary" style="background-color: #5865f2; border: none; padding: 10px 24px; border-radius: 8px;">Save Changes</button>
+              </form>
+            </div>
 
-</div>
+            <!-- 3. Leveling Module Form -->
+            <div id="module-levels" class="module-tab d-none">
+              <h4 class="fw-bold mb-4">Leveling & XP Configuration</h4>
+              <form id="levels-form" onsubmit="saveModuleConfig('levels', event)">
+                <div class="mb-4">
+                  <label for="level_channel_id" class="form-label fw-semibold">Level Up Announcement Channel</label>
+                  <select id="level_channel_id" class="form-select">
+                    <option value="">Disabled</option>
+                  </select>
+                </div>
+                <div class="mb-4">
+                  <label for="xp_rate" class="form-label fw-semibold">XP Multiplier Rate</label>
+                  <input type="number" step="0.1" id="xp_rate" class="form-control" placeholder="1.0" />
+                </div>
+                <button type="submit" class="btn btn-primary" style="background-color: #5865f2; border: none; padding: 10px 24px; border-radius: 8px;">Save Changes</button>
+              </form>
+            </div>
+
+            <!-- 4. Music Player Form -->
+            <div id="module-music" class="module-tab d-none">
+              <h4 class="fw-bold mb-4">Music Player Settings</h4>
+              <form id="music-form" onsubmit="saveModuleConfig('music', event)">
+                <div class="mb-4">
+                  <label for="dj_role_id" class="form-label fw-semibold">DJ Role</label>
+                  <select id="dj_role_id" class="form-select">
+                    <option value="">Disabled</option>
+                  </select>
+                </div>
+                <div class="mb-4">
+                  <label for="default_volume" class="form-label fw-semibold">Default Playback Volume (%)</label>
+                  <input type="number" id="default_volume" class="form-control" placeholder="80" min="1" max="100" />
+                </div>
+                <button type="submit" class="btn btn-primary" style="background-color: #5865f2; border: none; padding: 10px 24px; border-radius: 8px;">Save Changes</button>
+              </form>
+            </div>
+
+            <!-- 5. Economy System Form -->
+            <div id="module-economy" class="module-tab d-none">
+              <h4 class="fw-bold mb-4">Economy System Settings</h4>
+              <form id="economy-form" onsubmit="saveModuleConfig('economy', event)">
+                <div class="mb-4">
+                  <label for="currency_symbol" class="form-label fw-semibold">Currency Symbol</label>
+                  <input type="text" id="currency_symbol" class="form-control" placeholder="🪙" />
+                </div>
+                <div class="mb-4">
+                  <label for="daily_reward" class="form-label fw-semibold">Daily Claim Amount</label>
+                  <input type="number" id="daily_reward" class="form-control" placeholder="100" />
+                </div>
+                <button type="submit" class="btn btn-primary" style="background-color: #5865f2; border: none; padding: 10px 24px; border-radius: 8px;">Save Changes</button>
+              </form>
+            </div>
+
+            <!-- 6. Support Tickets Form -->
+            <div id="module-tickets" class="module-tab d-none">
+              <h4 class="fw-bold mb-4">Support Ticket Settings</h4>
+              <form id="tickets-form" onsubmit="saveModuleConfig('tickets', event)">
+                <div class="mb-4">
+                  <label for="transcript_channel_id" class="form-label fw-semibold">Transcript Channel</label>
+                  <select id="transcript_channel_id" class="form-select">
+                    <option value="">Disabled</option>
+                  </select>
+                </div>
+                <div class="mb-4">
+                  <label for="support_role_id" class="form-label fw-semibold">Support Staff Role</label>
+                  <select id="support_role_id" class="form-select">
+                    <option value="">Disabled</option>
+                  </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="background-color: #5865f2; border: none; padding: 10px 24px; border-radius: 8px;">Save Changes</button>
+              </form>
+            </div>
+
+          </div>
         </div>
       </div>
     </div>
@@ -300,7 +370,7 @@
   <script>
     let activeGuildId = null;
 
-    // Initialize page
+    // Initialize application
     async function init() {
       try {
         const res = await fetch('/api/auth/me');
@@ -316,7 +386,7 @@
       }
     }
 
-    // Load manageable user servers
+    // Load available servers
     async function loadGuilds() {
       const res = await fetch('/api/guilds');
       const data = await res.json();
@@ -345,36 +415,43 @@
       });
     }
 
-    // Select Guild and initial data population
+    // Select active server
     async function selectGuild(guildId, guildName) {
       activeGuildId = guildId;
       document.getElementById('current-guild-name').innerText = guildName;
       document.getElementById('server-selection-view').classList.add('d-none');
       document.getElementById('dashboard-view').classList.remove('d-none');
 
-      // Populate channels and roles across ALL module forms
+      // Populate channels and roles dropdowns across all tabs
       await loadGuildData(guildId);
       
-      // Load saved settings for default open module (Welcome)
-      await loadModuleSettings('welcome');
+      // Default to opening Overview
+      await loadModuleSettings('overview');
     }
 
-    // Return to server selection view
+    // Return to server selection grid
     function showServerSelection() {
       activeGuildId = null;
       document.getElementById('dashboard-view').classList.add('d-none');
       document.getElementById('server-selection-view').classList.remove('d-none');
     }
 
-    // Populate channels and roles across ALL selects
+    // Fetch channels and roles to fill form select inputs
     async function loadGuildData(guildId) {
       const res = await fetch(`/api/guilds/${guildId}/data`);
       if (!res.ok) return;
       const data = await res.json();
 
-      const channelSelects = ['welcome_channel_id', 'leave_channel_id', 'log_channel_id', 'level_channel_id', 'transcript_channel_id'];
-      const roleSelects = ['autorole_id', 'dj_role_id', 'support_role_id'];
+      // Set counts on overview tab
+      if (document.getElementById('stat-channels-count')) {
+        document.getElementById('stat-channels-count').innerText = (data.channels || []).length;
+      }
+      if (document.getElementById('stat-roles-count')) {
+        document.getElementById('stat-roles-count').innerText = (data.roles || []).length;
+      }
 
+      // Populate channels
+      const channelSelects = ['welcome_channel_id', 'leave_channel_id', 'log_channel_id', 'level_channel_id', 'transcript_channel_id'];
       channelSelects.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -385,6 +462,8 @@
         }
       });
 
+      // Populate roles
+      const roleSelects = ['autorole_id', 'dj_role_id', 'support_role_id'];
       roleSelects.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -396,7 +475,7 @@
       });
     }
 
-    // Read stored database settings for a module
+    // Fetch stored DB config for active tab
     async function loadModuleSettings(module) {
       if (!activeGuildId) return;
       const res = await fetch(`/api/guilds/${activeGuildId}/modules/${module}`);
@@ -405,7 +484,9 @@
       const { settings } = await res.json();
       if (!settings) return;
 
-      if (module === 'welcome') {
+      if (module === 'overview') {
+        document.getElementById('prefix').value = settings.prefix || '!';
+      } else if (module === 'welcome') {
         document.getElementById('welcome_channel_id').value = settings.welcome_channel_id || '';
         document.getElementById('welcome_message').value = settings.welcome_message || '';
         document.getElementById('welcome_bg_url').value = settings.welcome_bg_url || '';
@@ -430,7 +511,7 @@
       }
     }
 
-    // Switch between module tabs
+    // Handle tab switching
     async function switchTab(module, btn) {
       document.querySelectorAll('.nav-pill-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
@@ -451,7 +532,11 @@
 
       let payload = {};
 
-      if (module === 'welcome') {
+      if (module === 'overview') {
+        payload = {
+          prefix: document.getElementById('prefix').value || '!',
+        };
+      } else if (module === 'welcome') {
         payload = {
           welcome_channel_id: document.getElementById('welcome_channel_id').value,
           welcome_message: document.getElementById('welcome_message').value,
@@ -500,7 +585,7 @@
       }
     }
 
-    // Logout
+    // Logout function
     async function logout() {
       await fetch('/api/auth/logout', { method: 'POST' });
       window.location.href = '/api/auth/login';
