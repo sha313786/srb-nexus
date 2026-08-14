@@ -208,7 +208,7 @@ export async function guildRoutes(fastify: FastifyInstance) {
   // GET /api/guilds/:id/modules/:module - Read specific configuration module
   fastify.get('/api/guilds/:id/modules/:module', async (request: FastifyRequest, reply: FastifyReply) => {
     const user = (request as any).user as AuthUserPayload | undefined;
-    const { id } = request.params as { id: string; module: string };
+    const { id, module } = request.params as { id: string; module: string };
 
     if (!user || !user.accessToken) {
       return reply.status(401).send({ error: 'Unauthorized' });
@@ -225,7 +225,7 @@ export async function guildRoutes(fastify: FastifyInstance) {
         [id]
       );
 
-      const settings = result.rows[0] || { guild_id: id };
+      const settings = result.rows[0] || { guild_id: id, prefix: '!' };
       return reply.send({ settings });
     } catch (err: any) {
       request.log.error({ err }, 'Failed to fetch module settings');
@@ -250,12 +250,22 @@ export async function guildRoutes(fastify: FastifyInstance) {
     const body = (request.body as Record<string, any>) || {};
 
     try {
+      // Upsert shell row if not exists
       await db.query(
         `INSERT INTO guild_settings (guild_id) VALUES ($1) ON CONFLICT (guild_id) DO NOTHING`,
         [id]
       );
 
-      if (module === 'welcome') {
+      if (module === 'overview') {
+        const cleanPrefix = body.prefix ? String(body.prefix).trim() : '!';
+        await db.query(
+          `UPDATE guild_settings 
+           SET prefix = $1, 
+               updated_at = NOW()
+           WHERE guild_id = $2`,
+          [cleanPrefix, id]
+        );
+      } else if (module === 'welcome') {
         const cleanChannel = body.welcome_channel_id ? String(body.welcome_channel_id).replace(/[<#@!&>]/g, '').trim() : null;
         const cleanLeaveChannel = body.leave_channel_id ? String(body.leave_channel_id).replace(/[<#@!&>]/g, '').trim() : null;
         const cleanRole = body.autorole_id ? String(body.autorole_id).replace(/[<#@!&>]/g, '').trim() : null;
