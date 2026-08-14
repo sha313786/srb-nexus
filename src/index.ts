@@ -127,12 +127,13 @@ bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
             { name: '👥 Count', value: `${member.guild.memberCount}`, inline: true },
             { name: '📅 Created', value: `<t:${createdTimestamp}:R>`, inline: true }
           )
-          .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
-          .setImage(`https://api.popcat.xyz/welcomecard?background=https://i.imgur.com/8Q9Z51m.png&avatar=${encodeURIComponent(member.user.displayAvatarURL({ extension: 'png' }))}&text1=${encodeURIComponent(member.user.username)}&text2=${encodeURIComponent(`WELCOME TO ${member.guild.name.toUpperCase()}`)}&text3=${encodeURIComponent(`Member #${member.guild.memberCount}`)}`)
-          .setFooter({
-            text: `© ${member.guild.name}`,
-            iconURL: member.guild.iconURL() || undefined,
-          })
+          .setImage(
+  `https://api.popcat.xyz/welcomecard?background=https://cdn.discordapp.com/attachments/1000000000000000000/1000000000000000000/bg.png&avatar=${encodeURIComponent(
+    member.user.displayAvatarURL({ extension: 'png', size: 256 })
+  )}&text1=${encodeURIComponent(member.user.username)}&text2=${encodeURIComponent(
+    `WELCOME TO ${member.guild.name.toUpperCase()}`
+  )}&text3=${encodeURIComponent(`Member #${member.guild.memberCount}`)}`
+)
           .setTimestamp();
 
         await channel.send({ content: `<@${member.id}>`, embeds: [welcomeEmbed] })
