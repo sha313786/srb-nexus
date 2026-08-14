@@ -17,18 +17,25 @@ interface DiscordUserResponse {
 }
 
 export async function authRoutes(fastify: FastifyInstance) {
-  // 1. Redirect user to Discord OAuth2 Authorization Page (Clears old token)
-  fastify.get('/api/auth/discord/login', async (request: FastifyRequest, reply: FastifyReply) => {
-    // Clear existing session cookie to force fresh login
-    reply.clearCookie('nexus_token', { path: '/' });
-
+  // Helper to build the Discord OAuth2 URL
+  const getDiscordAuthUrl = () => {
     const clientId = process.env.DISCORD_CLIENT_ID;
     const redirectUri = encodeURIComponent(process.env.DISCORD_REDIRECT_URI || '');
     const scope = encodeURIComponent('identify guilds');
 
-    const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&prompt=consent`;
-    
-    return reply.redirect(discordAuthUrl);
+    return `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&prompt=consent`;
+  };
+
+  // 1a. Standard login route: /api/auth/login
+  fastify.get('/api/auth/login', async (request: FastifyRequest, reply: FastifyReply) => {
+    reply.clearCookie('nexus_token', { path: '/' });
+    return reply.redirect(getDiscordAuthUrl());
+  });
+
+  // 1b. Discord-specific login route: /api/auth/discord/login
+  fastify.get('/api/auth/discord/login', async (request: FastifyRequest, reply: FastifyReply) => {
+    reply.clearCookie('nexus_token', { path: '/' });
+    return reply.redirect(getDiscordAuthUrl());
   });
 
   // 2. OAuth2 Callback Handler
