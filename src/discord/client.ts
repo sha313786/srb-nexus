@@ -1,34 +1,26 @@
-import { Client, GatewayIntentBits, Partials } from 'discord.js';
-import { logger } from '../core/logger';
-import { config } from '../core/config';
+import { Client, GatewayIntentBits } from 'discord.js';
 
-export class DiscordService {
-  public client: Client;
+// Import specific function handlers directly
+import { handleGuildCreate } from './events/guildCreate';
+import { handleInteractionCreate } from './events/interactionCreate';
+import { handleMessageCreate } from './events/messageCreate';
+import { handleReady } from './events/ready';
+import { execute as handleGuildMemberAdd } from './events/guildMemberAdd';
+import { execute as handleGuildMemberRemove } from './events/guildMemberRemove';
 
-  constructor() {
-    this.client = new Client({
-      intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildModeration,
-      ],
-      partials: [Partials.Message, Partials.Channel, Partials.GuildMember],
-    });
-  }
+export const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ],
+});
 
-  public async connect(): Promise<void> {
-    logger.info('Connecting to Discord Gateway...');
-    await this.client.login(config.DISCORD_TOKEN);
-  }
-
-  public async disconnect(): Promise<void> {
-    if (this.client.isReady()) {
-      this.client.destroy();
-      logger.info('Disconnected from Discord Gateway');
-    }
-  }
-}
-
-export const discordService = new DiscordService();
+// Event Bindings
+client.on('ready', () => handleReady(client));
+client.on('guildCreate', (guild) => handleGuildCreate(guild));
+client.on('interactionCreate', (interaction) => handleInteractionCreate(interaction));
+client.on('messageCreate', (message) => handleMessageCreate(message));
+client.on('guildMemberAdd', (member) => handleGuildMemberAdd(member));
+client.on('guildMemberRemove', (member) => handleGuildMemberRemove(member));

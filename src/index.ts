@@ -203,11 +203,11 @@ bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
             iconURL: member.guild.iconURL() || undefined,
           })
           .setTitle(`Welcome to ${member.guild.name}`)
-          .setDescription(`${formattedMsg} 🎉\n\nWe're glad to have you here.\nPlease read the rules and enjoy your stay.`)
+          .setDescription(`${formattedMsg}\n\nWe're glad to have you here.\nPlease read the rules and enjoy your stay.`)
           .addFields(
-            { name: '👤 Member', value: member.user.username, inline: true },
-            { name: '👥 Count', value: `${member.guild.memberCount}`, inline: true },
-            { name: '📅 Created', value: `<t:${createdTimestamp}:R>`, inline: true }
+            { name: 'Member', value: member.user.username, inline: true },
+            { name: 'Count', value: `${member.guild.memberCount}`, inline: true },
+            { name: 'Created', value: `<t:${createdTimestamp}:R>`, inline: true }
           )
           .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
           .setImage('attachment://welcome-card.png')
@@ -310,7 +310,7 @@ async function start() {
         xp_rate NUMERIC DEFAULT 1.0,
         dj_role_id VARCHAR(32),
         default_volume INTEGER DEFAULT 80,
-        currency_symbol VARCHAR(10) DEFAULT '🪙',
+        currency_symbol VARCHAR(10) DEFAULT '$',
         daily_reward INTEGER DEFAULT 100,
         transcript_channel_id VARCHAR(32),
         support_role_id VARCHAR(32),
@@ -335,7 +335,7 @@ async function start() {
       ADD COLUMN IF NOT EXISTS xp_rate NUMERIC DEFAULT 1.0,
       ADD COLUMN IF NOT EXISTS dj_role_id VARCHAR(32),
       ADD COLUMN IF NOT EXISTS default_volume INTEGER DEFAULT 80,
-      ADD COLUMN IF NOT EXISTS currency_symbol VARCHAR(10) DEFAULT '🪙',
+      ADD COLUMN IF NOT EXISTS currency_symbol VARCHAR(10) DEFAULT '$',
       ADD COLUMN IF NOT EXISTS daily_reward INTEGER DEFAULT 100,
       ADD COLUMN IF NOT EXISTS transcript_channel_id VARCHAR(32),
       ADD COLUMN IF NOT EXISTS support_role_id VARCHAR(32),

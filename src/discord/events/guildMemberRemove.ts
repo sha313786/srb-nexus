@@ -1,8 +1,7 @@
-// Path: src/events/guildMemberRemove.ts
 import { GuildMember, PartialGuildMember, TextChannel } from 'discord.js';
-import { db } from '../core/database';
+import { db } from '../../core/database';
 
-export async function handleGuildMemberRemove(member: GuildMember | PartialGuildMember) {
+export async function execute(member: GuildMember | PartialGuildMember) {
   try {
     const res = await db.query(
       'SELECT leave_channel_id, leave_message, enabled FROM module_welcome WHERE guild_id = $1 AND enabled = TRUE',

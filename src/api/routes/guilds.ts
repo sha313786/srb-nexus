@@ -20,6 +20,11 @@ interface DiscordGuild {
   permissions_new?: string;
 }
 
+interface RoleReward {
+  level: number;
+  roleId: string;
+}
+
 interface GuildSettingRow {
   guild_id: string;
   prefix?: string;
@@ -32,7 +37,12 @@ interface GuildSettingRow {
   anti_links?: boolean;
   anti_spam?: boolean;
   level_channel_id?: string | null;
+  level_message?: string | null;
   xp_rate?: number;
+  role_rewards?: RoleReward[];
+  free_games_enabled?: boolean;
+  discounts_enabled?: boolean;
+  notifications_channel_id?: string | null;
   dj_role_id?: string | null;
   default_volume?: number;
   currency_symbol?: string;
@@ -296,15 +306,38 @@ export async function guildRoutes(fastify: FastifyInstance) {
            WHERE guild_id = $4`,
           [cleanLogChannel, Boolean(body.anti_links), Boolean(body.anti_spam), id]
         );
+      } else if (module === 'notifications') {
+        const cleanNotifChannel = body.notifications_channel_id ? String(body.notifications_channel_id).replace(/[<#@!&>]/g, '').trim() : null;
+        await db.query(
+          `UPDATE guild_settings 
+           SET free_games_enabled = $1, 
+               discounts_enabled = $2, 
+               notifications_channel_id = $3,
+               updated_at = NOW()
+           WHERE guild_id = $4`,
+          [
+            Boolean(body.free_games_enabled),
+            Boolean(body.discounts_enabled),
+            cleanNotifChannel,
+            id,
+          ]
+        );
       } else if (module === 'levels') {
-        const cleanLvlChannel = body.level_channel_id ? String(body.level_channel_id).replace(/[<#@!&>]/g, '').trim() : null;
+        const cleanLvlChannel = body.levelup_channel_id || body.level_channel_id
+          ? String(body.levelup_channel_id || body.level_channel_id).replace(/[<#@!&>]/g, '').trim()
+          : null;
+        const levelMsg = body.level_message ? String(body.level_message).trim() : null;
+        const roleRewardsJson = Array.isArray(body.role_rewards) ? JSON.stringify(body.role_rewards) : '[]';
+
         await db.query(
           `UPDATE guild_settings 
            SET level_channel_id = $1, 
-               xp_rate = $2, 
+               level_message = $2,
+               xp_rate = $3, 
+               role_rewards = $4::jsonb,
                updated_at = NOW()
-           WHERE guild_id = $3`,
-          [cleanLvlChannel, Number(body.xp_rate) || 1.0, id]
+           WHERE guild_id = $5`,
+          [cleanLvlChannel, levelMsg, Number(body.xp_rate) || 1.0, roleRewardsJson, id]
         );
       } else if (module === 'music') {
         const cleanDjRole = body.dj_role_id ? String(body.dj_role_id).replace(/[<#@!&>]/g, '').trim() : null;
