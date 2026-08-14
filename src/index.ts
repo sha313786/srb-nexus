@@ -114,6 +114,9 @@ bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
 
         const createdTimestamp = Math.floor(member.user.createdTimestamp / 1000);
 
+        // Discord CDN image URL provided
+        const bgUrl = 'https://media.discordapp.net/attachments/725580166645940234/1537709258739548260/welcome-banner.png?ex=6a8006d8&is=6a7eb558&hm=3e029f33199299d033da34cf19ded33b1503e5b1644fbdb994828b6900e16dc4&=&format=webp&quality=lossless&width=512&height=205';
+
         const welcomeEmbed = new EmbedBuilder()
           .setColor('#E74C3C')
           .setAuthor({
@@ -127,13 +130,20 @@ bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
             { name: '👥 Count', value: `${member.guild.memberCount}`, inline: true },
             { name: '📅 Created', value: `<t:${createdTimestamp}:R>`, inline: true }
           )
+          .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
           .setImage(
-  `https://api.popcat.xyz/welcomecard?background=https://cdn.discordapp.com/attachments/1000000000000000000/1000000000000000000/bg.png&avatar=${encodeURIComponent(
-    member.user.displayAvatarURL({ extension: 'png', size: 256 })
-  )}&text1=${encodeURIComponent(member.user.username)}&text2=${encodeURIComponent(
-    `WELCOME TO ${member.guild.name.toUpperCase()}`
-  )}&text3=${encodeURIComponent(`Member #${member.guild.memberCount}`)}`
-)
+            `https://api.popcat.xyz/welcomecard?background=${encodeURIComponent(
+              bgUrl
+            )}&avatar=${encodeURIComponent(
+              member.user.displayAvatarURL({ extension: 'png', size: 256 })
+            )}&text1=${encodeURIComponent(member.user.username)}&text2=${encodeURIComponent(
+              `WELCOME TO ${member.guild.name.toUpperCase()}`
+            )}&text3=${encodeURIComponent(`Member #${member.guild.memberCount}`)}`
+          )
+          .setFooter({
+            text: `© ${member.guild.name}`,
+            iconURL: member.guild.iconURL() || undefined,
+          })
           .setTimestamp();
 
         await channel.send({ content: `<@${member.id}>`, embeds: [welcomeEmbed] })
