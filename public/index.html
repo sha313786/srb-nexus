@@ -125,114 +125,173 @@
       <div class="row g-4">
         <!-- Sidebar Navigation -->
         <div class="col-md-3">
-          <div class="sidebar">
-            <button class="nav-pill-btn active" onclick="switchTab('welcome', this)">
-              <i class="fa-solid fa-hand-wave me-2"></i> Welcome & Leave
-            </button>
-            <button class="nav-pill-btn" onclick="switchTab('moderation', this)">
-              <i class="fa-solid fa-shield-halved me-2"></i> Moderation
-            </button>
-            <button class="nav-pill-btn" onclick="switchTab('levels', this)">
-              <i class="fa-solid fa-star me-2"></i> Leveling & XP
-            </button>
-            <button class="nav-pill-btn" onclick="switchTab('music', this)">
-              <i class="fa-solid fa-music me-2"></i> Music Player
-            </button>
-            <button class="nav-pill-btn" onclick="switchTab('economy', this)">
-              <i class="fa-solid fa-coins me-2"></i> Economy System
-            </button>
-            <button class="nav-pill-btn" onclick="switchTab('tickets', this)">
-              <i class="fa-solid fa-ticket me-2"></i> Support Tickets
-            </button>
-          </div>
+         <div class="sidebar">
+  <button class="nav-pill-btn active" onclick="switchTab('welcome', this)">
+    <i class="fa-solid fa-hand-wave me-2"></i> Welcome & Leave
+  </button>
+  <button class="nav-pill-btn" onclick="switchTab('moderation', this)">
+    <i class="fa-solid fa-shield-halved me-2"></i> Moderation
+  </button>
+  <button class="nav-pill-btn" onclick="switchTab('levels', this)">
+    <i class="fa-solid fa-star me-2"></i> Leveling & XP
+  </button>
+  <button class="nav-pill-btn" onclick="switchTab('music', this)">
+    <i class="fa-solid fa-music me-2"></i> Music Player
+  </button>
+  <button class="nav-pill-btn" onclick="switchTab('economy', this)">
+    <i class="fa-solid fa-coins me-2"></i> Economy System
+  </button>
+  <button class="nav-pill-btn" onclick="switchTab('tickets', this)">
+    <i class="fa-solid fa-ticket me-2"></i> Support Tickets
+  </button>
+</div>
         </div>
 
         <!-- Main Content View -->
         <div class="col-md-9">
           <div class="content-card">
 
-            <!-- 1. Welcome Module Form -->
-            <div id="module-welcome" class="module-tab">
-              <h4 class="fw-bold mb-4">Welcome & Leave Configuration</h4>
-              <form id="welcome-form" onsubmit="saveModuleConfig('welcome', event)">
-                <div class="mb-4">
-                  <label for="welcome_channel_id" class="form-label fw-semibold">Welcome Channel</label>
-                  <select id="welcome_channel_id" name="welcome_channel_id" class="form-select">
-                    <option value="">Disabled</option>
-                  </select>
-                </div>
+  <!-- 1. Welcome Module -->
+  <div id="module-welcome" class="module-tab">
+    <h4 class="fw-bold mb-4">Welcome & Leave Configuration</h4>
+    <form id="welcome-form" onsubmit="saveModuleConfig('welcome', event)">
+      <div class="mb-4">
+        <label for="welcome_channel_id" class="form-label fw-semibold">Welcome Channel</label>
+        <select id="welcome_channel_id" class="form-select">
+          <option value="">Disabled</option>
+        </select>
+      </div>
 
-                <div class="mb-4">
-                  <label for="welcome_message" class="form-label fw-semibold">Welcome Message</label>
-                  <textarea 
-                    id="welcome_message" 
-                    name="welcome_message" 
-                    rows="3" 
-                    class="form-control"
-                    placeholder="Welcome to the server, {user}!"
-                  ></textarea>
-                </div>
+      <div class="mb-4">
+        <label for="welcome_message" class="form-label fw-semibold">Welcome Message</label>
+        <textarea id="welcome_message" rows="3" class="form-control" placeholder="Welcome to the server, {user}!"></textarea>
+      </div>
 
-                <!-- Custom Banner Option -->
-                <div class="mb-4">
-                  <label for="welcome_bg_url" class="form-label fw-semibold">Welcome Banner Background Image (URL)</label>
-                  <input 
-  type="text" 
-  id="welcome_bg_url" 
-  name="welcome_bg_url" 
-  class="form-control" 
-  placeholder="https://example.com/banner.png"
-  autocomplete="off"
-  style="pointer-events: auto !important; user-select: text !important; -webkit-user-select: text !important;"
-/>
-                  <small class="form-text mt-1 d-block" style="color: #a0a5b5;">
-                    Provide a direct image URL (e.g., Discord Attachment, Imgur) to render behind the welcome card canvas.
-                  </small>
-                </div>
+      <div class="mb-4">
+        <label for="welcome_bg_url" class="form-label fw-semibold">Welcome Banner Background Image (URL)</label>
+        <input 
+          type="text" 
+          id="welcome_bg_url" 
+          class="form-control" 
+          placeholder="https://example.com/banner.png" 
+          autocomplete="off"
+          style="pointer-events: auto !important; user-select: text !important;"
+        />
+      </div>
 
-                <div class="mb-4">
-                  <label for="leave_channel_id" class="form-label fw-semibold">Leave Channel</label>
-                  <select id="leave_channel_id" name="leave_channel_id" class="form-select">
-                    <option value="">Disabled</option>
-                  </select>
-                </div>
+      <div class="mb-4">
+        <label for="leave_channel_id" class="form-label fw-semibold">Leave Channel</label>
+        <select id="leave_channel_id" class="form-select">
+          <option value="">Disabled</option>
+        </select>
+      </div>
 
-                <div class="mb-4">
-                  <label for="autorole_id" class="form-label fw-semibold">Auto-Role</label>
-                  <select id="autorole_id" name="autorole_id" class="form-select">
-                    <option value="">Disabled</option>
-                  </select>
-                </div>
+      <div class="mb-4">
+        <label for="autorole_id" class="form-label fw-semibold">Auto-Role</label>
+        <select id="autorole_id" class="form-select">
+          <option value="">Disabled</option>
+        </select>
+      </div>
 
-                <button type="submit" class="btn btn-primary" style="background-color: #5865f2; border: none; padding: 10px 24px; border-radius: 8px;">
-                  Save Changes
-                </button>
-              </form>
-            </div>
+      <button type="submit" class="btn btn-primary" style="background-color: #5865f2; border: none; padding: 10px 24px; border-radius: 8px;">Save Changes</button>
+    </form>
+  </div>
 
-            <!-- Placeholders for other modules -->
-            <div id="module-moderation" class="module-tab d-none">
-              <h4 class="fw-bold mb-4">Moderation Module</h4>
-              <p class="text-muted">Configure server logs, anti-spam, and link filter settings here.</p>
-            </div>
-            <div id="module-levels" class="module-tab d-none">
-              <h4 class="fw-bold mb-4">Leveling & XP Module</h4>
-              <p class="text-muted">Configure XP rates and level announcement channels.</p>
-            </div>
-            <div id="module-music" class="module-tab d-none">
-              <h4 class="fw-bold mb-4">Music Player Module</h4>
-              <p class="text-muted">Configure DJ roles and default playback volume.</p>
-            </div>
-            <div id="module-economy" class="module-tab d-none">
-              <h4 class="fw-bold mb-4">Economy System Module</h4>
-              <p class="text-muted">Configure currency symbols and daily claim rewards.</p>
-            </div>
-            <div id="module-tickets" class="module-tab d-none">
-              <h4 class="fw-bold mb-4">Support Ticket System</h4>
-              <p class="text-muted">Configure transcript channels and support staff roles.</p>
-            </div>
+  <!-- 2. Moderation Module -->
+  <div id="module-moderation" class="module-tab d-none">
+    <h4 class="fw-bold mb-4">Moderation Configuration</h4>
+    <form id="moderation-form" onsubmit="saveModuleConfig('moderation', event)">
+      <div class="mb-4">
+        <label for="log_channel_id" class="form-label fw-semibold">Mod Log Channel</label>
+        <select id="log_channel_id" class="form-select">
+          <option value="">Disabled</option>
+        </select>
+      </div>
+      <div class="form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" id="anti_links">
+        <label class="form-check-label fw-semibold" for="anti_links">Enable Anti-Links Protection</label>
+      </div>
+      <div class="form-check form-switch mb-4">
+        <input class="form-check-input" type="checkbox" id="anti_spam">
+        <label class="form-check-label fw-semibold" for="anti_spam">Enable Anti-Spam Filter</label>
+      </div>
+      <button type="submit" class="btn btn-primary" style="background-color: #5865f2; border: none; padding: 10px 24px; border-radius: 8px;">Save Changes</button>
+    </form>
+  </div>
 
-          </div>
+  <!-- 3. Leveling Module -->
+  <div id="module-levels" class="module-tab d-none">
+    <h4 class="fw-bold mb-4">Leveling & XP Configuration</h4>
+    <form id="levels-form" onsubmit="saveModuleConfig('levels', event)">
+      <div class="mb-4">
+        <label for="level_channel_id" class="form-label fw-semibold">Level Up Announcement Channel</label>
+        <select id="level_channel_id" class="form-select">
+          <option value="">Disabled</option>
+        </select>
+      </div>
+      <div class="mb-4">
+        <label for="xp_rate" class="form-label fw-semibold">XP Multiplier Rate</label>
+        <input type="number" step="0.1" id="xp_rate" class="form-control" placeholder="1.0" />
+      </div>
+      <button type="submit" class="btn btn-primary" style="background-color: #5865f2; border: none; padding: 10px 24px; border-radius: 8px;">Save Changes</button>
+    </form>
+  </div>
+
+  <!-- 4. Music Module -->
+  <div id="module-music" class="module-tab d-none">
+    <h4 class="fw-bold mb-4">Music Player Settings</h4>
+    <form id="music-form" onsubmit="saveModuleConfig('music', event)">
+      <div class="mb-4">
+        <label for="dj_role_id" class="form-label fw-semibold">DJ Role</label>
+        <select id="dj_role_id" class="form-select">
+          <option value="">Disabled</option>
+        </select>
+      </div>
+      <div class="mb-4">
+        <label for="default_volume" class="form-label fw-semibold">Default Playback Volume (%)</label>
+        <input type="number" id="default_volume" class="form-control" placeholder="80" min="1" max="100" />
+      </div>
+      <button type="submit" class="btn btn-primary" style="background-color: #5865f2; border: none; padding: 10px 24px; border-radius: 8px;">Save Changes</button>
+    </form>
+  </div>
+
+  <!-- 5. Economy Module -->
+  <div id="module-economy" class="module-tab d-none">
+    <h4 class="fw-bold mb-4">Economy System Settings</h4>
+    <form id="economy-form" onsubmit="saveModuleConfig('economy', event)">
+      <div class="mb-4">
+        <label for="currency_symbol" class="form-label fw-semibold">Currency Symbol</label>
+        <input type="text" id="currency_symbol" class="form-control" placeholder="🪙" />
+      </div>
+      <div class="mb-4">
+        <label for="daily_reward" class="form-label fw-semibold">Daily Claim Amount</label>
+        <input type="number" id="daily_reward" class="form-control" placeholder="100" />
+      </div>
+      <button type="submit" class="btn btn-primary" style="background-color: #5865f2; border: none; padding: 10px 24px; border-radius: 8px;">Save Changes</button>
+    </form>
+  </div>
+
+  <!-- 6. Support Tickets Module -->
+  <div id="module-tickets" class="module-tab d-none">
+    <h4 class="fw-bold mb-4">Support Ticket Settings</h4>
+    <form id="tickets-form" onsubmit="saveModuleConfig('tickets', event)">
+      <div class="mb-4">
+        <label for="transcript_channel_id" class="form-label fw-semibold">Transcript Channel</label>
+        <select id="transcript_channel_id" class="form-select">
+          <option value="">Disabled</option>
+        </select>
+      </div>
+      <div class="mb-4">
+        <label for="support_role_id" class="form-label fw-semibold">Support Staff Role</label>
+        <select id="support_role_id" class="form-select">
+          <option value="">Disabled</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary" style="background-color: #5865f2; border: none; padding: 10px 24px; border-radius: 8px;">Save Changes</button>
+    </form>
+  </div>
+
+</div>
         </div>
       </div>
     </div>
@@ -257,7 +316,7 @@
       }
     }
 
-    // Load user servers
+    // Load manageable user servers
     async function loadGuilds() {
       const res = await fetch('/api/guilds');
       const data = await res.json();
@@ -286,76 +345,103 @@
       });
     }
 
-    // Select Guild and load options
+    // Select Guild and initial data population
     async function selectGuild(guildId, guildName) {
       activeGuildId = guildId;
       document.getElementById('current-guild-name').innerText = guildName;
       document.getElementById('server-selection-view').classList.add('d-none');
       document.getElementById('dashboard-view').classList.remove('d-none');
 
-      // Populate channels and roles drop-downs
+      // Populate channels and roles across ALL module forms
       await loadGuildData(guildId);
-      // Fetch welcome module settings
+      
+      // Load saved settings for default open module (Welcome)
       await loadModuleSettings('welcome');
     }
 
-    // Return to server list
+    // Return to server selection view
     function showServerSelection() {
       activeGuildId = null;
       document.getElementById('dashboard-view').classList.add('d-none');
       document.getElementById('server-selection-view').classList.remove('d-none');
     }
 
-    // Populate channels and roles
+    // Populate channels and roles across ALL selects
     async function loadGuildData(guildId) {
       const res = await fetch(`/api/guilds/${guildId}/data`);
       if (!res.ok) return;
       const data = await res.json();
 
-      const welcomeSelect = document.getElementById('welcome_channel_id');
-      const leaveSelect = document.getElementById('leave_channel_id');
-      const roleSelect = document.getElementById('autorole_id');
+      const channelSelects = ['welcome_channel_id', 'leave_channel_id', 'log_channel_id', 'level_channel_id', 'transcript_channel_id'];
+      const roleSelects = ['autorole_id', 'dj_role_id', 'support_role_id'];
 
-      welcomeSelect.innerHTML = '<option value="">Disabled</option>';
-      leaveSelect.innerHTML = '<option value="">Disabled</option>';
-      roleSelect.innerHTML = '<option value="">Disabled</option>';
-
-      (data.channels || []).forEach(c => {
-        welcomeSelect.innerHTML += `<option value="${c.id}">#${c.name}</option>`;
-        leaveSelect.innerHTML += `<option value="${c.id}">#${c.name}</option>`;
+      channelSelects.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.innerHTML = '<option value="">Disabled</option>';
+          (data.channels || []).forEach(c => {
+            el.innerHTML += `<option value="${c.id}">#${c.name}</option>`;
+          });
+        }
       });
 
-      (data.roles || []).forEach(r => {
-        roleSelect.innerHTML += `<option value="${r.id}">${r.name}</option>`;
+      roleSelects.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.innerHTML = '<option value="">Disabled</option>';
+          (data.roles || []).forEach(r => {
+            el.innerHTML += `<option value="${r.id}">${r.name}</option>`;
+          });
+        }
       });
     }
 
-    // Fetch and fill module values
+    // Read stored database settings for a module
     async function loadModuleSettings(module) {
       if (!activeGuildId) return;
       const res = await fetch(`/api/guilds/${activeGuildId}/modules/${module}`);
       if (!res.ok) return;
 
       const { settings } = await res.json();
+      if (!settings) return;
 
-      if (module === 'welcome' && settings) {
+      if (module === 'welcome') {
         document.getElementById('welcome_channel_id').value = settings.welcome_channel_id || '';
         document.getElementById('welcome_message').value = settings.welcome_message || '';
         document.getElementById('welcome_bg_url').value = settings.welcome_bg_url || '';
         document.getElementById('leave_channel_id').value = settings.leave_channel_id || '';
         document.getElementById('autorole_id').value = settings.autorole_id || '';
+      } else if (module === 'moderation') {
+        document.getElementById('log_channel_id').value = settings.log_channel_id || '';
+        document.getElementById('anti_links').checked = Boolean(settings.anti_links);
+        document.getElementById('anti_spam').checked = Boolean(settings.anti_spam);
+      } else if (module === 'levels') {
+        document.getElementById('level_channel_id').value = settings.level_channel_id || '';
+        document.getElementById('xp_rate').value = settings.xp_rate || 1.0;
+      } else if (module === 'music') {
+        document.getElementById('dj_role_id').value = settings.dj_role_id || '';
+        document.getElementById('default_volume').value = settings.default_volume || 80;
+      } else if (module === 'economy') {
+        document.getElementById('currency_symbol').value = settings.currency_symbol || '🪙';
+        document.getElementById('daily_reward').value = settings.daily_reward || 100;
+      } else if (module === 'tickets') {
+        document.getElementById('transcript_channel_id').value = settings.transcript_channel_id || '';
+        document.getElementById('support_role_id').value = settings.support_role_id || '';
       }
     }
 
-    // Tab switcher
-    function switchTab(module, btn) {
+    // Switch between module tabs
+    async function switchTab(module, btn) {
       document.querySelectorAll('.nav-pill-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
 
       document.querySelectorAll('.module-tab').forEach(t => t.classList.add('d-none'));
-      document.getElementById(`module-${module}`).classList.remove('d-none');
+      const targetModule = document.getElementById(`module-${module}`);
+      if (targetModule) {
+        targetModule.classList.remove('d-none');
+      }
 
-      loadModuleSettings(module);
+      await loadModuleSettings(module);
     }
 
     // Save module configuration
@@ -373,6 +459,32 @@
           leave_channel_id: document.getElementById('leave_channel_id').value,
           autorole_id: document.getElementById('autorole_id').value,
         };
+      } else if (module === 'moderation') {
+        payload = {
+          log_channel_id: document.getElementById('log_channel_id').value,
+          anti_links: document.getElementById('anti_links').checked,
+          anti_spam: document.getElementById('anti_spam').checked,
+        };
+      } else if (module === 'levels') {
+        payload = {
+          level_channel_id: document.getElementById('level_channel_id').value,
+          xp_rate: document.getElementById('xp_rate').value,
+        };
+      } else if (module === 'music') {
+        payload = {
+          dj_role_id: document.getElementById('dj_role_id').value,
+          default_volume: document.getElementById('default_volume').value,
+        };
+      } else if (module === 'economy') {
+        payload = {
+          currency_symbol: document.getElementById('currency_symbol').value,
+          daily_reward: document.getElementById('daily_reward').value,
+        };
+      } else if (module === 'tickets') {
+        payload = {
+          transcript_channel_id: document.getElementById('transcript_channel_id').value,
+          support_role_id: document.getElementById('support_role_id').value,
+        };
       }
 
       const res = await fetch(`/api/guilds/${activeGuildId}/modules/${module}`, {
@@ -382,7 +494,7 @@
       });
 
       if (res.ok) {
-        alert('Module configuration saved successfully!');
+        alert(`${module.toUpperCase()} settings saved successfully!`);
       } else {
         alert('Failed to save settings.');
       }
