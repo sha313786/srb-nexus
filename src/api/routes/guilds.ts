@@ -25,6 +25,7 @@ interface GuildSettingRow {
   prefix?: string;
   welcome_channel_id?: string | null;
   welcome_message?: string | null;
+  welcome_bg_url?: string | null;
   leave_channel_id?: string | null;
   autorole_id?: string | null;
   log_channel_id?: string | null;
@@ -191,6 +192,7 @@ export async function guildRoutes(fastify: FastifyInstance) {
             prefix: '!',
             welcome_channel_id: null,
             welcome_message: 'Welcome to the server, {user}!',
+            welcome_bg_url: null,
             autorole_id: null,
           },
         });
@@ -257,6 +259,7 @@ export async function guildRoutes(fastify: FastifyInstance) {
         const cleanChannel = body.welcome_channel_id ? String(body.welcome_channel_id).replace(/[<#@!&>]/g, '').trim() : null;
         const cleanLeaveChannel = body.leave_channel_id ? String(body.leave_channel_id).replace(/[<#@!&>]/g, '').trim() : null;
         const cleanRole = body.autorole_id ? String(body.autorole_id).replace(/[<#@!&>]/g, '').trim() : null;
+        const cleanBgUrl = body.welcome_bg_url && String(body.welcome_bg_url).trim().length > 0 ? String(body.welcome_bg_url).trim() : null;
         const cleanMsg = body.welcome_message && String(body.welcome_message).trim().length > 0
           ? String(body.welcome_message).trim()
           : (cleanChannel ? 'Welcome to the server, {user}!' : null);
@@ -267,9 +270,10 @@ export async function guildRoutes(fastify: FastifyInstance) {
                welcome_message = $2, 
                leave_channel_id = $3, 
                autorole_id = $4,
+               welcome_bg_url = $5,
                updated_at = NOW()
-           WHERE guild_id = $5`,
-          [cleanChannel, cleanMsg, cleanLeaveChannel, cleanRole, id]
+           WHERE guild_id = $6`,
+          [cleanChannel, cleanMsg, cleanLeaveChannel, cleanRole, cleanBgUrl, id]
         );
       } else if (module === 'moderation') {
         const cleanLogChannel = body.log_channel_id ? String(body.log_channel_id).replace(/[<#@!&>]/g, '').trim() : null;
@@ -353,9 +357,11 @@ export async function guildRoutes(fastify: FastifyInstance) {
     const rawChannelId = body.welcome_channel_id ?? body.welcomeChannelId ?? body.channel_id;
     const rawMessage = body.welcome_message ?? body.welcomeMessage ?? body.message;
     const rawRoleId = body.autorole_id ?? body.autoroleId ?? body.role_id;
+    const rawBgUrl = body.welcome_bg_url ?? body.welcomeBgUrl;
 
     const cleanChannelId = rawChannelId ? String(rawChannelId).replace(/[<#@!&>]/g, '').trim() : null;
     const cleanRoleId = rawRoleId ? String(rawRoleId).replace(/[<#@!&>]/g, '').trim() : null;
+    const cleanBgUrl = rawBgUrl && String(rawBgUrl).trim().length > 0 ? String(rawBgUrl).trim() : null;
 
     let cleanMessage: string | null = null;
     if (rawMessage !== undefined && rawMessage !== null) {
@@ -369,15 +375,16 @@ export async function guildRoutes(fastify: FastifyInstance) {
 
     try {
       await db.query(
-        `INSERT INTO guild_settings (guild_id, prefix, welcome_channel_id, welcome_message, autorole_id, updated_at)
-         VALUES ($1, $2, $3, COALESCE(NULLIF($4, ''), 'Welcome to the server, {user}!'), $5, NOW())
+        `INSERT INTO guild_settings (guild_id, prefix, welcome_channel_id, welcome_message, welcome_bg_url, autorole_id, updated_at)
+         VALUES ($1, $2, $3, COALESCE(NULLIF($4, ''), 'Welcome to the server, {user}!'), $5, $6, NOW())
          ON CONFLICT (guild_id) DO UPDATE SET
            prefix = EXCLUDED.prefix,
            welcome_channel_id = EXCLUDED.welcome_channel_id,
            welcome_message = COALESCE(NULLIF(EXCLUDED.welcome_message, ''), 'Welcome to the server, {user}!'),
+           welcome_bg_url = EXCLUDED.welcome_bg_url,
            autorole_id = EXCLUDED.autorole_id,
            updated_at = NOW()`,
-        [id, prefix, cleanChannelId, cleanMessage, cleanRoleId]
+        [id, prefix, cleanChannelId, cleanMessage, cleanBgUrl, cleanRoleId]
       );
 
       return reply.send({ success: true, message: 'Settings saved successfully' });

@@ -4,7 +4,17 @@ import fastifyJwt from '@fastify/jwt';
 import fastifyStatic from '@fastify/static';
 import path from 'path';
 import dotenv from 'dotenv';
-import { Client, GatewayIntentBits, Guild, Events, GuildMember, Message, EmbedBuilder } from 'discord.js';
+import { createCanvas, loadImage } from '@napi-rs/canvas';
+import {
+  Client,
+  GatewayIntentBits,
+  Guild,
+  Events,
+  GuildMember,
+  Message,
+  EmbedBuilder,
+  AttachmentBuilder,
+} from 'discord.js';
 
 import { db } from './core/database';
 import { authRoutes } from './api/routes/auth';
@@ -34,6 +44,87 @@ async function registerGuild(guildId: string, guildName?: string) {
   }
 }
 
+// Helper function to dynamically generate welcome card using Canvas
+async function createWelcomeCard(
+  member: GuildMember,
+  customBgUrl?: string | null
+): Promise<AttachmentBuilder> {
+  const canvas = createCanvas(1024, 450);
+  const ctx = canvas.getContext('2d');
+
+  let bgLoaded = false;
+
+  // Try loading custom background image from dashboard setting
+  if (customBgUrl) {
+    try {
+      const bgImage = await loadImage(customBgUrl);
+      ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+
+      // Dark translucent overlay for crisp text readability
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      bgLoaded = true;
+    } catch (err) {
+      console.error('[BOT] Failed to load custom background image, using fallback theme', err);
+    }
+  }
+
+  // Default theme background fallback
+  if (!bgLoaded) {
+    ctx.fillStyle = '#111319';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = '#e74c3c';
+    ctx.lineWidth = 8;
+    ctx.strokeRect(15, 15, canvas.width - 30, canvas.height - 30);
+  }
+
+  // Welcome Text
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 42px Sans-Serif';
+  ctx.fillText(`WELCOME TO ${member.guild.name.toUpperCase()}`, 350, 170);
+
+  // Username
+  ctx.fillStyle = '#e74c3c';
+  ctx.font = 'bold 36px Sans-Serif';
+  ctx.fillText(member.user.username, 350, 230);
+
+  // Member Count Badge
+  ctx.fillStyle = 'rgba(44, 47, 56, 0.85)';
+  ctx.roundRect(350, 260, 200, 45, 10);
+  ctx.fill();
+
+  ctx.fillStyle = '#3498db';
+  ctx.font = 'bold 22px Sans-Serif';
+  ctx.fillText(`Member #${member.guild.memberCount}`, 375, 290);
+
+  // User Circle Avatar
+  try {
+    const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 256 });
+    const avatar = await loadImage(avatarUrl);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(200, 225, 100, 0, Math.PI * 2, true);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(avatar, 100, 125, 200, 200);
+    ctx.restore();
+
+    // Circle Outline for Avatar
+    ctx.beginPath();
+    ctx.arc(200, 225, 102, 0, Math.PI * 2, true);
+    ctx.strokeStyle = '#e74c3c';
+    ctx.lineWidth = 6;
+    ctx.stroke();
+  } catch (err) {
+    console.error('[BOT] Failed to draw avatar on canvas', err);
+  }
+
+  const buffer = await canvas.encode('png');
+  return new AttachmentBuilder(buffer, { name: 'welcome-card.png' });
+}
+
 // 1. Ready listener
 bot.once(Events.ClientReady, async () => {
   app.log.info(`[BOT] Discord bot online and logged in as ${bot.user?.tag}`);
@@ -58,64 +149,52 @@ bot.on(Events.GuildCreate, async (guild: Guild) => {
   }
 });
 
-// 3. Welcome Message & Autorole Event (With Rich Embed Card)
+// 3. Welcome Message & Autorole Event (Canvas Card)
 bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
   console.log(`\n========================================`);
   app.log.info(`[BOT] NEW MEMBER JOIN DETECTED: ${member.user.tag} (${member.id}) in guild ${member.guild.name} (${member.guild.id})`);
 
   try {
     const res = await db.query(
-      'SELECT welcome_channel_id, welcome_message, autorole_id FROM guild_settings WHERE guild_id = $1',
+      'SELECT welcome_channel_id, welcome_message, autorole_id, welcome_bg_url FROM guild_settings WHERE guild_id = $1',
       [member.guild.id]
     );
-
-    app.log.info({ dbResult: res.rows }, '[BOT] Raw DB query result on join');
 
     if (res.rows.length === 0) {
       app.log.warn(`[BOT] ABORTED: No row found in database for guild_id ${member.guild.id}`);
       return;
     }
 
-    const { welcome_channel_id, welcome_message, autorole_id } = res.rows[0];
-
-    app.log.info(`[BOT] DB Config Values -> Channel: "${welcome_channel_id}", Message: "${welcome_message}", Role: "${autorole_id}"`);
+    const { welcome_channel_id, welcome_message, autorole_id, welcome_bg_url } = res.rows[0];
 
     // Auto-Role Assignment
     if (autorole_id) {
       const cleanRoleId = String(autorole_id).replace(/[<#@!&>]/g, '').trim();
       const role = member.guild.roles.cache.get(cleanRoleId);
       if (role) {
-        await member.roles.add(role)
-          .then(() => app.log.info(`[BOT] SUCCESS: Assigned role ${role.name}`))
-          .catch((err) => app.log.error({ err }, `[BOT] ERROR: Failed to assign role`));
-      } else {
-        app.log.warn(`[BOT] WARN: Role ID ${cleanRoleId} not found in guild cache`);
+        await member.roles.add(role).catch((err) => app.log.error({ err }, `[BOT] ERROR: Failed to assign role`));
       }
     }
 
-    // Welcome Embed Delivery
+    // Send Welcome Canvas Embed
     if (welcome_channel_id) {
       const cleanChannelId = String(welcome_channel_id).replace(/[<#@!&>]/g, '').trim();
-      
+
       let channel = member.guild.channels.cache.get(cleanChannelId);
       if (!channel) {
-        app.log.info(`[BOT] Channel ${cleanChannelId} missing from cache. Fetching via API...`);
-        channel = await member.guild.channels.fetch(cleanChannelId).catch((err) => {
-          app.log.error({ err }, `[BOT] ERROR: Could not fetch channel ${cleanChannelId}`);
-          return null;
-        }) as any;
+        channel = (await member.guild.channels.fetch(cleanChannelId).catch(() => null)) as any;
       }
 
       if (channel && channel.isTextBased()) {
-        const customMsg = welcome_message || 'Welcome to {server}, {user}!';
-        const formattedMsg = customMsg
+        const rawCustomMsg = welcome_message || 'Welcome to {server}, {user}!';
+        const formattedMsg = rawCustomMsg
           .replace('{user}', `<@${member.id}>`)
           .replace('{server}', member.guild.name);
 
         const createdTimestamp = Math.floor(member.user.createdTimestamp / 1000);
 
-        // Discord CDN image URL provided
-        const bgUrl = 'https://media.discordapp.net/attachments/725580166645940234/1537709258739548260/welcome-banner.png?ex=6a8006d8&is=6a7eb558&hm=3e029f33199299d033da34cf19ded33b1503e5b1644fbdb994828b6900e16dc4&=&format=webp&quality=lossless&width=512&height=205';
+        // Generate dynamic canvas image using custom dashboard background if supplied
+        const welcomeCardAttachment = await createWelcomeCard(member, welcome_bg_url);
 
         const welcomeEmbed = new EmbedBuilder()
           .setColor('#E74C3C')
@@ -131,32 +210,25 @@ bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
             { name: '📅 Created', value: `<t:${createdTimestamp}:R>`, inline: true }
           )
           .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
-          .setImage(
-            `https://api.popcat.xyz/welcomecard?background=${encodeURIComponent(
-              bgUrl
-            )}&avatar=${encodeURIComponent(
-              member.user.displayAvatarURL({ extension: 'png', size: 256 })
-            )}&text1=${encodeURIComponent(member.user.username)}&text2=${encodeURIComponent(
-              `WELCOME TO ${member.guild.name.toUpperCase()}`
-            )}&text3=${encodeURIComponent(`Member #${member.guild.memberCount}`)}`
-          )
+          .setImage('attachment://welcome-card.png')
           .setFooter({
             text: `© ${member.guild.name}`,
             iconURL: member.guild.iconURL() || undefined,
           })
           .setTimestamp();
 
-        await channel.send({ content: `<@${member.id}>`, embeds: [welcomeEmbed] })
-          .then(() => app.log.info(`[BOT] SUCCESS: Sent welcome embed to channel ${cleanChannelId}`))
-          .catch((err) => app.log.error({ err }, `[BOT] ERROR: Discord API rejected message send`));
-      } else {
-        app.log.warn(`[BOT] WARN: Channel ${cleanChannelId} is not text-based or null`);
+        await channel
+          .send({
+            content: `<@${member.id}>`,
+            embeds: [welcomeEmbed],
+            files: [welcomeCardAttachment],
+          })
+          .then(() => app.log.info(`[BOT] SUCCESS: Sent canvas card to ${cleanChannelId}`))
+          .catch((err) => app.log.error({ err }, `[BOT] ERROR: Could not send message`));
       }
-    } else {
-      app.log.warn(`[BOT] WARN: welcome_channel_id is null/empty in DB`);
     }
   } catch (err) {
-    app.log.error({ err }, '[BOT] UNHANDLED ERROR in GuildMemberAdd');
+    app.log.error({ err }, '[BOT] Error handling GuildMemberAdd event');
   }
   console.log(`========================================\n`);
 });
@@ -202,7 +274,6 @@ async function start() {
       prefix: '/',
     });
 
-    // Health check endpoint for Render
     app.get('/health', async () => {
       return { status: 'ok' };
     });
@@ -210,12 +281,10 @@ async function start() {
     await app.register(authRoutes);
     await app.register(guildRoutes);
 
-    // Root route fallback -> serves index.html
     app.get('/', async (request, reply) => {
       return reply.sendFile('index.html');
     });
 
-    // /dashboard fallback -> serves index.html
     app.get('/dashboard', async (request, reply) => {
       return reply.sendFile('index.html');
     });
@@ -224,13 +293,14 @@ async function start() {
       await (db as any).connect();
     }
 
-    // Ensure database table and columns exist for all modules
+    // Table initialization with welcome_bg_url
     await db.query(`
       CREATE TABLE IF NOT EXISTS guild_settings (
         guild_id VARCHAR(32) PRIMARY KEY,
         prefix VARCHAR(10) DEFAULT '!',
         welcome_channel_id VARCHAR(32),
         welcome_message TEXT,
+        welcome_bg_url TEXT,
         leave_channel_id VARCHAR(32),
         autorole_id VARCHAR(32),
         log_channel_id VARCHAR(32),
@@ -255,6 +325,7 @@ async function start() {
       ADD COLUMN IF NOT EXISTS prefix VARCHAR(10) DEFAULT '!',
       ADD COLUMN IF NOT EXISTS welcome_channel_id VARCHAR(32),
       ADD COLUMN IF NOT EXISTS welcome_message TEXT,
+      ADD COLUMN IF NOT EXISTS welcome_bg_url TEXT,
       ADD COLUMN IF NOT EXISTS leave_channel_id VARCHAR(32),
       ADD COLUMN IF NOT EXISTS autorole_id VARCHAR(32),
       ADD COLUMN IF NOT EXISTS log_channel_id VARCHAR(32),
@@ -271,7 +342,7 @@ async function start() {
       ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
     `);
 
-    app.log.info('Database connection established & tables initialized with module columns');
+    app.log.info('Database connection established & tables initialized with welcome_bg_url column');
 
     const port = Number(process.env.PORT) || 10000;
     await app.listen({ port, host: '0.0.0.0' });
