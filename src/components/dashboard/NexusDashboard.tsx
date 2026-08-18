@@ -1,18 +1,34 @@
-import React, { useState } from 'react';
+// Path: src/components/dashboard/NexusDashboard.tsx
+import React from 'react';
 import { 
   Shield, Bell, MessageSquare, Wrench, Sparkles, 
   Settings, Terminal, FileText, Music, Coins, Award,
   ChevronRight, LogOut, User
 } from 'lucide-react';
 
-export default function NexusDashboard() {
-  const [activeTab, setActiveTab] = useState('overview');
+interface NexusDashboardProps {
+  activeTab?: string;
+  setActiveTab?: (tab: string) => void;
+  children?: React.ReactNode;
+}
+
+export default function NexusDashboard({ 
+  activeTab = 'overview', 
+  setActiveTab, 
+  children 
+}: NexusDashboardProps) {
+
+  const handleTabChange = (tab: string) => {
+    if (setActiveTab) {
+      setActiveTab(tab);
+    }
+  };
 
   return (
     <div className="flex h-screen bg-[#0d0d12] text-gray-100 font-sans overflow-hidden">
       
       {/* 1. LEFT SIDEBAR */}
-      <aside className="w-64 bg-[#14141f] border-r border-[#232333] flex flex-col justify-between select-none">
+      <aside className="w-64 bg-[#14141f] border-r border-[#232333] flex flex-col justify-between select-none shrink-0">
         <div>
           {/* BRAND HEADER */}
           <div className="flex items-center gap-3 px-6 py-5 border-b border-[#232333]">
@@ -36,19 +52,19 @@ export default function NexusDashboard() {
                   icon={<Settings size={18} />} 
                   label="Overview" 
                   active={activeTab === 'overview'} 
-                  onClick={() => setActiveTab('overview')} 
+                  onClick={() => handleTabChange('overview')} 
                 />
                 <NavItem 
                   icon={<Terminal size={18} />} 
                   label="Commands" 
                   active={activeTab === 'commands'} 
-                  onClick={() => setActiveTab('commands')} 
+                  onClick={() => handleTabChange('commands')} 
                 />
                 <NavItem 
                   icon={<FileText size={18} />} 
                   label="Audit Logs" 
                   active={activeTab === 'logs'} 
-                  onClick={() => setActiveTab('logs')} 
+                  onClick={() => handleTabChange('logs')} 
                 />
               </div>
             </div>
@@ -61,43 +77,43 @@ export default function NexusDashboard() {
                   icon={<MessageSquare size={18} />} 
                   label="Welcome & Leave" 
                   active={activeTab === 'welcome'} 
-                  onClick={() => setActiveTab('welcome')} 
+                  onClick={() => handleTabChange('welcome')} 
                 />
                 <NavItem 
                   icon={<Shield size={18} />} 
                   label="Moderation & Automod" 
                   active={activeTab === 'moderation'} 
-                  onClick={() => setActiveTab('moderation')} 
+                  onClick={() => handleTabChange('moderation')} 
                 />
                 <NavItem 
                   icon={<Bell size={18} />} 
                   label="Notifications & Alerts" 
                   active={activeTab === 'notifications'} 
-                  onClick={() => setActiveTab('notifications')} 
+                  onClick={() => handleTabChange('notifications')} 
                 />
                 <NavItem 
                   icon={<Award size={18} />} 
                   label="Leveling & XP" 
                   active={activeTab === 'levels'} 
-                  onClick={() => setActiveTab('levels')} 
+                  onClick={() => handleTabChange('levels')} 
                 />
                 <NavItem 
                   icon={<Music size={18} />} 
                   label="Music Player" 
                   active={activeTab === 'music'} 
-                  onClick={() => setActiveTab('music')} 
+                  onClick={() => handleTabChange('music')} 
                 />
                 <NavItem 
                   icon={<Coins size={18} />} 
                   label="Economy System" 
                   active={activeTab === 'economy'} 
-                  onClick={() => setActiveTab('economy')} 
+                  onClick={() => handleTabChange('economy')} 
                 />
                 <NavItem 
                   icon={<Wrench size={18} />} 
                   label="Support Tickets" 
                   active={activeTab === 'tickets'} 
-                  onClick={() => setActiveTab('tickets')} 
+                  onClick={() => handleTabChange('tickets')} 
                 />
               </div>
             </div>
@@ -138,7 +154,7 @@ export default function NexusDashboard() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         
         {/* TOP HEADER BAR */}
-        <header className="h-16 bg-[#14141f] border-b border-[#232333] px-8 flex items-center justify-between">
+        <header className="h-16 bg-[#14141f] border-b border-[#232333] px-8 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold text-gray-400">Server Dashboard</span>
             <span className="text-gray-600">/</span>
@@ -157,13 +173,14 @@ export default function NexusDashboard() {
 
         {/* TAB CONTENT PANEL CONTAINER */}
         <main className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-          {activeTab === 'overview' && (
+          {children ? (
+            children
+          ) : (
             <div className="space-y-4">
               <h2 className="text-xl font-bold text-white">Server Overview</h2>
               <p className="text-sm text-gray-400">Select a module from the left menu to customize your server settings.</p>
             </div>
           )}
-          {/* Add additional tab render components here as needed */}
         </main>
 
       </div>
