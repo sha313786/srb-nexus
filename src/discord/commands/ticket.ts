@@ -12,13 +12,13 @@ import {
 export const ticketCommand = {
   data: new SlashCommandBuilder()
     .setName('nexus-ticket-setup')
-    .setDescription('Spawns the ticket creation panel in the current channel')
+    .setDescription('Spawns the support ticket panel in the current channel')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   async execute(interaction: ChatInputCommandInteraction) {
     const embed = new EmbedBuilder()
-      .setTitle('📩 Support & Help Tickets')
-      .setDescription('Click the button below to open a private ticket with staff.')
+      .setTitle('📩 Support & Help Desk')
+      .setDescription('Need assistance? Click the button below to create a private ticket channel with staff.')
       .setColor('#9333ea')
       .setFooter({ text: 'SRB NEXUS Ticket System' });
 
