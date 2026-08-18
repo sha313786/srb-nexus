@@ -1,3 +1,4 @@
+// Path: src/discord/commands/index.ts
 import { REST, Routes } from 'discord.js';
 import { config } from '../../core/config';
 import { logger } from '../../core/logger';
@@ -8,7 +9,7 @@ import { banCommand } from './ban';
 import { timeoutCommand } from './timeout';
 import { purgeCommand } from './purge';
 import { modlogsCommand } from './modlogs';
-import { ticketCommand } from './ticket'; // 1. Import
+import { ticketCommand } from './ticket';
 
 export const commandRegistry = new Map<string, any>();
 commandRegistry.set(pingCommand.data.name, pingCommand);
@@ -18,7 +19,7 @@ commandRegistry.set(banCommand.data.name, banCommand);
 commandRegistry.set(timeoutCommand.data.name, timeoutCommand);
 commandRegistry.set(purgeCommand.data.name, purgeCommand);
 commandRegistry.set(modlogsCommand.data.name, modlogsCommand);
-commandRegistry.set(ticketCommand.data.name, ticketCommand); // 2. Register
+commandRegistry.set(ticketCommand.data.name, ticketCommand);
 
 export async function registerSlashCommands(clientId: string): Promise<void> {
   const rest = new REST({ version: '10' }).setToken(config.DISCORD_TOKEN);

@@ -1,3 +1,4 @@
+// Path: src/discord/events/interactionCreate.ts
 import { Interaction, ChannelType, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
 import { commandRegistry } from '../commands';
 import { logger } from '../../core/logger';
@@ -27,17 +28,16 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
     if (!guild) return;
 
     try {
-      // Create private text channel for the user
       const ticketChannel = await guild.channels.create({
         name: `ticket-${interaction.user.username}`,
         type: ChannelType.GuildText,
         permissionOverwrites: [
           {
-            id: guild.id, // Hide from @everyone
+            id: guild.id,
             deny: [PermissionFlagsBits.ViewChannel],
           },
           {
-            id: interaction.user.id, // Grant access to the ticket creator
+            id: interaction.user.id,
             allow: [
               PermissionFlagsBits.ViewChannel,
               PermissionFlagsBits.SendMessages,
@@ -47,7 +47,6 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         ],
       });
 
-      // Send initial welcome embed inside the ticket channel
       const welcomeEmbed = new EmbedBuilder()
         .setTitle(`Ticket: ${interaction.user.username}`)
         .setDescription('Thank you for reaching out! Please state your issue below, and a staff member will assist you shortly.')
@@ -58,7 +57,6 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         embeds: [welcomeEmbed],
       });
 
-      // Confirm creation privately to the user
       await interaction.reply({
         content: `Your ticket channel has been created: ${ticketChannel}`,
         ephemeral: true,
