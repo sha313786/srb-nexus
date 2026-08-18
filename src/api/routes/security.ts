@@ -1,7 +1,8 @@
+// Path: src/api/routes/security.ts
 import { FastifyInstance } from 'fastify';
 import { authenticateApiKey } from '../middleware/auth';
 import { db } from '../../core/database';
-import { discordService } from '../../discord/client';
+import { client as discordClient } from '../../discord/client';
 import { TextChannel } from 'discord.js';
 
 export async function securityRoutes(fastify: FastifyInstance) {
@@ -55,7 +56,7 @@ export async function securityRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Bad Request', message: 'channelId is required' });
     }
 
-    const guild = await discordService.client.guilds.fetch(guildId).catch(() => null);
+    const guild = await discordClient.guilds.fetch(guildId).catch(() => null);
     if (!guild) {
       return reply.status(404).send({ error: 'Not Found', message: 'Guild not found or bot lacks access' });
     }

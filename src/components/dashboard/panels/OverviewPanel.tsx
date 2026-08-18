@@ -1,4 +1,5 @@
 function OverviewPanel() {
+    export function OverviewPanel({ guildId }: { guildId: string }) { ... }
   return (
     <div className="space-y-6 max-w-4xl">
       <h2 className="text-2xl font-bold text-white border-b border-[#272738] pb-4">Server Overview & Settings</h2>

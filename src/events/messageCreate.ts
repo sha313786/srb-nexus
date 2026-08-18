@@ -20,10 +20,13 @@ export async function handleMessageCreate(message: Message) {
         // Exempt administrators
         if (!message.member?.permissions.has('Administrator')) {
           await message.delete();
-          const warning = await message.channel.send(
-            `⚠️ ${message.author}, posting links is disabled in this server.`
-          );
-          setTimeout(() => warning.delete().catch(() => {}), 5000);
+          
+          if (message.channel instanceof TextChannel) {
+            const warning = await message.channel.send(
+              `⚠️ ${message.author}, posting links is disabled in this server.`
+            );
+            setTimeout(() => warning.delete().catch(() => {}), 5000);
+          }
           return;
         }
       }
