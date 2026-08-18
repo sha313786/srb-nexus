@@ -7,16 +7,27 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
   // 1. HANDLE SLASH COMMANDS
   if (interaction.isChatInputCommand()) {
     const command = commandRegistry.get(interaction.commandName);
-    if (!command) return;
+
+    // If the command is registered in Discord but missing in commandRegistry
+    if (!command) {
+      logger.warn(`[BOT] Command implementation missing for /${interaction.commandName}`);
+      await interaction.reply({
+        content: `Command \`/${interaction.commandName}\` is registered but not implemented in code.`,
+        ephemeral: true,
+      });
+      return;
+    }
 
     try {
       await command.execute(interaction);
     } catch (err) {
       logger.error({ err, commandName: interaction.commandName }, 'Error executing slash command');
+      
+      const errorMessage = 'An error occurred while executing this command.';
       if (interaction.replied || interaction.deferred) {
-        await interaction.followUp({ content: 'An error occurred while executing this command.', ephemeral: true });
+        await interaction.followUp({ content: errorMessage, ephemeral: true });
       } else {
-        await interaction.reply({ content: 'An error occurred while executing this command.', ephemeral: true });
+        await interaction.reply({ content: errorMessage, ephemeral: true });
       }
     }
     return;
@@ -28,6 +39,9 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
     if (!guild) return;
 
     try {
+      // Defer reply immediately so Discord knows the button was acknowledged
+      await interaction.deferReply({ ephemeral: true });
+
       const ticketChannel = await guild.channels.create({
         name: `ticket-${interaction.user.username}`,
         type: ChannelType.GuildText,
@@ -57,16 +71,22 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         embeds: [welcomeEmbed],
       });
 
-      await interaction.reply({
+      await interaction.editReply({
         content: `Your ticket channel has been created: ${ticketChannel}`,
-        ephemeral: true,
       });
     } catch (err) {
       logger.error({ err }, 'Failed to create ticket channel');
-      await interaction.reply({
-        content: 'Failed to create ticket channel. Please check bot permissions.',
-        ephemeral: true,
-      });
+      
+      if (interaction.deferred) {
+        await interaction.editReply({
+          content: 'Failed to create ticket channel. Please check bot permissions.',
+        });
+      } else {
+        await interaction.reply({
+          content: 'Failed to create ticket channel. Please check bot permissions.',
+          ephemeral: true,
+        });
+      }
     }
   }
 }
