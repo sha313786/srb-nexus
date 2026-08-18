@@ -1,8 +1,16 @@
-function OverviewPanel() {
-    export function OverviewPanel({ guildId }: { guildId: string }) { ... }
+// Path: src/components/dashboard/panels/OverviewPanel.tsx
+import React from 'react';
+
+interface OverviewPanelProps {
+  guildId: string;
+}
+
+export function OverviewPanel({ guildId }: OverviewPanelProps) {
   return (
     <div className="space-y-6 max-w-4xl">
-      <h2 className="text-2xl font-bold text-white border-b border-[#272738] pb-4">Server Overview & Settings</h2>
+      <h2 className="text-2xl font-bold text-white border-b border-[#272738] pb-4">
+        Server Overview & Settings
+      </h2>
       
       {/* BOT NICKNAME */}
       <div className="bg-[#161622] p-6 rounded-2xl border border-[#272738] space-y-4">
