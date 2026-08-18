@@ -20,6 +20,10 @@ import { db } from './core/database';
 import { authRoutes } from './api/routes/auth';
 import { guildRoutes } from './api/routes/guilds';
 
+// Import Slash Command Register & Interaction Handler
+import { registerSlashCommands } from './discord/commands';
+import { handleInteractionCreate } from './discord/events/interactionCreate';
+
 dotenv.config();
 
 const app = Fastify({ logger: true });
@@ -129,6 +133,16 @@ async function createWelcomeCard(
 bot.once(Events.ClientReady, async () => {
   app.log.info(`[BOT] Discord bot online and logged in as ${bot.user?.tag}`);
 
+  // REGISTER SLASH COMMANDS WITH DISCORD API
+  if (bot.user) {
+    try {
+      await registerSlashCommands(bot.user.id);
+      app.log.info('[BOT] Slash commands successfully registered with Discord API.');
+    } catch (err) {
+      app.log.error({ err }, '[BOT] Failed to register slash commands on startup');
+    }
+  }
+
   try {
     const activeGuilds = bot.guilds.cache.map((g) => g.id);
     for (const guildId of activeGuilds) {
@@ -140,7 +154,12 @@ bot.once(Events.ClientReady, async () => {
   }
 });
 
-// 2. Guild join listener
+// 2. Slash Commands & Button Interactions Listener
+bot.on(Events.InteractionCreate, async (interaction) => {
+  await handleInteractionCreate(interaction);
+});
+
+// 3. Guild join listener
 bot.on(Events.GuildCreate, async (guild: Guild) => {
   try {
     await registerGuild(guild.id, guild.name);
@@ -149,7 +168,7 @@ bot.on(Events.GuildCreate, async (guild: Guild) => {
   }
 });
 
-// 3. Welcome Message & Autorole Event (Canvas Card)
+// 4. Welcome Message & Autorole Event (Canvas Card)
 bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
   console.log(`\n========================================`);
   app.log.info(`[BOT] NEW MEMBER JOIN DETECTED: ${member.user.tag} (${member.id}) in guild ${member.guild.name} (${member.guild.id})`);
@@ -233,7 +252,7 @@ bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
   console.log(`========================================\n`);
 });
 
-// 4. Custom Prefix Command Handling
+// 5. Custom Prefix Command Handling
 bot.on(Events.MessageCreate, async (message: Message) => {
   if (message.author.bot || !message.guild) return;
 
