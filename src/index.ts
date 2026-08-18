@@ -363,18 +363,15 @@ async function start() {
 
     app.log.info('Database connection established & tables initialized with welcome_bg_url column');
 
-    // 1. LOGIN DISCORD BOT FIRST
+    const port = Number(process.env.PORT) || 10000;
+    await app.listen({ port, host: '0.0.0.0' });
+    app.log.info(`Fastify REST API server running on http://0.0.0.0:${port}`);
+
     if (process.env.DISCORD_TOKEN) {
       await bot.login(process.env.DISCORD_TOKEN);
     } else {
       app.log.warn('DISCORD_TOKEN is missing in environment variables. Bot client offline.');
     }
-
-    // 2. START FASTIFY HTTP SERVER LAST
-    const port = Number(process.env.PORT) || 10000;
-    await app.listen({ port, host: '0.0.0.0' });
-    app.log.info(`Fastify REST API server running on http://0.0.0.0:${port}`);
-
   } catch (err) {
     app.log.error(err, 'Failed to start SRB NEXUS engine');
     process.exit(1);
