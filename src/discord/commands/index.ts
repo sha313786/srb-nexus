@@ -10,6 +10,7 @@ import { timeoutCommand } from './timeout';
 import { purgeCommand } from './purge';
 import { modlogsCommand } from './modlogs';
 import { ticketCommand } from './ticket';
+import { ticketSetupCommand } from './ticketSetup';
 
 export const commandRegistry = new Map<string, any>();
 commandRegistry.set(pingCommand.data.name, pingCommand);
@@ -20,6 +21,7 @@ commandRegistry.set(timeoutCommand.data.name, timeoutCommand);
 commandRegistry.set(purgeCommand.data.name, purgeCommand);
 commandRegistry.set(modlogsCommand.data.name, modlogsCommand);
 commandRegistry.set(ticketCommand.data.name, ticketCommand);
+commandRegistry.set(ticketSetupCommand.data.name, ticketSetupCommand);
 
 export async function registerSlashCommands(clientId: string): Promise<void> {
   const rest = new REST({ version: '10' }).setToken(config.DISCORD_TOKEN);

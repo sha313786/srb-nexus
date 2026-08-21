@@ -1,38 +1,13 @@
 // Path: src/discord/commands/ticket.ts
-import { 
-  SlashCommandBuilder, 
-  PermissionFlagsBits, 
-  ChatInputCommandInteraction, 
-  EmbedBuilder, 
-  ActionRowBuilder, 
-  ButtonBuilder, 
-  ButtonStyle 
-} from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 
 export const ticketCommand = {
   data: new SlashCommandBuilder()
-    .setName('nexus-ticket-setup')
-    .setDescription('Spawns the support ticket panel in the current channel')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    .setName('nexus-ticket')
+    .setDescription('Manage or close a support ticket')
+    .setDefaultMemberPermissions(PermissionFlagsBits.SendMessages),
 
-  async execute(interaction: ChatInputCommandInteraction) {
-    const embed = new EmbedBuilder()
-      .setTitle('📩 Support & Help Desk')
-      .setDescription('Need assistance? Click the button below to create a private ticket channel with staff.')
-      .setColor('#9333ea')
-      .setFooter({ text: 'SRB NEXUS Ticket System' });
-
-    const button = new ButtonBuilder()
-      .setCustomId('nexus_create_ticket')
-      .setLabel('Create Ticket')
-      .setStyle(ButtonStyle.Primary)
-      .setEmoji('🎫');
-
-    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
-
-    await interaction.reply({
-      embeds: [embed],
-      components: [row]
-    });
-  }
+  async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+    await interaction.reply({ content: 'Ticket command executed.', ephemeral: true });
+  },
 };

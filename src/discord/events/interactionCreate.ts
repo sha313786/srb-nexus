@@ -33,7 +33,68 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
     return;
   }
 
-  // 2. HANDLE TICKET BUTTON CLICK
+  // 2. HANDLE TICKET DROPDOWN CATEGORY SELECTION
+  if (interaction.isStringSelectMenu() && interaction.customId === 'nexus_ticket_select') {
+    const guild = interaction.guild;
+    if (!guild) return;
+
+    try {
+      await interaction.deferReply({ ephemeral: true });
+
+      const category = interaction.values[0]; // 'general', 'report', 'billing', or 'bug'
+      const channelName = `ticket-${category}-${interaction.user.username.toLowerCase()}`;
+
+      const ticketChannel = await guild.channels.create({
+        name: channelName,
+        type: ChannelType.GuildText,
+        permissionOverwrites: [
+          {
+            id: guild.id,
+            deny: [PermissionFlagsBits.ViewChannel],
+          },
+          {
+            id: interaction.user.id,
+            allow: [
+              PermissionFlagsBits.ViewChannel,
+              PermissionFlagsBits.SendMessages,
+              PermissionFlagsBits.ReadMessageHistory,
+            ],
+          },
+        ],
+      });
+
+      const welcomeEmbed = new EmbedBuilder()
+        .setTitle(`Ticket: ${category.toUpperCase()}`)
+        .setDescription(`Hello <@${interaction.user.id}>, thank you for reaching out! Please state your issue below, and a staff member will assist you shortly.`)
+        .setColor('#e74c3c')
+        .setTimestamp();
+
+      await ticketChannel.send({
+        content: `<@${interaction.user.id}>`,
+        embeds: [welcomeEmbed],
+      });
+
+      await interaction.editReply({
+        content: `Your ticket channel has been created: ${ticketChannel}`,
+      });
+    } catch (err) {
+      logger.error({ err }, 'Failed to create ticket channel from menu choice');
+      
+      if (interaction.deferred) {
+        await interaction.editReply({
+          content: 'Failed to create ticket channel. Please check bot permissions.',
+        });
+      } else {
+        await interaction.reply({
+          content: 'Failed to create ticket channel. Please check bot permissions.',
+          ephemeral: true,
+        });
+      }
+    }
+    return;
+  }
+
+  // 3. HANDLE TICKET BUTTON CLICK (FALLBACK)
   if (interaction.isButton() && interaction.customId === 'nexus_create_ticket') {
     const guild = interaction.guild;
     if (!guild) return;
@@ -43,7 +104,7 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
       await interaction.deferReply({ ephemeral: true });
 
       const ticketChannel = await guild.channels.create({
-        name: `ticket-${interaction.user.username}`,
+        name: `ticket-${interaction.user.username.toLowerCase()}`,
         type: ChannelType.GuildText,
         permissionOverwrites: [
           {
