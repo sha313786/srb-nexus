@@ -11,10 +11,21 @@ export class DatabaseService {
 
   public async connect(): Promise<void> {
     try {
+      const isLocal =
+        !process.env.DATABASE_URL ||
+        process.env.DATABASE_URL.includes('localhost') ||
+        process.env.DATABASE_URL.includes('127.0.0.1') ||
+        process.env.DATABASE_URL.includes('@postgres:');
+
+      const useSsl =
+        process.env.DB_SSL === 'true' ||
+        (process.env.NODE_ENV === 'production' && !isLocal) ||
+        (process.env.DATABASE_URL?.includes('sslmode=require') ?? false);
+
       // Initialize the database connection client/pool
       this.client = new Pool({
         connectionString: process.env.DATABASE_URL,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+        ssl: useSsl ? { rejectUnauthorized: false } : false,
       });
 
       // Verify connection with a ping

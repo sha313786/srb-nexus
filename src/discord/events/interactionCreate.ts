@@ -1,14 +1,22 @@
-// Path: src/discord/events/interactionCreate.ts
-import { Interaction, ChannelType, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
+import {
+  Interaction,
+  ChannelType,
+  PermissionFlagsBits,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} from 'discord.js';
 import { commandRegistry } from '../commands';
 import { logger } from '../../core/logger';
+import { db } from '../../core/database';
+import { broadcastLiveNotification } from '../../services/liveNotifications';
 
 export async function handleInteractionCreate(interaction: Interaction): Promise<void> {
   // 1. HANDLE SLASH COMMANDS
   if (interaction.isChatInputCommand()) {
     const command = commandRegistry.get(interaction.commandName);
 
-    // If the command is registered in Discord but missing in commandRegistry
     if (!command) {
       logger.warn(`[BOT] Command implementation missing for /${interaction.commandName}`);
       await interaction.reply({
@@ -22,7 +30,6 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
       await command.execute(interaction);
     } catch (err) {
       logger.error({ err, commandName: interaction.commandName }, 'Error executing slash command');
-      
       const errorMessage = 'An error occurred while executing this command.';
       if (interaction.replied || interaction.deferred) {
         await interaction.followUp({ content: errorMessage, ephemeral: true });
@@ -33,7 +40,7 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
     return;
   }
 
-  // 2. HANDLE TICKET DROPDOWN CATEGORY SELECTION
+  // 2. HANDLE TICKET DROPDOWN SELECTION
   if (interaction.isStringSelectMenu() && interaction.customId === 'nexus_ticket_select') {
     const guild = interaction.guild;
     if (!guild) return;
@@ -41,7 +48,7 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
     try {
       await interaction.deferReply({ ephemeral: true });
 
-      const category = interaction.values[0]; // 'general', 'report', 'billing', or 'bug'
+      const category = interaction.values[0];
       const channelName = `ticket-${category}-${interaction.user.username.toLowerCase()}`;
 
       const ticketChannel = await guild.channels.create({
@@ -63,44 +70,62 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         ],
       });
 
+      // Track in database
+      await db.query(
+        `INSERT INTO guild_tickets (guild_id, channel_id, user_id, status)
+         VALUES ($1, $2, $3, 'OPEN')`,
+        [guild.id, ticketChannel.id, interaction.user.id]
+      ).catch(() => {});
+
+      const closeRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId('nexus_close_ticket')
+          .setLabel('Close Ticket')
+          .setStyle(ButtonStyle.Danger)
+          .setEmoji('🔒')
+      );
+
       const welcomeEmbed = new EmbedBuilder()
-        .setTitle(`Ticket: ${category.toUpperCase()}`)
-        .setDescription(`Hello <@${interaction.user.id}>, thank you for reaching out! Please state your issue below, and a staff member will assist you shortly.`)
-        .setColor('#e74c3c')
+        .setTitle(`🎫 Support Ticket: ${category.toUpperCase()}`)
+        .setDescription(`Hello <@${interaction.user.id}>! A staff member has been notified and will assist you shortly.\n\nClick **Close Ticket** below when your inquiry is resolved.`)
+        .setColor('#5865F2')
         .setTimestamp();
 
       await ticketChannel.send({
         content: `<@${interaction.user.id}>`,
         embeds: [welcomeEmbed],
+        components: [closeRow],
       });
 
       await interaction.editReply({
-        content: `Your ticket channel has been created: ${ticketChannel}`,
+        content: `✅ Your ticket channel has been opened: ${ticketChannel}`,
       });
+
+      broadcastLiveNotification(interaction.client, guild.id, {
+        type: 'ticket',
+        title: `Support Ticket Opened: ${category.toUpperCase()}`,
+        description: `New ticket created by <@${interaction.user.id}> (${interaction.user.username}) in ${ticketChannel}`,
+        severity: 'info',
+        fields: [
+          { name: 'Category', value: category.toUpperCase(), inline: true },
+          { name: 'Created By', value: `<@${interaction.user.id}>`, inline: true },
+        ],
+      }).catch(() => {});
     } catch (err) {
-      logger.error({ err }, 'Failed to create ticket channel from menu choice');
-      
+      logger.error({ err }, 'Failed to create ticket channel');
       if (interaction.deferred) {
-        await interaction.editReply({
-          content: 'Failed to create ticket channel. Please check bot permissions.',
-        });
-      } else {
-        await interaction.reply({
-          content: 'Failed to create ticket channel. Please check bot permissions.',
-          ephemeral: true,
-        });
+        await interaction.editReply({ content: 'Failed to create ticket channel. Please check bot permissions.' });
       }
     }
     return;
   }
 
-  // 3. HANDLE TICKET BUTTON CLICK (FALLBACK)
+  // 3. HANDLE TICKET CREATION BUTTON
   if (interaction.isButton() && interaction.customId === 'nexus_create_ticket') {
     const guild = interaction.guild;
     if (!guild) return;
 
     try {
-      // Defer reply immediately so Discord knows the button was acknowledged
       await interaction.deferReply({ ephemeral: true });
 
       const ticketChannel = await guild.channels.create({
@@ -122,32 +147,197 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         ],
       });
 
+      // Track in database
+      await db.query(
+        `INSERT INTO guild_tickets (guild_id, channel_id, user_id, status)
+         VALUES ($1, $2, $3, 'OPEN')`,
+        [guild.id, ticketChannel.id, interaction.user.id]
+      ).catch(() => {});
+
+      const closeRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId('nexus_close_ticket')
+          .setLabel('Close Ticket')
+          .setStyle(ButtonStyle.Danger)
+          .setEmoji('🔒')
+      );
+
       const welcomeEmbed = new EmbedBuilder()
-        .setTitle(`Ticket: ${interaction.user.username}`)
-        .setDescription('Thank you for reaching out! Please state your issue below, and a staff member will assist you shortly.')
-        .setColor('#9333ea');
+        .setTitle(`🎫 Support Ticket`)
+        .setDescription(`Hello <@${interaction.user.id}>! Thank you for reaching out. Please state your issue below.\n\nClick **Close Ticket** when resolved.`)
+        .setColor('#5865F2');
 
       await ticketChannel.send({
         content: `<@${interaction.user.id}>`,
         embeds: [welcomeEmbed],
+        components: [closeRow],
       });
 
       await interaction.editReply({
-        content: `Your ticket channel has been created: ${ticketChannel}`,
+        content: `✅ Your ticket channel has been opened: ${ticketChannel}`,
       });
+
+      broadcastLiveNotification(interaction.client, guild.id, {
+        type: 'ticket',
+        title: 'Support Ticket Opened',
+        description: `New support ticket opened by <@${interaction.user.id}> (${interaction.user.username}) in ${ticketChannel}`,
+        severity: 'info',
+        fields: [
+          { name: 'Created By', value: `<@${interaction.user.id}>`, inline: true },
+        ],
+      }).catch(() => {});
     } catch (err) {
       logger.error({ err }, 'Failed to create ticket channel');
-      
       if (interaction.deferred) {
-        await interaction.editReply({
-          content: 'Failed to create ticket channel. Please check bot permissions.',
-        });
-      } else {
+        await interaction.editReply({ content: 'Failed to create ticket channel. Please check bot permissions.' });
+      }
+    }
+    return;
+  }
+
+  // 4. HANDLE CLOSE TICKET BUTTON
+  if (interaction.isButton() && interaction.customId === 'nexus_close_ticket') {
+    if (!interaction.guild || !interaction.channel) return;
+
+    try {
+      await interaction.reply({ content: '🔒 Ticket acknowledged. Closing and deleting channel in 5 seconds...' });
+
+      // Update DB record
+      await db.query(
+        `UPDATE guild_tickets SET status = 'CLOSED', closed_at = NOW() WHERE channel_id = $1`,
+        [interaction.channel.id]
+      ).catch(() => {});
+
+      broadcastLiveNotification(interaction.client, interaction.guild.id, {
+        type: 'ticket',
+        title: 'Support Ticket Closed',
+        description: `Support ticket closed by <@${interaction.user.id}> (${interaction.user.username})`,
+        severity: 'info',
+      }).catch(() => {});
+
+      setTimeout(async () => {
+        await interaction.channel?.delete().catch(() => {});
+      }, 5000);
+    } catch (err) {
+      logger.error({ err }, 'Error closing ticket');
+    }
+    return;
+  }
+
+  // 5. HANDLE REACTION ROLE BUTTONS
+  if (interaction.isButton() && interaction.customId.startsWith('nexus_role_')) {
+    if (!interaction.guild || !interaction.member) return;
+
+    const roleId = interaction.customId.replace('nexus_role_', '');
+    const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+    const role = interaction.guild.roles.cache.get(roleId);
+
+    if (!member || !role) {
+      await interaction.reply({
+        content: '❌ Role not found on this server.',
+        ephemeral: true,
+      });
+      return;
+    }
+
+    try {
+      if (member.roles.cache.has(role.id)) {
+        await member.roles.remove(role);
         await interaction.reply({
-          content: 'Failed to create ticket channel. Please check bot permissions.',
+          content: `➖ Removed the **@${role.name}** role from your profile.`,
           ephemeral: true,
         });
+        return;
+      } else {
+        await member.roles.add(role);
+        await interaction.reply({
+          content: `➕ Successfully added the **@${role.name}** role to your profile!`,
+          ephemeral: true,
+        });
+        return;
       }
+    } catch (err: any) {
+      await interaction.reply({
+        content: `❌ Could not modify role: Make sure my bot role is higher than **@${role.name}** in Server Settings.`,
+        ephemeral: true,
+      });
+      return;
+    }
+  }
+
+  // 6. HANDLE GIVEAWAY ENTRY BUTTON
+  if (interaction.isButton() && interaction.customId === 'nexus_giveaway_enter') {
+    if (!interaction.guild || !interaction.message) return;
+
+    try {
+      const res = await db.query(
+        `SELECT * FROM giveaways WHERE guild_id = $1 AND message_id = $2`,
+        [interaction.guild.id, interaction.message.id]
+      );
+
+      if (res.rows.length === 0) {
+        await interaction.reply({
+          content: '❌ Giveaway record not found.',
+          ephemeral: true,
+        });
+        return;
+      }
+
+      const giveaway = res.rows[0];
+      if (giveaway.ended || new Date(giveaway.ends_at) <= new Date()) {
+        await interaction.reply({
+          content: '❌ This giveaway has already ended!',
+          ephemeral: true,
+        });
+        return;
+      }
+
+      let entries: string[] = giveaway.entries || [];
+      const userId = interaction.user.id;
+      const alreadyEntered = entries.includes(userId);
+
+      if (alreadyEntered) {
+        entries = entries.filter((id) => id !== userId);
+        await db.query(`UPDATE giveaways SET entries = $1 WHERE id = $2`, [entries, giveaway.id]);
+
+        // Update button counter
+        const button = new ButtonBuilder()
+          .setCustomId('nexus_giveaway_enter')
+          .setLabel(`🎉 Enter Giveaway (${entries.length})`)
+          .setStyle(ButtonStyle.Success);
+        const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
+        await interaction.message.edit({ components: [row] }).catch(() => {});
+
+        await interaction.reply({
+          content: '👋 You have withdrawn from the giveaway.',
+          ephemeral: true,
+        });
+        return;
+      } else {
+        entries.push(userId);
+        await db.query(`UPDATE giveaways SET entries = $1 WHERE id = $2`, [entries, giveaway.id]);
+
+        // Update button counter
+        const button = new ButtonBuilder()
+          .setCustomId('nexus_giveaway_enter')
+          .setLabel(`🎉 Enter Giveaway (${entries.length})`)
+          .setStyle(ButtonStyle.Success);
+        const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
+        await interaction.message.edit({ components: [row] }).catch(() => {});
+
+        await interaction.reply({
+          content: '🎉 You have successfully entered the giveaway! Good luck!',
+          ephemeral: true,
+        });
+        return;
+      }
+    } catch (err: any) {
+      logger.error({ err }, 'Error handling giveaway entry');
+      await interaction.reply({
+        content: '❌ An error occurred while processing your entry.',
+        ephemeral: true,
+      });
+      return;
     }
   }
 }

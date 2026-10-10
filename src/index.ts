@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import fastifyCookie from '@fastify/cookie';
 import fastifyJwt from '@fastify/jwt';
 import fastifyStatic from '@fastify/static';
+import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
@@ -23,6 +24,11 @@ import { guildRoutes } from './api/routes/guilds';
 // Import Slash Command Register & Interaction Handler
 import { registerSlashCommands } from './discord/commands';
 import { handleInteractionCreate } from './discord/events/interactionCreate';
+import { handleMessageCreate as processSecurityAndSpam } from './discord/events/messageCreate';
+import { processAntiRaid } from './security/antiRaid';
+import { startBackgroundSchedulers } from './services/cronTasks';
+import { startFreeGamesWatcher } from './services/liveNotifications';
+import { startStreamWatcher } from './services/streamNotifications';
 
 dotenv.config();
 
@@ -49,7 +55,7 @@ async function registerGuild(guildId: string, guildName?: string) {
 }
 
 // Helper function to dynamically generate welcome card using Canvas
-async function createWelcomeCard(
+export async function createWelcomeCard(
   member: GuildMember,
   customBgUrl?: string | null
 ): Promise<AttachmentBuilder> {
@@ -152,6 +158,15 @@ bot.once(Events.ClientReady, async () => {
   } catch (err) {
     app.log.error({ err }, '[BOT] Failed to sync joined guilds to database');
   }
+
+  // Start Background Giveaways and Reminders Cron Schedulers
+  try {
+    startBackgroundSchedulers(bot);
+    startFreeGamesWatcher(bot);
+    startStreamWatcher(bot);
+  } catch (err) {
+    app.log.error({ err }, '[BOT] Failed to start background schedulers');
+  }
 });
 
 // 2. Slash Commands & Button Interactions Listener
@@ -174,6 +189,11 @@ bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
   app.log.info(`[BOT] NEW MEMBER JOIN DETECTED: ${member.user.tag} (${member.id}) in guild ${member.guild.name} (${member.guild.id})`);
 
   try {
+    // 0. Anti-Raid Defense Pipeline
+    const isRaid = await processAntiRaid(member);
+    if (isRaid) {
+      app.log.warn(`[BOT] Anti-Raid triggered for member join: ${member.user.tag}`);
+    }
     const res = await db.query(
       'SELECT welcome_channel_id, welcome_message, autorole_id, welcome_bg_url FROM guild_settings WHERE guild_id = $1',
       [member.guild.id]
@@ -252,10 +272,46 @@ bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
   console.log(`========================================\n`);
 });
 
-// 5. Custom Prefix Command Handling
+// 5. Member Leave / Farewell Listener
+bot.on(Events.GuildMemberRemove, async (member) => {
+  try {
+    const res = await db.query(
+      'SELECT leave_channel_id FROM guild_settings WHERE guild_id = $1',
+      [member.guild.id]
+    );
+    const leaveChannelId = res.rows[0]?.leave_channel_id;
+    if (leaveChannelId) {
+      const cleanChannelId = String(leaveChannelId).replace(/[<#@!&>]/g, '').trim();
+      const channel = member.guild.channels.cache.get(cleanChannelId) || (await member.guild.channels.fetch(cleanChannelId).catch(() => null));
+      if (channel && channel.isTextBased()) {
+        const leaveEmbed = new EmbedBuilder()
+          .setColor('#94A3B8')
+          .setTitle(`👋 Farewell, ${member.user.username}`)
+          .setDescription(`**${member.user.tag}** has left the server.\nWe now have **${member.guild.memberCount}** members.`)
+          .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
+          .setFooter({ text: member.guild.name, iconURL: member.guild.iconURL() || undefined })
+          .setTimestamp();
+
+        await channel.send({ embeds: [leaveEmbed] }).catch(() => {});
+        app.log.info(`[BOT] Sent farewell announcement for ${member.user.tag} in ${cleanChannelId}`);
+      }
+    }
+  } catch (err) {
+    app.log.error({ err }, '[BOT] Error handling GuildMemberRemove event');
+  }
+});
+
 bot.on(Events.MessageCreate, async (message: Message) => {
   if (message.author.bot || !message.guild) return;
 
+  // 1. Process Anti-Spam & Anti-Scam Security Pipeline
+  try {
+    await processSecurityAndSpam(message);
+  } catch (err) {
+    app.log.error({ err }, '[BOT] Error in security message pipeline');
+  }
+
+  // 2. Custom Prefix Command Handling
   try {
     const res = await db.query(
       'SELECT prefix FROM guild_settings WHERE guild_id = $1',
@@ -288,8 +344,14 @@ async function start() {
       },
     });
 
+    const publicPath = fs.existsSync(path.join(__dirname, '../public'))
+      ? path.join(__dirname, '../public')
+      : fs.existsSync(path.join(__dirname, 'public'))
+      ? path.join(__dirname, 'public')
+      : path.join(process.cwd(), 'public');
+
     await app.register(fastifyStatic, {
-      root: path.join(__dirname, '../public'),
+      root: publicPath,
       prefix: '/',
     });
 
@@ -305,14 +367,14 @@ async function start() {
     });
 
     app.get('/dashboard', async (request, reply) => {
-      return reply.sendFile('index.html');
+      return reply.sendFile('dashboard.html');
     });
 
     if (typeof (db as any).connect === 'function') {
       await (db as any).connect();
     }
 
-    // Table initialization with welcome_bg_url
+    // Table initialization with all core and security modules
     await db.query(`
       CREATE TABLE IF NOT EXISTS guild_settings (
         guild_id VARCHAR(32) PRIMARY KEY,
@@ -336,6 +398,127 @@ async function start() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS moderation_logs (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(32) NOT NULL,
+        target_user_id VARCHAR(32) NOT NULL,
+        moderator_user_id VARCHAR(32) NOT NULL,
+        action VARCHAR(32) NOT NULL,
+        reason TEXT DEFAULT 'No reason provided',
+        duration_sec INTEGER,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS security_events (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(32) NOT NULL,
+        user_id VARCHAR(32) NOT NULL,
+        event_type VARCHAR(64) NOT NULL,
+        reason TEXT NOT NULL,
+        metadata JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS guild_security_config (
+        guild_id VARCHAR(32) PRIMARY KEY,
+        logging_channel_id VARCHAR(32),
+        anti_spam_enabled BOOLEAN DEFAULT TRUE,
+        anti_scam_enabled BOOLEAN DEFAULT TRUE,
+        anti_raid_enabled BOOLEAN DEFAULT TRUE,
+        raid_threshold_joins INTEGER DEFAULT 5,
+        raid_window_seconds INTEGER DEFAULT 10,
+        raid_action VARCHAR(20) DEFAULT 'LOCKDOWN',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS guild_exemptions (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(32) NOT NULL,
+        entity_type VARCHAR(20) NOT NULL,
+        entity_id VARCHAR(32) NOT NULL,
+        exemption_scope VARCHAR(20) DEFAULT 'ALL',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (guild_id, entity_type, entity_id, exemption_scope)
+      );
+
+      CREATE TABLE IF NOT EXISTS user_economy (
+        guild_id VARCHAR(32) NOT NULL,
+        user_id VARCHAR(32) NOT NULL,
+        balance BIGINT DEFAULT 0,
+        bank BIGINT DEFAULT 0,
+        xp BIGINT DEFAULT 0,
+        level INTEGER DEFAULT 1,
+        last_daily TIMESTAMP WITH TIME ZONE,
+        last_work TIMESTAMP WITH TIME ZONE,
+        PRIMARY KEY (guild_id, user_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS user_warnings (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(32) NOT NULL,
+        user_id VARCHAR(32) NOT NULL,
+        moderator_id VARCHAR(32) NOT NULL,
+        reason TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS guild_tickets (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(32) NOT NULL,
+        channel_id VARCHAR(32) NOT NULL,
+        user_id VARCHAR(32) NOT NULL,
+        status VARCHAR(20) DEFAULT 'OPEN',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        closed_at TIMESTAMP WITH TIME ZONE
+      );
+
+      CREATE TABLE IF NOT EXISTS guild_reaction_roles (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(32) NOT NULL,
+        channel_id VARCHAR(32) NOT NULL,
+        message_id VARCHAR(32) NOT NULL,
+        role_id VARCHAR(32) NOT NULL,
+        emoji VARCHAR(64),
+        label VARCHAR(100) NOT NULL,
+        description VARCHAR(200),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS giveaways (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(32) NOT NULL,
+        channel_id VARCHAR(32) NOT NULL,
+        message_id VARCHAR(32) NOT NULL,
+        prize TEXT NOT NULL,
+        winner_count INTEGER DEFAULT 1,
+        ends_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        host_id VARCHAR(32) NOT NULL,
+        ended BOOLEAN DEFAULT FALSE,
+        entries TEXT[] DEFAULT '{}',
+        winners TEXT[] DEFAULT '{}',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS user_reminders (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(32) NOT NULL,
+        user_id VARCHAR(32) NOT NULL,
+        channel_id VARCHAR(32) NOT NULL,
+        reminder_text TEXT NOT NULL,
+        remind_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        completed BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS user_afk (
+        guild_id VARCHAR(32) NOT NULL,
+        user_id VARCHAR(32) NOT NULL,
+        reason TEXT DEFAULT 'AFK',
+        afk_since TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (guild_id, user_id)
+      );
     `);
 
     // Safety migrations for existing database setups
@@ -346,22 +529,97 @@ async function start() {
       ADD COLUMN IF NOT EXISTS welcome_message TEXT,
       ADD COLUMN IF NOT EXISTS welcome_bg_url TEXT,
       ADD COLUMN IF NOT EXISTS leave_channel_id VARCHAR(32),
+      ADD COLUMN IF NOT EXISTS leave_message TEXT DEFAULT '{username} has left the server.',
       ADD COLUMN IF NOT EXISTS autorole_id VARCHAR(32),
+      ADD COLUMN IF NOT EXISTS dm_welcome_enabled BOOLEAN DEFAULT FALSE,
       ADD COLUMN IF NOT EXISTS log_channel_id VARCHAR(32),
+      ADD COLUMN IF NOT EXISTS mute_role_id VARCHAR(32),
+      ADD COLUMN IF NOT EXISTS auto_mod_enabled BOOLEAN DEFAULT TRUE,
       ADD COLUMN IF NOT EXISTS anti_links BOOLEAN DEFAULT FALSE,
       ADD COLUMN IF NOT EXISTS anti_spam BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS anti_caps BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS anti_mass_mention BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS banned_words JSONB DEFAULT '[]'::jsonb,
+      ADD COLUMN IF NOT EXISTS allowed_domains JSONB DEFAULT '["youtube.com", "twitch.tv", "discord.gg", "github.com", "twitter.com", "x.com"]'::jsonb,
+      ADD COLUMN IF NOT EXISTS anti_raid_enabled BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS raid_threshold_joins INTEGER DEFAULT 5,
+      ADD COLUMN IF NOT EXISTS raid_window_seconds INTEGER DEFAULT 10,
+      ADD COLUMN IF NOT EXISTS raid_action VARCHAR(20) DEFAULT 'LOCKDOWN',
+      ADD COLUMN IF NOT EXISTS min_account_age_hours INTEGER DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS anti_nuke_enabled BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS max_channel_deletions INTEGER DEFAULT 3,
+      ADD COLUMN IF NOT EXISTS is_locked_down BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS levels_enabled BOOLEAN DEFAULT TRUE,
       ADD COLUMN IF NOT EXISTS level_channel_id VARCHAR(32),
+      ADD COLUMN IF NOT EXISTS level_message TEXT DEFAULT 'GG {user}, you leveled up to Level {level}! 🎉',
       ADD COLUMN IF NOT EXISTS xp_rate NUMERIC DEFAULT 1.0,
+      ADD COLUMN IF NOT EXISTS role_rewards JSONB DEFAULT '[]'::jsonb,
+      ADD COLUMN IF NOT EXISTS no_xp_channels JSONB DEFAULT '[]'::jsonb,
+      ADD COLUMN IF NOT EXISTS music_enabled BOOLEAN DEFAULT TRUE,
       ADD COLUMN IF NOT EXISTS dj_role_id VARCHAR(32),
       ADD COLUMN IF NOT EXISTS default_volume INTEGER DEFAULT 80,
-      ADD COLUMN IF NOT EXISTS currency_symbol VARCHAR(10) DEFAULT '$',
+      ADD COLUMN IF NOT EXISTS max_queue_length INTEGER DEFAULT 100,
+      ADD COLUMN IF NOT EXISTS stay_247_enabled BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS dsp_filters JSONB DEFAULT '{"bassboost": false, "nightcore": false, "vaporwave": false, "audio8d": false}'::jsonb,
+      ADD COLUMN IF NOT EXISTS economy_enabled BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS currency_symbol VARCHAR(10) DEFAULT '🪙',
+      ADD COLUMN IF NOT EXISTS currency_name VARCHAR(50) DEFAULT 'Nexus Coins',
       ADD COLUMN IF NOT EXISTS daily_reward INTEGER DEFAULT 100,
+      ADD COLUMN IF NOT EXISTS streak_bonus INTEGER DEFAULT 25,
+      ADD COLUMN IF NOT EXISTS work_min_reward INTEGER DEFAULT 20,
+      ADD COLUMN IF NOT EXISTS work_max_reward INTEGER DEFAULT 80,
+      ADD COLUMN IF NOT EXISTS rob_enabled BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS rob_success_rate INTEGER DEFAULT 45,
+      ADD COLUMN IF NOT EXISTS tickets_enabled BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS category_id VARCHAR(32),
       ADD COLUMN IF NOT EXISTS transcript_channel_id VARCHAR(32),
       ADD COLUMN IF NOT EXISTS support_role_id VARCHAR(32),
+      ADD COLUMN IF NOT EXISTS ticket_panel_title VARCHAR(150) DEFAULT 'SRB NEXUS Support Desk',
+      ADD COLUMN IF NOT EXISTS ticket_panel_description TEXT DEFAULT 'Need assistance or have questions? Click the button below to open a private ticket with our staff.',
+      ADD COLUMN IF NOT EXISTS ticket_button_label VARCHAR(80) DEFAULT '📩 Open Ticket',
+      ADD COLUMN IF NOT EXISTS ticket_button_emoji VARCHAR(32) DEFAULT '📩',
+      ADD COLUMN IF NOT EXISTS notifications_enabled BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS notifications_channel_id VARCHAR(32),
+      ADD COLUMN IF NOT EXISTS free_games_enabled BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS discounts_enabled BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS notif_security_alerts BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS notif_ticket_alerts BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS notif_milestones BOOLEAN DEFAULT TRUE,
       ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+
+      CREATE TABLE IF NOT EXISTS guild_shop_items (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(32) NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        description TEXT,
+        price BIGINT NOT NULL DEFAULT 100,
+        role_id VARCHAR(32),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_shop_items_guild ON guild_shop_items (guild_id);
+
+      CREATE TABLE IF NOT EXISTS stream_trackers (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(32) NOT NULL,
+        platform VARCHAR(20) NOT NULL,
+        channel_name VARCHAR(100) NOT NULL,
+        display_name VARCHAR(100),
+        discord_channel_id VARCHAR(32) NOT NULL,
+        custom_message TEXT,
+        mention_role VARCHAR(32) DEFAULT 'none',
+        event_type VARCHAR(20) DEFAULT 'all',
+        is_live BOOLEAN DEFAULT FALSE,
+        last_stream_id VARCHAR(100),
+        last_title TEXT,
+        last_game VARCHAR(100),
+        last_checked_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      ALTER TABLE stream_trackers ADD COLUMN IF NOT EXISTS event_type VARCHAR(20) DEFAULT 'all';
     `);
 
-    app.log.info('Database connection established & tables initialized with welcome_bg_url column');
+    app.log.info('Database connection established & all tables and security schemas initialized successfully');
 
     // 1. LOGIN DISCORD BOT FIRST
     if (process.env.DISCORD_TOKEN) {

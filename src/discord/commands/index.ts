@@ -1,27 +1,104 @@
-// Path: src/discord/commands/index.ts
 import { REST, Routes } from 'discord.js';
 import { config } from '../../core/config';
 import { logger } from '../../core/logger';
+
+// Utility & Core Commands
 import { pingCommand } from './ping';
+import { helpCommand } from './help';
+import { serverinfoCommand } from './serverinfo';
+import { userinfoCommand } from './userinfo';
+import { avatarCommand } from './avatar';
+import { pollCommand } from './poll';
+
+// Moderation & Defense Commands
 import { lockdownCommand } from './lockdown';
 import { kickCommand } from './kick';
 import { banCommand } from './ban';
 import { timeoutCommand } from './timeout';
 import { purgeCommand } from './purge';
+import { slowmodeCommand } from './slowmode';
+import { warnCommand } from './warn';
+import { warningsCommand } from './warnings';
+import { clearwarnCommand } from './clearwarn';
 import { modlogsCommand } from './modlogs';
+
+// Leveling & Progression Commands
+import { rankCommand } from './rank';
+import { leaderboardCommand } from './leaderboard';
+
+// Economy & Casino Commands
+import { balanceCommand } from './balance';
+import { dailyCommand } from './daily';
+import { workCommand } from './work';
+import { coinflipCommand } from './coinflip';
+import { payCommand } from './pay';
+
+// Support Ticket Commands
 import { ticketCommand } from './ticket';
 import { ticketSetupCommand } from './ticketSetup';
 
+// Advanced Multipurpose Commands
+import { reactionRoleCommand } from './reactionrole';
+import { giveawayCommand } from './giveaway';
+import { giveawayRerollCommand } from './giveawayReroll';
+import { remindCommand } from './remind';
+import { afkCommand } from './afk';
+import { slotsCommand } from './slots';
+import { robCommand } from './rob';
+import { embedCommand } from './embed';
+import { streamCommand } from './stream';
+
 export const commandRegistry = new Map<string, any>();
-commandRegistry.set(pingCommand.data.name, pingCommand);
-commandRegistry.set(lockdownCommand.data.name, lockdownCommand);
-commandRegistry.set(kickCommand.data.name, kickCommand);
-commandRegistry.set(banCommand.data.name, banCommand);
-commandRegistry.set(timeoutCommand.data.name, timeoutCommand);
-commandRegistry.set(purgeCommand.data.name, purgeCommand);
-commandRegistry.set(modlogsCommand.data.name, modlogsCommand);
-commandRegistry.set(ticketCommand.data.name, ticketCommand);
-commandRegistry.set(ticketSetupCommand.data.name, ticketSetupCommand);
+
+const allCommands = [
+  // Utility & Core
+  pingCommand,
+  helpCommand,
+  serverinfoCommand,
+  userinfoCommand,
+  avatarCommand,
+  pollCommand,
+  embedCommand,
+  remindCommand,
+  afkCommand,
+
+  // Moderation
+  lockdownCommand,
+  kickCommand,
+  banCommand,
+  timeoutCommand,
+  purgeCommand,
+  slowmodeCommand,
+  warnCommand,
+  warningsCommand,
+  clearwarnCommand,
+  modlogsCommand,
+
+  // Leveling
+  rankCommand,
+  leaderboardCommand,
+
+  // Economy & Casino
+  balanceCommand,
+  dailyCommand,
+  workCommand,
+  coinflipCommand,
+  payCommand,
+  slotsCommand,
+  robCommand,
+
+  // Tickets & Engagement
+  ticketCommand,
+  ticketSetupCommand,
+  reactionRoleCommand,
+  giveawayCommand,
+  giveawayRerollCommand,
+  streamCommand,
+];
+
+for (const cmd of allCommands) {
+  commandRegistry.set(cmd.data.name, cmd);
+}
 
 export async function registerSlashCommands(clientId: string): Promise<void> {
   const rest = new REST({ version: '10' }).setToken(config.DISCORD_TOKEN);
@@ -30,7 +107,7 @@ export async function registerSlashCommands(clientId: string): Promise<void> {
   try {
     logger.info(`Registering ${commandsJSON.length} global slash commands...`);
     await rest.put(Routes.applicationCommands(clientId), { body: commandsJSON });
-    logger.info('Global slash commands registered successfully');
+    logger.info(`Successfully registered ${commandsJSON.length} slash commands with Discord API`);
   } catch (err) {
     logger.error({ err }, 'Failed to register slash commands');
   }

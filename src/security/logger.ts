@@ -33,9 +33,12 @@ export async function logSecurityEvent(opts: SecurityAuditOptions): Promise<void
   // 2. Fetch guild logging channel config
   try {
     const { rows } = await db.query(
-      `SELECT logging_channel_id FROM guild_security_config WHERE guild_id = $1`,
+      `SELECT COALESCE(
+        (SELECT logging_channel_id FROM guild_security_config WHERE guild_id = $1),
+        (SELECT log_channel_id FROM guild_settings WHERE guild_id = $1)
+       ) AS logging_channel_id`,
       [opts.guild.id]
-    );
+    ).catch(() => ({ rows: [] }));
 
     const logChannelId = rows[0]?.logging_channel_id;
     if (!logChannelId) return;

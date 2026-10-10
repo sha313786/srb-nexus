@@ -8,16 +8,17 @@ WORKDIR /app
 # Copy dependency manifests
 COPY package*.json tsconfig.json ./
 
-# Install dependencies (including devDependencies for compilation)
+# Install dependencies for compilation
 RUN npm ci
 
-# Copy source files
+# Copy static assets and source files
+COPY public ./public
 COPY src ./src
 
-# Compile TypeScript to JavaScript
+# Compile TypeScript to JavaScript and copy assets
 RUN npm run build
 
-# Prune devDependencies
+# Prune devDependencies for a lean production footprint
 RUN npm prune --production
 
 # ==========================================
@@ -29,13 +30,17 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# Install system libraries for @napi-rs/canvas and health check utilities
+RUN apk add --no-cache libc6-compat wget ca-certificates
+
 # Security: Create non-root system user
 RUN addgroup -S nexusgroup && adduser -S nexususer -G nexusgroup
 
-# Copy compiled artifacts and production node_modules from builder
+# Copy compiled artifacts, public assets, and production dependencies
 COPY --chown=nexususer:nexusgroup package*.json ./
 COPY --chown=nexususer:nexusgroup --from=builder /app/node_modules ./node_modules
 COPY --chown=nexususer:nexusgroup --from=builder /app/dist ./dist
+COPY --chown=nexususer:nexusgroup --from=builder /app/public ./public
 
 # Switch to non-privileged user
 USER nexususer
@@ -44,8 +49,8 @@ USER nexususer
 EXPOSE 3000
 
 # Health check to monitor container status
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
-# Start Application
+# Start Application Engine
 CMD ["node", "dist/index.js"]
