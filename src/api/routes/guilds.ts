@@ -104,13 +104,7 @@ export async function guildRoutes(fastify: FastifyInstance) {
     try {
       await (request as any).jwtVerify();
     } catch (err) {
-      // Auto-attach local admin session for local development access
-      (request as any).user = {
-        id: 'local-admin',
-        username: 'SRB Nexus Admin',
-        avatar: null,
-        accessToken: 'dev-token',
-      };
+      return reply.status(401).send({ error: 'Unauthorized: Please log in with Discord' });
     }
   });
 

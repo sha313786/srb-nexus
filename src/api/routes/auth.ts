@@ -121,26 +121,9 @@ export async function authRoutes(fastify: FastifyInstance) {
         clientId: process.env.DISCORD_CLIENT_ID 
       });
     } catch (err) {
-      // Auto-provision local admin session so the dashboard is immediately accessible
-      const adminPayload = {
-        id: 'local-admin',
-        username: 'SRB Nexus Admin',
-        avatar: null,
-        accessToken: 'dev-token',
-      };
-
-      const jwtToken = fastify.jwt.sign(adminPayload);
-      reply.setCookie('nexus_token', jwtToken, {
-        path: '/',
-        httpOnly: true,
-        secure: false,
-        sameSite: 'lax',
-      });
-
-      return reply.send({ 
-        user: adminPayload,
+      return reply.status(401).send({ 
+        error: 'Unauthenticated',
         clientId: process.env.DISCORD_CLIENT_ID,
-        isDev: true,
       });
     }
   });

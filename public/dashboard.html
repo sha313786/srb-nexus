@@ -1909,11 +1909,7 @@
               <p class="text-slate-400 text-sm mt-2">Authentication is required to configure servers and view live audit logs.</p>
             </div>
             <div class="space-y-3 pt-2">
-              <a href="/api/auth/dev-login" class="w-full inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-bold text-sm transition shadow-lg shadow-indigo-600/30">
-                <i class="fa-solid fa-bolt text-yellow-400"></i>
-                <span>⚡ Quick Admin Access (Dev Mode)</span>
-              </a>
-              <a href="/api/auth/login" class="w-full inline-flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl bg-blurple hover:bg-blurple-hover text-white font-bold text-sm transition shadow-md shadow-blurple/20">
+              <a href="/api/auth/login" class="w-full inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-blurple hover:bg-blurple-hover text-white font-bold text-sm transition shadow-lg shadow-blurple/30 hover:scale-[1.01]">
                 <i class="fa-brands fa-discord text-lg"></i>
                 <span>Login with Discord</span>
               </a>
@@ -1921,12 +1917,6 @@
                 <i class="fa-solid fa-server"></i>
                 <span>Return to Servers</span>
               </a>
-            </div>
-            <div class="text-[11px] text-slate-400 text-left bg-dark-900/90 p-3.5 rounded-xl border border-dark-800 space-y-1">
-              <div class="font-bold text-slate-300 flex items-center gap-1.5">
-                <i class="fa-solid fa-circle-info text-indigo-400"></i> Discord OAuth Note:
-              </div>
-              <p>Add <code class="text-indigo-300">http://localhost:3000/api/auth/discord/callback</code> to your Developer Portal under <strong>OAuth2 &gt; Redirects</strong> for Discord login.</p>
             </div>
           </div>
         </div>
@@ -2054,15 +2044,20 @@
     // Initialize Dashboard
     async function init() {
       try {
-        // 1. Verify User Session or Auto-Provision Local Admin Access
-        let meRes = await fetch('/api/auth/me');
+        // 1. Verify Discord User Session
+        const meRes = await fetch('/api/auth/me');
         if (!meRes.ok) {
-          await fetch('/api/auth/dev-login', { redirect: 'manual' });
-          meRes = await fetch('/api/auth/me');
+          showAuthModal();
+          return;
         }
 
         const meData = await meRes.json();
-        const user = meData.user || { id: 'local-admin', username: 'SRB Nexus Admin' };
+        const user = meData.user;
+        if (!user) {
+          showAuthModal();
+          return;
+        }
+
         const avatarUrl = user.avatar
           ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
           : 'https://cdn.discordapp.com/embed/avatars/0.png';

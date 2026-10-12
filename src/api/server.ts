@@ -43,6 +43,10 @@ apiServer.get('/dashboard', async (req, reply) => {
   return reply.sendFile('dashboard.html');
 });
 
+apiServer.get('/servers', async (req, reply) => {
+  return reply.sendFile('index.html');
+});
+
 // Register API Routes
 apiServer.register(healthRoutes);
 apiServer.register(authRoutes);
