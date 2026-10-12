@@ -48,26 +48,89 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
     try {
       await interaction.deferReply({ ephemeral: true });
 
-      const category = interaction.values[0];
-      const channelName = `ticket-${category}-${interaction.user.username.toLowerCase()}`;
+      const category = interaction.values[0] || 'support';
+      const cleanName = interaction.user.username.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 16) || 'member';
+      const userTag = interaction.user.discriminator && interaction.user.discriminator !== '0'
+        ? interaction.user.discriminator
+        : interaction.user.id.slice(-4);
+      const channelName = `ticket-${category}-${cleanName}-${userTag}`;
+
+      // Check for existing open ticket for this user
+      const existingTicket = await db.query(
+        `SELECT channel_id FROM guild_tickets WHERE guild_id = $1 AND user_id = $2 AND status = 'OPEN' LIMIT 1`,
+        [guild.id, interaction.user.id]
+      ).catch(() => null);
+
+      if (existingTicket && existingTicket.rows.length > 0) {
+        const existingChannel = guild.channels.cache.get(existingTicket.rows[0].channel_id) ||
+          await guild.channels.fetch(existingTicket.rows[0].channel_id).catch(() => null);
+        if (existingChannel) {
+          await interaction.editReply({
+            content: `⚠️ You already have an active ticket channel: ${existingChannel}`,
+          });
+          return;
+        }
+      }
+
+      // Query guild ticket settings
+      const settingsRes = await db.query(
+        `SELECT support_role_id, ticket_category_id FROM guild_settings WHERE guild_id = $1`,
+        [guild.id]
+      ).catch(() => null);
+
+      const supportRoleId = settingsRes?.rows?.[0]?.support_role_id;
+      const categoryId = settingsRes?.rows?.[0]?.ticket_category_id;
+
+      const permissionOverwrites: any[] = [
+        {
+          id: guild.id,
+          deny: [PermissionFlagsBits.ViewChannel],
+        },
+        {
+          id: interaction.user.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.AttachFiles,
+            PermissionFlagsBits.EmbedLinks,
+          ],
+        },
+      ];
+
+      const botMember = guild.members.me || (await guild.members.fetchMe().catch(() => null));
+      if (botMember) {
+        permissionOverwrites.push({
+          id: botMember.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.ManageChannels,
+            PermissionFlagsBits.EmbedLinks,
+            PermissionFlagsBits.AttachFiles,
+          ],
+        });
+      }
+
+      if (supportRoleId && guild.roles.cache.has(supportRoleId)) {
+        permissionOverwrites.push({
+          id: supportRoleId,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.AttachFiles,
+            PermissionFlagsBits.EmbedLinks,
+          ],
+        });
+      }
 
       const ticketChannel = await guild.channels.create({
         name: channelName,
         type: ChannelType.GuildText,
-        permissionOverwrites: [
-          {
-            id: guild.id,
-            deny: [PermissionFlagsBits.ViewChannel],
-          },
-          {
-            id: interaction.user.id,
-            allow: [
-              PermissionFlagsBits.ViewChannel,
-              PermissionFlagsBits.SendMessages,
-              PermissionFlagsBits.ReadMessageHistory,
-            ],
-          },
-        ],
+        parent: categoryId && guild.channels.cache.has(categoryId) ? categoryId : undefined,
+        permissionOverwrites,
       });
 
       // Track in database
@@ -92,7 +155,7 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         .setTimestamp();
 
       await ticketChannel.send({
-        content: `<@${interaction.user.id}>`,
+        content: supportRoleId ? `<@${interaction.user.id}> | <@&${supportRoleId}>` : `<@${interaction.user.id}>`,
         embeds: [welcomeEmbed],
         components: [closeRow],
       });
@@ -120,31 +183,96 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
     return;
   }
 
-  // 3. HANDLE TICKET CREATION BUTTON
-  if (interaction.isButton() && interaction.customId === 'nexus_create_ticket') {
+  // 3. HANDLE TICKET CREATION BUTTON (Supports both nexus_ticket_create and nexus_create_ticket)
+  if (interaction.isButton() && (interaction.customId === 'nexus_ticket_create' || interaction.customId === 'nexus_create_ticket')) {
     const guild = interaction.guild;
     if (!guild) return;
 
     try {
       await interaction.deferReply({ ephemeral: true });
 
+      const cleanName = interaction.user.username.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 16) || 'member';
+      const userTag = interaction.user.discriminator && interaction.user.discriminator !== '0'
+        ? interaction.user.discriminator
+        : interaction.user.id.slice(-4);
+      const channelName = `ticket-${cleanName}-${userTag}`;
+
+      // Check for existing open ticket for this user
+      const existingTicket = await db.query(
+        `SELECT channel_id FROM guild_tickets WHERE guild_id = $1 AND user_id = $2 AND status = 'OPEN' LIMIT 1`,
+        [guild.id, interaction.user.id]
+      ).catch(() => null);
+
+      if (existingTicket && existingTicket.rows.length > 0) {
+        const existingChannel = guild.channels.cache.get(existingTicket.rows[0].channel_id) ||
+          await guild.channels.fetch(existingTicket.rows[0].channel_id).catch(() => null);
+        if (existingChannel) {
+          await interaction.editReply({
+            content: `⚠️ You already have an active ticket channel: ${existingChannel}`,
+          });
+          return;
+        }
+      }
+
+      // Query guild ticket settings
+      const settingsRes = await db.query(
+        `SELECT support_role_id, ticket_category_id FROM guild_settings WHERE guild_id = $1`,
+        [guild.id]
+      ).catch(() => null);
+
+      const supportRoleId = settingsRes?.rows?.[0]?.support_role_id;
+      const categoryId = settingsRes?.rows?.[0]?.ticket_category_id;
+
+      const permissionOverwrites: any[] = [
+        {
+          id: guild.id,
+          deny: [PermissionFlagsBits.ViewChannel],
+        },
+        {
+          id: interaction.user.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.AttachFiles,
+            PermissionFlagsBits.EmbedLinks,
+          ],
+        },
+      ];
+
+      const botMember = guild.members.me || (await guild.members.fetchMe().catch(() => null));
+      if (botMember) {
+        permissionOverwrites.push({
+          id: botMember.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.ManageChannels,
+            PermissionFlagsBits.EmbedLinks,
+            PermissionFlagsBits.AttachFiles,
+          ],
+        });
+      }
+
+      if (supportRoleId && guild.roles.cache.has(supportRoleId)) {
+        permissionOverwrites.push({
+          id: supportRoleId,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.AttachFiles,
+            PermissionFlagsBits.EmbedLinks,
+          ],
+        });
+      }
+
       const ticketChannel = await guild.channels.create({
-        name: `ticket-${interaction.user.username.toLowerCase()}`,
+        name: channelName,
         type: ChannelType.GuildText,
-        permissionOverwrites: [
-          {
-            id: guild.id,
-            deny: [PermissionFlagsBits.ViewChannel],
-          },
-          {
-            id: interaction.user.id,
-            allow: [
-              PermissionFlagsBits.ViewChannel,
-              PermissionFlagsBits.SendMessages,
-              PermissionFlagsBits.ReadMessageHistory,
-            ],
-          },
-        ],
+        parent: categoryId && guild.channels.cache.has(categoryId) ? categoryId : undefined,
+        permissionOverwrites,
       });
 
       // Track in database
@@ -163,12 +291,13 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
       );
 
       const welcomeEmbed = new EmbedBuilder()
-        .setTitle(`🎫 Support Ticket`)
-        .setDescription(`Hello <@${interaction.user.id}>! Thank you for reaching out. Please state your issue below.\n\nClick **Close Ticket** when resolved.`)
-        .setColor('#5865F2');
+        .setTitle(`🎫 Support Ticket — #${channelName}`)
+        .setDescription(`Hello <@${interaction.user.id}>! Thank you for reaching out. Please state your issue below.\n\nA staff member will assist you shortly. Click **Close Ticket** when resolved.`)
+        .setColor('#5865F2')
+        .setTimestamp();
 
       await ticketChannel.send({
-        content: `<@${interaction.user.id}>`,
+        content: supportRoleId ? `<@${interaction.user.id}> | <@&${supportRoleId}>` : `<@${interaction.user.id}>`,
         embeds: [welcomeEmbed],
         components: [closeRow],
       });
