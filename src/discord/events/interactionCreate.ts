@@ -165,8 +165,12 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
       });
 
       await interaction.editReply({
-        content: `✅ Your ticket channel has been opened: ${ticketChannel}`,
+        content: `✅ Your ticket channel has been opened: ${ticketChannel}\n*(This message will auto-dismiss in 15 seconds)*`,
       });
+
+      setTimeout(() => {
+        interaction.deleteReply().catch(() => {});
+      }, 15000);
 
       broadcastLiveNotification(interaction.client, guild.id, {
         type: 'ticket',
@@ -447,9 +451,13 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         components: [actionRow],
       });
 
-      // Send alert to #💼・quotation-leads channel if it exists in Staff HQ
+      // Send alert strictly to #💼・quotation-leads channel in Staff HQ (NEVER in public intake channels)
       const enquiryLogChan = guild.channels.cache.find(
-        (c) => c.isTextBased() && (c.name.includes('quotation-leads') || c.name.includes('enquiry-ticket')) && c.id !== targetChannel.id
+        (c) =>
+          c.isTextBased() &&
+          c.name.includes('quotation-leads') &&
+          c.id !== targetChannel.id &&
+          c.id !== interaction.channelId
       ) as any;
 
       if (enquiryLogChan && 'send' in enquiryLogChan) {
@@ -469,8 +477,12 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
       }
 
       await interaction.editReply({
-        content: `✅ Your project inquiry ticket has been opened under **Support Center**: ${targetChannel}!`,
+        content: `✅ Your project inquiry ticket has been opened under **Support Center**: ${targetChannel}!\n*(This message will auto-dismiss in 15 seconds)*`,
       });
+
+      setTimeout(() => {
+        interaction.deleteReply().catch(() => {});
+      }, 15000);
 
       broadcastLiveNotification(interaction.client, guild.id, {
         type: 'ticket',
@@ -641,9 +653,13 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         components: [actionRow],
       });
 
-      // Send alert to #💼・quotation-leads channel if it exists in Staff HQ
+      // Send alert strictly to #💼・quotation-leads channel in Staff HQ (NEVER in public intake channels)
       const quoteLogChan = guild.channels.cache.find(
-        (c) => c.isTextBased() && (c.name.includes('quotation-leads') || c.name.includes('quotation-ticket')) && c.id !== targetChannel.id
+        (c) =>
+          c.isTextBased() &&
+          c.name.includes('quotation-leads') &&
+          c.id !== targetChannel.id &&
+          c.id !== interaction.channelId
       ) as any;
 
       if (quoteLogChan && 'send' in quoteLogChan) {
@@ -663,8 +679,12 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
       }
 
       await interaction.editReply({
-        content: `✅ Your website creation quotation inquiry has been opened under **Support Center**: ${targetChannel}!`,
+        content: `✅ Your website creation quotation inquiry has been opened under **Support Center**: ${targetChannel}!\n*(This message will auto-dismiss in 15 seconds)*`,
       });
+
+      setTimeout(() => {
+        interaction.deleteReply().catch(() => {});
+      }, 15000);
 
       broadcastLiveNotification(interaction.client, guild.id, {
         type: 'ticket',
