@@ -883,10 +883,15 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
 
       const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
-          .setCustomId(`nexus_staff_confirm_meeting_${meetingId}`)
-          .setLabel('Confirm Meeting Schedule')
+          .setCustomId(`nexus_staff_confirm_meeting_${meetingId}_${interaction.user.id}`)
+          .setLabel('Staff: Confirm Schedule')
           .setStyle(ButtonStyle.Success)
           .setEmoji('✅'),
+        new ButtonBuilder()
+          .setCustomId(`nexus_meeting_reschedule_${meetingId}`)
+          .setLabel('Reschedule Time')
+          .setStyle(ButtonStyle.Primary)
+          .setEmoji('⏰'),
         new ButtonBuilder()
           .setCustomId('nexus_close_ticket')
           .setLabel('Close Ticket')
@@ -956,10 +961,174 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
 
   // 3c-3. HANDLE STAFF CONFIRM MEETING BUTTON
   if (interaction.isButton() && interaction.customId.startsWith('nexus_staff_confirm_meeting')) {
-    const meetingId = interaction.customId.replace('nexus_staff_confirm_meeting_', '').replace('nexus_staff_confirm_meeting', '');
+    const parts = interaction.customId.replace('nexus_staff_confirm_meeting_', '').split('_');
+    const meetingId = parts[0] || '';
+    const clientId = parts[1] || '';
+
+    // Check if the user is staff or administrator
+    const member = interaction.member as any;
+    const isStaff =
+      member?.permissions?.has(PermissionFlagsBits.Administrator) ||
+      member?.permissions?.has(PermissionFlagsBits.ManageChannels) ||
+      [
+        '1525076160990543892', // Founder
+        '1525076232247705711', // Admin
+        '1525111469056987268', // PM
+        '1525111410651041973', // Support
+        '1525095643972894730', // Dev
+        '1525076321854685305', // Designer
+      ].some((roleId) => member?.roles?.cache?.has(roleId));
+
+    if (!isStaff) {
+      await interaction.reply({
+        content: '⏳ Your meeting request has already been submitted! An SRB Studio staff member will review and click this button to confirm your appointment.',
+        ephemeral: true,
+      });
+      return;
+    }
+
+    // Update DB
+    await db.query(
+      `UPDATE guild_tickets SET status = 'CONFIRMED' WHERE channel_id = $1`,
+      [interaction.channelId]
+    ).catch(() => {});
+
+    // Update the message embed and buttons
+    try {
+      const origMsg = interaction.message;
+      if (origMsg && origMsg.embeds.length > 0) {
+        const oldEmbed = origMsg.embeds[0];
+        const statusIdx = oldEmbed.fields.findIndex((f) => f.name.includes('Status'));
+        const newEmbed = EmbedBuilder.from(oldEmbed)
+          .setColor('#10B981')
+          .spliceFields(
+            statusIdx >= 0 ? statusIdx : 0,
+            1,
+            { name: '📌 Status', value: `\`🟢 Confirmed & Locked In\``, inline: true }
+          )
+          .addFields({ name: '👤 Confirmed By', value: `<@${interaction.user.id}>`, inline: true });
+
+        const updatedRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder()
+            .setCustomId('nexus_meeting_confirmed_badge')
+            .setLabel('Schedule Confirmed')
+            .setStyle(ButtonStyle.Success)
+            .setEmoji('✅')
+            .setDisabled(true),
+          new ButtonBuilder()
+            .setCustomId(`nexus_meeting_reschedule_${meetingId}`)
+            .setLabel('Reschedule Time')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('⏰'),
+          new ButtonBuilder()
+            .setCustomId('nexus_close_ticket')
+            .setLabel('Close Ticket')
+            .setStyle(ButtonStyle.Danger)
+            .setEmoji('🔒')
+        );
+
+        await origMsg.edit({ embeds: [newEmbed], components: [updatedRow] });
+      }
+    } catch (e) {
+      logger.error({ e }, 'Failed to edit meeting embed');
+    }
+
+    const clientMention = clientId ? `<@${clientId}>` : 'Client';
+    await interaction.reply({
+      content:
+        `🎉 ${clientMention}, your strategy meeting has been **officially confirmed** by staff member <@${interaction.user.id}>!\n\n` +
+        `Please join the designated voice channel at the scheduled time. Our team looks forward to connecting with you!`,
+    });
+    return;
+  }
+
+  // 3c-4. HANDLE RESCHEDULE BUTTON
+  if (interaction.isButton() && interaction.customId.startsWith('nexus_meeting_reschedule')) {
+    const meetingId = interaction.customId.replace('nexus_meeting_reschedule_', '');
+
+    const modal = new ModalBuilder()
+      .setCustomId(`nexus_meeting_reschedule_modal_${meetingId}`)
+      .setTitle('Reschedule Strategy Meeting');
+
+    const newTimeInput = new TextInputBuilder()
+      .setCustomId('new_meeting_time')
+      .setLabel('New Preferred Date & Time (with Timezone)')
+      .setPlaceholder('e.g. Tomorrow 7:30 PM IST / Saturday 4:00 PM UTC')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+
+    const reasonInput = new TextInputBuilder()
+      .setCustomId('reschedule_reason')
+      .setLabel('Reason / Availability Notes')
+      .setPlaceholder('e.g. Schedule conflict, prefer weekend, etc.')
+      .setStyle(TextInputStyle.Paragraph)
+      .setRequired(false);
+
+    modal.addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(newTimeInput),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(reasonInput)
+    );
+
+    await interaction.showModal(modal);
+    return;
+  }
+
+  // 3c-5. HANDLE RESCHEDULE MODAL SUBMISSION
+  if (interaction.isModalSubmit() && interaction.customId.startsWith('nexus_meeting_reschedule_modal')) {
+    const meetingId = interaction.customId.replace('nexus_meeting_reschedule_modal_', '');
+    const newTime = interaction.fields.getTextInputValue('new_meeting_time');
+    const reason = interaction.fields.getTextInputValue('reschedule_reason') || 'No reason provided';
+
+    await db.query(
+      `UPDATE guild_tickets SET timeline = $1, status = 'RESCHEDULE_REQUESTED' WHERE channel_id = $2`,
+      [newTime, interaction.channelId]
+    ).catch(() => {});
+
+    try {
+      const msgs = await (interaction.channel as any)?.messages.fetch({ limit: 10 });
+      const parentMsg = msgs?.find((m: any) => m.embeds.some((e: any) => e.title?.includes('Strategy Meeting')));
+      if (parentMsg && parentMsg.embeds.length > 0) {
+        const oldEmbed = parentMsg.embeds[0];
+        const timeIdx = oldEmbed.fields.findIndex((f: any) => f.name.includes('Date & Time'));
+        const statusIdx = oldEmbed.fields.findIndex((f: any) => f.name.includes('Status'));
+
+        const newEmbed = EmbedBuilder.from(oldEmbed)
+          .setColor('#F59E0B')
+          .spliceFields(
+            timeIdx >= 0 ? timeIdx : 0,
+            1,
+            { name: '🕒 Requested Date & Time', value: `\`${newTime}\` (Updated)`, inline: true }
+          )
+          .spliceFields(
+            statusIdx >= 0 ? statusIdx : 1,
+            1,
+            { name: '📌 Status', value: `\`🟡 Reschedule Awaiting Confirmation\``, inline: true }
+          );
+
+        const updatedRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`nexus_staff_confirm_meeting_${meetingId}_${interaction.user.id}`)
+            .setLabel('Staff: Confirm Reschedule')
+            .setStyle(ButtonStyle.Success)
+            .setEmoji('✅'),
+          new ButtonBuilder()
+            .setCustomId('nexus_close_ticket')
+            .setLabel('Close Ticket')
+            .setStyle(ButtonStyle.Danger)
+            .setEmoji('🔒')
+        );
+
+        await parentMsg.edit({ embeds: [newEmbed], components: [updatedRow] });
+      }
+    } catch (e) {
+      logger.error({ e }, 'Failed to edit reschedule embed');
+    }
 
     await interaction.reply({
-      content: `✅ **Meeting Confirmed!** Staff member <@${interaction.user.id}> has confirmed strategy call **${meetingId || ''}**. Both parties please join the designated meeting room at the scheduled time!`,
+      content:
+        `🔔 **Meeting Reschedule Requested!** <@${interaction.user.id}> has requested to reschedule strategy call **${meetingId}** to **${newTime}**.\n` +
+        `**Reason:** *${reason}*\n` +
+        `Staff will review and confirm this new time slot!`,
     });
     return;
   }
