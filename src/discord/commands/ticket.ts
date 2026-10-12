@@ -12,6 +12,7 @@ import {
 } from 'discord.js';
 import { db } from '../../core/database';
 import { broadcastLiveNotification } from '../../services/liveNotifications';
+import { archiveAndSendTicketTranscript } from '../../services/transcriptService';
 
 export const ticketCommand = {
   data: new SlashCommandBuilder()
@@ -327,19 +328,12 @@ export const ticketCommand = {
 
     // 6. CLOSE TICKET
     if (subcommand === 'close') {
-      await interaction.reply({ content: '🔒 Ticket acknowledged. Closing and archiving channel in 5 seconds...' });
+      await interaction.reply({
+        content: '🔒 Ticket acknowledged. Generating transcript archive and closing channel in 5 seconds...',
+      });
 
-      await db.query(
-        `UPDATE guild_tickets SET status = 'CLOSED', closed_at = NOW() WHERE channel_id = $1`,
-        [channel.id]
-      ).catch(() => {});
-
-      broadcastLiveNotification(interaction.client, guild.id, {
-        type: 'ticket',
-        title: 'Support Ticket Closed',
-        description: `Support ticket closed by <@${interaction.user.id}> (${interaction.user.username})`,
-        severity: 'info',
-      }).catch(() => {});
+      // Archive and send transcript to transcript channel and client DM
+      await archiveAndSendTicketTranscript(guild, channel, interaction.user);
 
       setTimeout(async () => {
         await channel.delete().catch(() => {});
