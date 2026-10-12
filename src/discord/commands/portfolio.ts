@@ -18,7 +18,7 @@ export const portfolioCommand = {
     .addStringOption((opt) =>
       opt
         .setName('title')
-        .setDescription('Project title (e.g. Apex E-Commerce, Nexus Dashboard)')
+        .setDescription('Project title (e.g. Digital Den 360, Nexus Dashboard)')
         .setRequired(true)
     )
     .addStringOption((opt) =>
@@ -26,12 +26,6 @@ export const portfolioCommand = {
         .setName('category')
         .setDescription('Project category (e.g. Full-Stack Web App, Discord Bot, UI/UX, SaaS)')
         .setRequired(true)
-    )
-    .addStringOption((opt) =>
-      opt
-        .setName('tech_stack')
-        .setDescription('Technologies used (optional, e.g. Next.js 14, Tailwind CSS, PostgreSQL)')
-        .setRequired(false)
     )
     .addStringOption((opt) =>
       opt
@@ -60,7 +54,7 @@ export const portfolioCommand = {
     .addStringOption((opt) =>
       opt
         .setName('highlights')
-        .setDescription('Key features or achievements (e.g. 99 Lighthouse, Mobile-First, Stripe Checkout)')
+        .setDescription('Key features or achievements (e.g. Mobile-First, Stripe Checkout)')
         .setRequired(false)
     )
     .addChannelOption((opt) =>
@@ -78,7 +72,6 @@ export const portfolioCommand = {
 
     const title = interaction.options.getString('title', true);
     const category = interaction.options.getString('category', true);
-    const techStackRaw = interaction.options.getString('tech_stack');
     const description = interaction.options.getString('description', true);
     const liveUrl = interaction.options.getString('live_url');
     const imageUrl = interaction.options.getString('image_url');
@@ -99,17 +92,6 @@ export const portfolioCommand = {
         content: '❌ Could not find the **#💼・portfolio** channel. Please specify a channel option.',
       });
       return;
-    }
-
-    // Format tech stack badges
-    let formattedTech = '';
-    if (techStackRaw) {
-      formattedTech = techStackRaw
-        .split(/[,|•]/)
-        .map((t) => t.trim())
-        .filter((t) => t.length > 0)
-        .map((t) => `\`${t}\``)
-        .join(' • ');
     }
 
     // Format highlights
@@ -133,7 +115,6 @@ export const portfolioCommand = {
       .setColor('#00E5FF')
       .setDescription(
         `**📝 Project Overview:**\n${description}\n\n` +
-        (formattedTech ? `**🛠️ Tech Stack:**\n${formattedTech}\n\n` : '') +
         (formattedHighlights ? `**⭐ Key Deliverables & Highlights:**\n${formattedHighlights}\n\n` : '') +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
         `💡 *Interested in a similar build? Click **Request Similar Project** below to get an instant quotation!*`
