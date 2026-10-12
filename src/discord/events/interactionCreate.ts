@@ -447,9 +447,9 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         components: [actionRow],
       });
 
-      // Send alert to #enquiry-ticket channel if it exists in Support Center
+      // Send alert to #💼・quotation-leads channel if it exists in Staff HQ
       const enquiryLogChan = guild.channels.cache.find(
-        (c) => c.isTextBased() && (c.name.includes('enquiry-ticket') || c.name.includes('project-inquiry')) && c.id !== targetChannel.id
+        (c) => c.isTextBased() && (c.name.includes('quotation-leads') || c.name.includes('enquiry-ticket')) && c.id !== targetChannel.id
       ) as any;
 
       if (enquiryLogChan && 'send' in enquiryLogChan) {
@@ -641,9 +641,9 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         components: [actionRow],
       });
 
-      // Send alert to #quotation-ticket channel if it exists in Support Center
+      // Send alert to #💼・quotation-leads channel if it exists in Staff HQ
       const quoteLogChan = guild.channels.cache.find(
-        (c) => c.isTextBased() && (c.name.includes('quotation-ticket') || c.name.includes('request-a-quote')) && c.id !== targetChannel.id
+        (c) => c.isTextBased() && (c.name.includes('quotation-leads') || c.name.includes('quotation-ticket')) && c.id !== targetChannel.id
       ) as any;
 
       if (quoteLogChan && 'send' in quoteLogChan) {
@@ -964,6 +964,64 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         content: `❌ Could not modify role: Make sure my bot role is higher than **@${role.name}** in Server Settings.`,
         ephemeral: true,
       });
+      return;
+    }
+  }
+
+  // 5.5. HANDLE MEMBER VERIFICATION BUTTON
+  if (interaction.isButton() && interaction.customId === 'nexus_verify_member') {
+    if (!interaction.guild || !interaction.member) return;
+    try {
+      const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+      if (!member) return;
+
+      const verifiedRole = interaction.guild.roles.cache.find(
+        (r) => r.id === '1525076439748182087' || /verified/i.test(r.name) || /visitor/i.test(r.name)
+      );
+
+      if (!verifiedRole) {
+        await interaction.reply({
+          content: '⚠️ Verification role not found. Please contact an administrator.',
+          ephemeral: true,
+        });
+        return;
+      }
+
+      if (member.roles.cache.has(verifiedRole.id)) {
+        await interaction.reply({
+          content: 'ℹ️ **You are already verified!** You have full access to all channels in **SRB Studio**.',
+          ephemeral: true,
+        });
+        return;
+      }
+
+      await member.roles.add(verifiedRole);
+      await interaction.reply({
+        content: `🎉 **Verification Complete!** Welcome to **SRB Studio**, <@${member.id}>!\n\nYou now have access to our **Client Hub**, **Community Channels**, and **Project Inquiries**. Feel free to explore!`,
+        ephemeral: true,
+      });
+
+      // Send to mod-audit log if exists
+      const logChan = interaction.guild.channels.cache.find(
+        (c) => c.isTextBased() && (c.name.includes('mod-and-audit') || c.name.includes('mod-logs'))
+      ) as any;
+      if (logChan && 'send' in logChan) {
+        await logChan.send({
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#57F287')
+              .setDescription(`✅ **Member Verified:** <@${member.id}> (\`${member.user.tag}\`) verified in server`)
+              .setTimestamp(),
+          ],
+        }).catch(() => {});
+      }
+      return;
+    } catch (err: any) {
+      logger.error({ err }, 'Error during member verification');
+      await interaction.reply({
+        content: '❌ An error occurred during verification. Please make sure the bot role is positioned high enough.',
+        ephemeral: true,
+      }).catch(() => {});
       return;
     }
   }
