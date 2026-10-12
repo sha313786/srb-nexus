@@ -186,80 +186,134 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
     return;
   }
 
-  // 3. HANDLE TICKET / QUOTATION MODAL INVOCATION
-  if (
-    interaction.isButton() &&
-    (interaction.customId === 'nexus_ticket_create' ||
-      interaction.customId === 'nexus_create_ticket' ||
-      interaction.customId === 'nexus_open_quote_modal')
-  ) {
-    const modal = new ModalBuilder()
-      .setCustomId('nexus_quote_modal')
-      .setTitle('Website Quotation Request');
+  // 3. HANDLE TICKET / INQUIRY / QUOTATION BUTTON INVOCATIONS
+  if (interaction.isButton()) {
+    const cid = interaction.customId;
+    const chanName = (interaction.channel as any)?.name || '';
 
-    const typeInput = new TextInputBuilder()
-      .setCustomId('website_type')
-      .setLabel('Website Type / Category')
-      .setPlaceholder('e.g. E-Commerce, Portfolio, SaaS, Business Website')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
+    // A. Project Inquiry Button
+    if (
+      cid === 'nexus_inquiry_ticket_create' ||
+      cid === 'nexus_open_inquiry_modal' ||
+      ((cid === 'nexus_ticket_create' || cid === 'nexus_create_ticket') && (chanName.includes('inquiry') || chanName.includes('enquiry')))
+    ) {
+      const modal = new ModalBuilder()
+        .setCustomId('nexus_inquiry_modal')
+        .setTitle('Project Inquiry Request');
 
-    const pagesInput = new TextInputBuilder()
-      .setCustomId('website_pages')
-      .setLabel('Estimated Pages & Deliverables')
-      .setPlaceholder('e.g. 5 Pages, Landing Page, Blog, Customer Portal')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
+      const titleInput = new TextInputBuilder()
+        .setCustomId('inquiry_title')
+        .setLabel('Project Title / Subject')
+        .setPlaceholder('e.g. Website Overhaul, Discord Bot, API Integration')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
 
-    const budgetInput = new TextInputBuilder()
-      .setCustomId('target_budget')
-      .setLabel('Target Budget & Currency')
-      .setPlaceholder('e.g. $500 - $1,500 USD / ₹30,000 INR / Flexible')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
+      const scopeInput = new TextInputBuilder()
+        .setCustomId('inquiry_scope')
+        .setLabel('Project Scope / Category')
+        .setPlaceholder('e.g. Full-Stack Web, Discord Bot, UI/UX, Consulting')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
 
-    const timelineInput = new TextInputBuilder()
-      .setCustomId('target_timeline')
-      .setLabel('Desired Timeline / Deadline')
-      .setPlaceholder('e.g. 10 Days, 3 Weeks, Urgent')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(false);
+      const timelineInput = new TextInputBuilder()
+        .setCustomId('inquiry_timeline')
+        .setLabel('Preferred Timeline / Urgency')
+        .setPlaceholder('e.g. Within 1-2 Weeks, Flexible, Immediate')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false);
 
-    const detailsInput = new TextInputBuilder()
-      .setCustomId('project_details')
-      .setLabel('Key Features, Scope & References')
-      .setPlaceholder('Describe features (e.g. Stripe checkout, Discord auth, SEO) or link design references...')
-      .setStyle(TextInputStyle.Paragraph)
-      .setRequired(true);
+      const detailsInput = new TextInputBuilder()
+        .setCustomId('inquiry_details')
+        .setLabel('Inquiry Details & Questions')
+        .setPlaceholder('Tell us about your project vision, requirements, or questions...')
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(true);
 
-    modal.addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(typeInput),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(pagesInput),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(budgetInput),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(timelineInput),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(detailsInput)
-    );
+      modal.addComponents(
+        new ActionRowBuilder<TextInputBuilder>().addComponents(titleInput),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(scopeInput),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(timelineInput),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(detailsInput)
+      );
 
-    await interaction.showModal(modal);
-    return;
+      await interaction.showModal(modal);
+      return;
+    }
+
+    // B. Website Quotation Button
+    if (
+      cid === 'nexus_quote_ticket_create' ||
+      cid === 'nexus_open_quote_modal' ||
+      cid === 'nexus_ticket_create' ||
+      cid === 'nexus_create_ticket'
+    ) {
+      const modal = new ModalBuilder()
+        .setCustomId('nexus_quote_modal')
+        .setTitle('Website Quotation Request');
+
+      const typeInput = new TextInputBuilder()
+        .setCustomId('website_type')
+        .setLabel('Website Type / Category')
+        .setPlaceholder('e.g. E-Commerce, Portfolio, SaaS, Business Website')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+      const pagesInput = new TextInputBuilder()
+        .setCustomId('website_pages')
+        .setLabel('Estimated Pages & Deliverables')
+        .setPlaceholder('e.g. 5 Pages, Landing Page, Blog, Customer Portal')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+      const budgetInput = new TextInputBuilder()
+        .setCustomId('target_budget')
+        .setLabel('Target Budget & Currency')
+        .setPlaceholder('e.g. $500 - $1,500 USD / ₹30,000 INR / Flexible')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+      const timelineInput = new TextInputBuilder()
+        .setCustomId('target_timeline')
+        .setLabel('Desired Timeline / Deadline')
+        .setPlaceholder('e.g. 10 Days, 3 Weeks, Urgent')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false);
+
+      const detailsInput = new TextInputBuilder()
+        .setCustomId('project_details')
+        .setLabel('Key Features, Scope & References')
+        .setPlaceholder('Describe features (e.g. Stripe checkout, Discord auth, SEO) or link design references...')
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(true);
+
+      modal.addComponents(
+        new ActionRowBuilder<TextInputBuilder>().addComponents(typeInput),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(pagesInput),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(budgetInput),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(timelineInput),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(detailsInput)
+      );
+
+      await interaction.showModal(modal);
+      return;
+    }
   }
 
-  // 3b. HANDLE WEBSITE QUOTATION MODAL SUBMISSION
-  if (interaction.isModalSubmit() && interaction.customId === 'nexus_quote_modal') {
+  // 3b. HANDLE PROJECT INQUIRY MODAL SUBMISSION
+  if (interaction.isModalSubmit() && interaction.customId === 'nexus_inquiry_modal') {
     const guild = interaction.guild;
     if (!guild) return;
 
     try {
       await interaction.deferReply({ ephemeral: true });
 
-      const websiteType = interaction.fields.getTextInputValue('website_type');
-      const websitePages = interaction.fields.getTextInputValue('website_pages');
-      const targetBudget = interaction.fields.getTextInputValue('target_budget');
-      const targetTimeline = interaction.fields.getTextInputValue('target_timeline') || 'Flexible';
-      const projectDetails = interaction.fields.getTextInputValue('project_details');
+      const inquiryTitle = interaction.fields.getTextInputValue('inquiry_title');
+      const inquiryScope = interaction.fields.getTextInputValue('inquiry_scope');
+      const inquiryTimeline = interaction.fields.getTextInputValue('inquiry_timeline') || 'Flexible';
+      const inquiryDetails = interaction.fields.getTextInputValue('inquiry_details');
 
       const currentChanName = (interaction.channel as any)?.name || '';
-      const isCurrentChannelTicket = currentChanName.startsWith('ticket-') || currentChanName.startsWith('quote-');
+      const isCurrentChannelTicket = currentChanName.startsWith('enquiry-') || currentChanName.startsWith('ticket-');
 
       let targetChannel: any = null;
 
@@ -267,24 +321,38 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         targetChannel = interaction.channel;
         await db.query(
           `UPDATE guild_tickets 
-           SET ticket_type = 'WEBSITE_QUOTATION', project_type = $1, budget = $2, timeline = $3, pages = $4, details = $5
-           WHERE channel_id = $6`,
-          [websiteType, targetBudget, targetTimeline, websitePages, projectDetails, targetChannel.id]
+           SET ticket_type = 'PROJECT_INQUIRY', project_type = $1, timeline = $2, details = $3
+           WHERE channel_id = $4`,
+          [inquiryTitle, inquiryTimeline, inquiryDetails, targetChannel.id]
         ).catch(() => {});
       } else {
         const cleanName = interaction.user.username.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 14) || 'client';
         const userTag = interaction.user.discriminator && interaction.user.discriminator !== '0'
           ? interaction.user.discriminator
           : interaction.user.id.slice(-4);
-        const channelName = `quote-${cleanName}-${userTag}`;
+        const channelName = `enquiry-${cleanName}-${userTag}`;
 
         const settingsRes = await db.query(
-          `SELECT support_role_id, ticket_category_id FROM guild_settings WHERE guild_id = $1`,
+          `SELECT support_role_id, category_id, ticket_category_id FROM guild_settings WHERE guild_id = $1`,
           [guild.id]
         ).catch(() => null);
 
         const supportRoleId = settingsRes?.rows?.[0]?.support_role_id;
-        const categoryId = settingsRes?.rows?.[0]?.ticket_category_id;
+        const configuredCatId = settingsRes?.rows?.[0]?.category_id || settingsRes?.rows?.[0]?.ticket_category_id;
+
+        // Auto-resolve Support Center category
+        let targetCategoryId: string | undefined = undefined;
+        if (configuredCatId && guild.channels.cache.has(configuredCatId)) {
+          targetCategoryId = configuredCatId;
+        } else {
+          const found = guild.channels.cache.find(
+            (c) => c.type === ChannelType.GuildCategory && (/support/i.test(c.name) || /ticket/i.test(c.name))
+          );
+          if (found) {
+            targetCategoryId = found.id;
+            db.query(`UPDATE guild_settings SET category_id = $1 WHERE guild_id = $2`, [found.id, guild.id]).catch(() => {});
+          }
+        }
 
         const permissionOverwrites: any[] = [
           { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
@@ -331,7 +399,199 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         targetChannel = await guild.channels.create({
           name: channelName,
           type: ChannelType.GuildText,
-          parent: categoryId && guild.channels.cache.has(categoryId) ? categoryId : undefined,
+          parent: targetCategoryId,
+          permissionOverwrites,
+        });
+
+        await db.query(
+          `INSERT INTO guild_tickets (guild_id, channel_id, user_id, status, ticket_type, project_type, timeline, details)
+           VALUES ($1, $2, $3, 'OPEN', 'PROJECT_INQUIRY', $4, $5, $6)`,
+          [guild.id, targetChannel.id, interaction.user.id, inquiryTitle, inquiryTimeline, inquiryDetails]
+        ).catch(() => {});
+      }
+
+      const inqEmbed = new EmbedBuilder()
+        .setColor('#06B6D4')
+        .setTitle(`📩 Project Inquiry — ${inquiryTitle}`)
+        .setDescription(
+          `**Client:** <@${interaction.user.id}> (${interaction.user.tag})\n` +
+          `**Scope:** \`${inquiryScope}\`\n\n` +
+          `Thank you for reaching out! A staff member from our development and consulting team has been alerted and will assist you shortly.`
+        )
+        .addFields(
+          { name: '📌 Subject', value: `\`${inquiryTitle}\``, inline: true },
+          { name: '🛠️ Scope / Area', value: `\`${inquiryScope}\``, inline: true },
+          { name: '⏱️ Timeline', value: `\`${inquiryTimeline}\``, inline: true },
+          { name: '📝 Description & Details', value: `\`\`\`${inquiryDetails.slice(0, 950)}\`\`\``, inline: false }
+        )
+        .setFooter({ text: 'SRB NEXUS Client Relations • Support Center' })
+        .setTimestamp();
+
+      const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`nexus_staff_create_quote_${interaction.user.id}`)
+          .setLabel('Create Quotation')
+          .setStyle(ButtonStyle.Success)
+          .setEmoji('💼'),
+        new ButtonBuilder()
+          .setCustomId('nexus_close_ticket')
+          .setLabel('Close Ticket')
+          .setStyle(ButtonStyle.Danger)
+          .setEmoji('🔒')
+      );
+
+      await targetChannel.send({
+        content: `🔔 <@${interaction.user.id}> | Staff notification`,
+        embeds: [inqEmbed],
+        components: [actionRow],
+      });
+
+      // Send alert to #enquiry-ticket channel if it exists in Support Center
+      const enquiryLogChan = guild.channels.cache.find(
+        (c) => c.isTextBased() && (c.name.includes('enquiry-ticket') || c.name.includes('project-inquiry')) && c.id !== targetChannel.id
+      ) as any;
+
+      if (enquiryLogChan && 'send' in enquiryLogChan) {
+        await enquiryLogChan.send({
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#06B6D4')
+              .setTitle('📩 New Project Inquiry Ticket Arranged')
+              .setDescription(
+                `**Client:** <@${interaction.user.id}>\n` +
+                `**Ticket Channel:** ${targetChannel}\n` +
+                `**Topic:** \`${inquiryTitle}\` (${inquiryScope})`
+              )
+              .setTimestamp(),
+          ],
+        }).catch(() => {});
+      }
+
+      await interaction.editReply({
+        content: `✅ Your project inquiry ticket has been opened under **Support Center**: ${targetChannel}!`,
+      });
+
+      broadcastLiveNotification(interaction.client, guild.id, {
+        type: 'ticket',
+        title: 'Project Inquiry Ticket Opened',
+        description: `New project inquiry by <@${interaction.user.id}> for **${inquiryTitle}** in ${targetChannel}`,
+        severity: 'info',
+        fields: [
+          { name: 'Topic', value: inquiryTitle, inline: true },
+          { name: 'Scope', value: inquiryScope, inline: true },
+        ],
+      }).catch(() => {});
+    } catch (err) {
+      logger.error({ err }, 'Failed to process project inquiry modal');
+      if (interaction.deferred) {
+        await interaction.editReply({ content: 'Failed to create inquiry channel. Please check bot permissions.' });
+      }
+    }
+    return;
+  }
+
+  // 3c. HANDLE WEBSITE QUOTATION MODAL SUBMISSION
+  if (interaction.isModalSubmit() && interaction.customId === 'nexus_quote_modal') {
+    const guild = interaction.guild;
+    if (!guild) return;
+
+    try {
+      await interaction.deferReply({ ephemeral: true });
+
+      const websiteType = interaction.fields.getTextInputValue('website_type');
+      const websitePages = interaction.fields.getTextInputValue('website_pages');
+      const targetBudget = interaction.fields.getTextInputValue('target_budget');
+      const targetTimeline = interaction.fields.getTextInputValue('target_timeline') || 'Flexible';
+      const projectDetails = interaction.fields.getTextInputValue('project_details');
+
+      const currentChanName = (interaction.channel as any)?.name || '';
+      const isCurrentChannelTicket = currentChanName.startsWith('ticket-') || currentChanName.startsWith('quote-');
+
+      let targetChannel: any = null;
+
+      if (isCurrentChannelTicket) {
+        targetChannel = interaction.channel;
+        await db.query(
+          `UPDATE guild_tickets 
+           SET ticket_type = 'WEBSITE_QUOTATION', project_type = $1, budget = $2, timeline = $3, pages = $4, details = $5
+           WHERE channel_id = $6`,
+          [websiteType, targetBudget, targetTimeline, websitePages, projectDetails, targetChannel.id]
+        ).catch(() => {});
+      } else {
+        const cleanName = interaction.user.username.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 14) || 'client';
+        const userTag = interaction.user.discriminator && interaction.user.discriminator !== '0'
+          ? interaction.user.discriminator
+          : interaction.user.id.slice(-4);
+        const channelName = `quote-${cleanName}-${userTag}`;
+
+        const settingsRes = await db.query(
+          `SELECT support_role_id, category_id, ticket_category_id FROM guild_settings WHERE guild_id = $1`,
+          [guild.id]
+        ).catch(() => null);
+
+        const supportRoleId = settingsRes?.rows?.[0]?.support_role_id;
+        const configuredCatId = settingsRes?.rows?.[0]?.category_id || settingsRes?.rows?.[0]?.ticket_category_id;
+
+        // Auto-resolve Support Center category
+        let targetCategoryId: string | undefined = undefined;
+        if (configuredCatId && guild.channels.cache.has(configuredCatId)) {
+          targetCategoryId = configuredCatId;
+        } else {
+          const found = guild.channels.cache.find(
+            (c) => c.type === ChannelType.GuildCategory && (/support/i.test(c.name) || /ticket/i.test(c.name))
+          );
+          if (found) {
+            targetCategoryId = found.id;
+            db.query(`UPDATE guild_settings SET category_id = $1 WHERE guild_id = $2`, [found.id, guild.id]).catch(() => {});
+          }
+        }
+
+        const permissionOverwrites: any[] = [
+          { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+          {
+            id: interaction.user.id,
+            allow: [
+              PermissionFlagsBits.ViewChannel,
+              PermissionFlagsBits.SendMessages,
+              PermissionFlagsBits.ReadMessageHistory,
+              PermissionFlagsBits.AttachFiles,
+              PermissionFlagsBits.EmbedLinks,
+            ],
+          },
+        ];
+
+        const botMember = guild.members.me || (await guild.members.fetchMe().catch(() => null));
+        if (botMember) {
+          permissionOverwrites.push({
+            id: botMember.id,
+            allow: [
+              PermissionFlagsBits.ViewChannel,
+              PermissionFlagsBits.SendMessages,
+              PermissionFlagsBits.ReadMessageHistory,
+              PermissionFlagsBits.ManageChannels,
+              PermissionFlagsBits.EmbedLinks,
+              PermissionFlagsBits.AttachFiles,
+            ],
+          });
+        }
+
+        if (supportRoleId && guild.roles.cache.has(supportRoleId)) {
+          permissionOverwrites.push({
+            id: supportRoleId,
+            allow: [
+              PermissionFlagsBits.ViewChannel,
+              PermissionFlagsBits.SendMessages,
+              PermissionFlagsBits.ReadMessageHistory,
+              PermissionFlagsBits.AttachFiles,
+              PermissionFlagsBits.EmbedLinks,
+            ],
+          });
+        }
+
+        targetChannel = await guild.channels.create({
+          name: channelName,
+          type: ChannelType.GuildText,
+          parent: targetCategoryId,
           permissionOverwrites,
         });
 
@@ -380,8 +640,29 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         components: [actionRow],
       });
 
+      // Send alert to #quotation-ticket channel if it exists in Support Center
+      const quoteLogChan = guild.channels.cache.find(
+        (c) => c.isTextBased() && (c.name.includes('quotation-ticket') || c.name.includes('request-a-quote')) && c.id !== targetChannel.id
+      ) as any;
+
+      if (quoteLogChan && 'send' in quoteLogChan) {
+        await quoteLogChan.send({
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#5865F2')
+              .setTitle('🌐 New Website Quotation Ticket Arranged')
+              .setDescription(
+                `**Client:** <@${interaction.user.id}>\n` +
+                `**Ticket Channel:** ${targetChannel}\n` +
+                `**Type:** \`${websiteType}\` (${targetBudget})`
+              )
+              .setTimestamp(),
+          ],
+        }).catch(() => {});
+      }
+
       await interaction.editReply({
-        content: `✅ Your website creation quotation inquiry has been registered in ${targetChannel}!`,
+        content: `✅ Your website creation quotation inquiry has been opened under **Support Center**: ${targetChannel}!`,
       });
 
       broadcastLiveNotification(interaction.client, guild.id, {

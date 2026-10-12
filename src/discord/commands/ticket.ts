@@ -8,6 +8,7 @@ import {
   ButtonStyle,
   PermissionFlagsBits,
   TextChannel,
+  ChannelType,
 } from 'discord.js';
 import { db } from '../../core/database';
 import { broadcastLiveNotification } from '../../services/liveNotifications';
@@ -15,12 +16,46 @@ import { broadcastLiveNotification } from '../../services/liveNotifications';
 export const ticketCommand = {
   data: new SlashCommandBuilder()
     .setName('nexus-ticket')
-    .setDescription('Manage support and website quotation tickets')
+    .setDescription('Manage support, project inquiry, and website quotation tickets')
     .setDefaultMemberPermissions(PermissionFlagsBits.SendMessages)
+    .addSubcommand((sub) =>
+      sub
+        .setName('deploy-panels')
+        .setDescription('Automatically deploy both Project Inquiry and Website Quotation panels to server channels')
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('deploy-inquiry')
+        .setDescription('Deploy the Project Inquiry intake panel to a target channel')
+        .addChannelOption((opt) =>
+          opt
+            .setName('channel')
+            .setDescription('Target channel (defaults to current channel)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('deploy-quote')
+        .setDescription('Deploy the Website Creation Quotation panel to a target channel')
+        .addChannelOption((opt) =>
+          opt
+            .setName('channel')
+            .setDescription('Target channel (defaults to current channel)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
+        )
+    )
     .addSubcommand((sub) =>
       sub
         .setName('quote-form')
         .setDescription('Post the Website Creation Quotation questionnaire in this ticket')
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('inquiry-form')
+        .setDescription('Post the Project Inquiry questionnaire in this ticket')
     )
     .addSubcommand((sub) =>
       sub
@@ -71,6 +106,157 @@ export const ticketCommand = {
       return;
     }
 
+    // 1. AUTO DEPLOY BOTH PANELS
+    if (subcommand === 'deploy-panels') {
+      if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageChannels)) {
+        await interaction.reply({ content: 'You need Manage Channels permissions to deploy ticket panels.', ephemeral: true });
+        return;
+      }
+
+      await interaction.deferReply({ ephemeral: true });
+
+      // Find Project Inquiry target channel (look for project-inquiry or enquiry-ticket)
+      const inquiryChannel = guild.channels.cache.find(
+        (c) => c.isTextBased() && (c.name.includes('project-inquiry') || c.name.includes('enquiry-ticket'))
+      ) as TextChannel | undefined;
+
+      // Find Quotation target channel (look for request-a-quote or quotation-ticket)
+      const quoteChannel = guild.channels.cache.find(
+        (c) => c.isTextBased() && (c.name.includes('request-a-quote') || c.name.includes('quotation-ticket'))
+      ) as TextChannel | undefined;
+
+      const deployed: string[] = [];
+
+      // Deploy Project Inquiry Panel
+      if (inquiryChannel) {
+        const inqEmbed = new EmbedBuilder()
+          .setColor('#06B6D4')
+          .setTitle('📩 SRB NEXUS — Project Inquiry Desk')
+          .setDescription(
+            `Have a new project idea, custom development requirement, or questions for our team?\n\n` +
+            `Click **Open Project Inquiry** below to fill out our intake form. A private channel will be generated for you under **Support Center** with our staff.`
+          )
+          .addFields(
+            { name: '1. What We Handle', value: 'Websites, Discord Bots, Software Development, UI/UX & Cloud Hosting.', inline: true },
+            { name: '2. Dedicated Workspace', value: 'Private discussions, file sharing, and direct developer access.', inline: true }
+          )
+          .setFooter({ text: 'SRB NEXUS Client Relations • Automated Inquiry System' })
+          .setTimestamp();
+
+        const inqRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder()
+            .setCustomId('nexus_inquiry_ticket_create')
+            .setLabel('Open Project Inquiry')
+            .setStyle(ButtonStyle.Primary)
+            .setEmoji('📩')
+        );
+
+        await inquiryChannel.send({ embeds: [inqEmbed], components: [inqRow] }).catch(() => {});
+        deployed.push(`📩 Project Inquiry Panel -> ${inquiryChannel}`);
+      }
+
+      // Deploy Website Quotation Panel
+      if (quoteChannel) {
+        const quoteEmbed = new EmbedBuilder()
+          .setColor('#5865F2')
+          .setTitle('📝 Website Creation & Development Quotation')
+          .setDescription(
+            `Ready to bring your digital vision to life? Whether you need a high-converting Landing Page, full E-Commerce store, or custom SaaS web app, our team is ready!\n\n` +
+            `Click **Request a Quote** below to submit your project requirements and receive a free, itemized quotation proposal.`
+          )
+          .addFields(
+            { name: '1. Project Scope', value: 'Landing Pages, Corporate Portals, E-Commerce, Custom Web Apps & Dashboards.', inline: true },
+            { name: '2. Transparent Pricing', value: 'Clear milestones, delivery timeline, and post-launch support.', inline: true }
+          )
+          .setFooter({ text: 'SRB NEXUS Web Architecture Services • Quotation Desk' })
+          .setTimestamp();
+
+        const quoteRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder()
+            .setCustomId('nexus_quote_ticket_create')
+            .setLabel('Request a Quote')
+            .setStyle(ButtonStyle.Success)
+            .setEmoji('📝')
+        );
+
+        await quoteChannel.send({ embeds: [quoteEmbed], components: [quoteRow] }).catch(() => {});
+        deployed.push(`📝 Website Quotation Panel -> ${quoteChannel}`);
+      }
+
+      if (deployed.length > 0) {
+        await interaction.editReply({
+          content: `✅ Successfully deployed ticket panels:\n${deployed.join('\n')}\n\n*All newly created tickets will be automatically organized under the **Support Center** category.*`,
+        });
+      } else {
+        await interaction.editReply({
+          content: `⚠️ Could not find matching channels. Use \`/nexus-ticket deploy-inquiry\` or \`/nexus-ticket deploy-quote\` with a specific channel.`,
+        });
+      }
+      return;
+    }
+
+    // 2. DEPLOY SINGLE INQUIRY PANEL
+    if (subcommand === 'deploy-inquiry') {
+      const targetChan = (interaction.options.getChannel('channel') as TextChannel) || channel;
+
+      const inqEmbed = new EmbedBuilder()
+        .setColor('#06B6D4')
+        .setTitle('📩 SRB NEXUS — Project Inquiry Desk')
+        .setDescription(
+          `Have a new project idea, custom development requirement, or questions for our team?\n\n` +
+          `Click **Open Project Inquiry** below to fill out our intake form. A private channel will be arranged for you under **Support Center** with our staff.`
+        )
+        .addFields(
+          { name: '1. Scope', value: 'Websites, Bots, Custom Software & Infrastructure.', inline: true },
+          { name: '2. Turnaround', value: 'Prompt response from our project managers.', inline: true }
+        )
+        .setFooter({ text: 'SRB NEXUS Client Relations • Automated Inquiry System' })
+        .setTimestamp();
+
+      const inqRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId('nexus_inquiry_ticket_create')
+          .setLabel('Open Project Inquiry')
+          .setStyle(ButtonStyle.Primary)
+          .setEmoji('📩')
+      );
+
+      await targetChan.send({ embeds: [inqEmbed], components: [inqRow] });
+      await interaction.reply({ content: `✅ Project Inquiry panel deployed to ${targetChan}!`, ephemeral: true });
+      return;
+    }
+
+    // 3. DEPLOY SINGLE QUOTATION PANEL
+    if (subcommand === 'deploy-quote') {
+      const targetChan = (interaction.options.getChannel('channel') as TextChannel) || channel;
+
+      const quoteEmbed = new EmbedBuilder()
+        .setColor('#5865F2')
+        .setTitle('📝 Website Creation & Development Quotation')
+        .setDescription(
+          `Need a custom website, web app, or e-commerce platform? Click below to submit your project requirements and receive an itemized proposal from our development team.`
+        )
+        .addFields(
+          { name: '1. Project Scope', value: 'Landing Pages, Corporate Portals, E-Commerce, Custom Web Apps & Dashboards.', inline: true },
+          { name: '2. Transparent Pricing', value: 'Clear milestones, delivery timeline, and post-launch support.', inline: true }
+        )
+        .setFooter({ text: 'SRB NEXUS Web Architecture Services • Quotation Desk' })
+        .setTimestamp();
+
+      const quoteRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId('nexus_quote_ticket_create')
+          .setLabel('Request a Quote')
+          .setStyle(ButtonStyle.Success)
+          .setEmoji('📝')
+      );
+
+      await targetChan.send({ embeds: [quoteEmbed], components: [quoteRow] });
+      await interaction.reply({ content: `✅ Website Quotation panel deployed to ${targetChan}!`, ephemeral: true });
+      return;
+    }
+
+    // 4. QUOTE FORM QUESTIONNAIRE IN CURRENT TICKET
     if (subcommand === 'quote-form') {
       const embed = new EmbedBuilder()
         .setColor('#5865F2')
@@ -107,6 +293,39 @@ export const ticketCommand = {
       return;
     }
 
+    // 5. INQUIRY FORM IN CURRENT TICKET
+    if (subcommand === 'inquiry-form') {
+      const embed = new EmbedBuilder()
+        .setColor('#06B6D4')
+        .setTitle('📩 Project Inquiry Intake')
+        .setDescription(
+          `Please share details about your project inquiry below so our team can assist you.\n\n` +
+          `Click **Fill Inquiry Form** to state your project goals, scope, and urgency.`
+        )
+        .setFooter({ text: 'SRB NEXUS Client Relations' })
+        .setTimestamp();
+
+      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId('nexus_open_inquiry_modal')
+          .setLabel('Fill Inquiry Form')
+          .setStyle(ButtonStyle.Primary)
+          .setEmoji('📩'),
+        new ButtonBuilder()
+          .setCustomId('nexus_close_ticket')
+          .setLabel('Close Ticket')
+          .setStyle(ButtonStyle.Danger)
+          .setEmoji('🔒')
+      );
+
+      await interaction.reply({
+        embeds: [embed],
+        components: [row],
+      });
+      return;
+    }
+
+    // 6. CLOSE TICKET
     if (subcommand === 'close') {
       await interaction.reply({ content: '🔒 Ticket acknowledged. Closing and archiving channel in 5 seconds...' });
 
@@ -128,6 +347,7 @@ export const ticketCommand = {
       return;
     }
 
+    // 7. ADD USER
     if (subcommand === 'add') {
       const targetUser = interaction.options.getUser('user', true);
       await channel.permissionOverwrites.edit(targetUser.id, {
@@ -144,6 +364,7 @@ export const ticketCommand = {
       return;
     }
 
+    // 8. REMOVE USER
     if (subcommand === 'remove') {
       const targetUser = interaction.options.getUser('user', true);
       await channel.permissionOverwrites.delete(targetUser.id);
@@ -154,6 +375,7 @@ export const ticketCommand = {
       return;
     }
 
+    // 9. RENAME TICKET
     if (subcommand === 'rename') {
       const newName = interaction.options.getString('name', true).toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 32);
       await channel.setName(newName);
