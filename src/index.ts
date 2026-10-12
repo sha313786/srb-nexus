@@ -363,6 +363,10 @@ async function start() {
     await app.register(guildRoutes);
 
     app.get('/', async (request, reply) => {
+      return reply.redirect('/dashboard');
+    });
+
+    app.get('/servers', async (request, reply) => {
       return reply.sendFile('index.html');
     });
 

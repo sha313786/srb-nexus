@@ -316,6 +316,8 @@
 
   <script>
     let allGuilds = [];
+    const urlParams = new URLSearchParams(window.location.search);
+    const isExplicitServerList = urlParams.has('servers') || window.location.pathname.includes('/servers');
 
     async function checkAuth() {
       try {
@@ -329,6 +331,12 @@
 
         const data = await res.json();
         const user = data.user;
+
+        // Auto-redirect directly to dashboard if authenticated and not explicitly viewing /servers
+        if (!isExplicitServerList) {
+          window.location.replace('/dashboard');
+          return;
+        }
 
         // Render user slot in top header
         const avatarUrl = user.avatar
