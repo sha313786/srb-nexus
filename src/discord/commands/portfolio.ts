@@ -30,8 +30,8 @@ export const portfolioCommand = {
     .addStringOption((opt) =>
       opt
         .setName('tech_stack')
-        .setDescription('Technologies used (e.g. Next.js 14, Tailwind CSS, PostgreSQL, Stripe)')
-        .setRequired(true)
+        .setDescription('Technologies used (optional, e.g. Next.js 14, Tailwind CSS, PostgreSQL)')
+        .setRequired(false)
     )
     .addStringOption((opt) =>
       opt
@@ -78,7 +78,7 @@ export const portfolioCommand = {
 
     const title = interaction.options.getString('title', true);
     const category = interaction.options.getString('category', true);
-    const techStackRaw = interaction.options.getString('tech_stack', true);
+    const techStackRaw = interaction.options.getString('tech_stack');
     const description = interaction.options.getString('description', true);
     const liveUrl = interaction.options.getString('live_url');
     const imageUrl = interaction.options.getString('image_url');
@@ -102,12 +102,15 @@ export const portfolioCommand = {
     }
 
     // Format tech stack badges
-    const formattedTech = techStackRaw
-      .split(/[,|•]/)
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0)
-      .map((t) => `\`${t}\``)
-      .join(' • ');
+    let formattedTech = '';
+    if (techStackRaw) {
+      formattedTech = techStackRaw
+        .split(/[,|•]/)
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0)
+        .map((t) => `\`${t}\``)
+        .join(' • ');
+    }
 
     // Format highlights
     let formattedHighlights = '';
@@ -130,7 +133,7 @@ export const portfolioCommand = {
       .setColor('#00E5FF')
       .setDescription(
         `**📝 Project Overview:**\n${description}\n\n` +
-        `**🛠️ Tech Stack:**\n${formattedTech}\n\n` +
+        (formattedTech ? `**🛠️ Tech Stack:**\n${formattedTech}\n\n` : '') +
         (formattedHighlights ? `**⭐ Key Deliverables & Highlights:**\n${formattedHighlights}\n\n` : '') +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
         `💡 *Interested in a similar build? Click **Request Similar Project** below to get an instant quotation!*`

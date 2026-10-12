@@ -32,8 +32,6 @@ async function main() {
     .setDescription(
       '**📝 Project Overview:**\n' +
       'A production-grade, specialized cloud ERP and POS operating suite purpose-built for **Akshaya E-Centres, CSC Digital Seva, Jan Seva Kendras, and Cyber Cafes** across India. Solves the complex accounting challenge of isolating government portal wallet pass-through charges from true shop revenue.\n\n' +
-      '**🛠️ Tech Stack & Architecture:**\n' +
-      '`Next.js 14 (App Router)` • `React 19` • `TypeScript` • `TailwindCSS` • `PostgreSQL` • `ESC/POS Engine`\n\n' +
       '**⭐ Core Engineering Deliverables:**\n' +
       '• 💼 **Pass-Through Fee Isolation:** Automatically separates government wallet liabilities (Passport Seva, e-District, Sarathi, BBPS) from real front-desk profits.\n' +
       '• 🖨️ **58mm & 80mm Thermal POS Engine:** Sub-second thermal receipt printing with multilingual support (Malayalam, Hindi, Tamil, English) & dynamic UPI QR codes.\n' +
@@ -69,7 +67,7 @@ async function main() {
   );
 
   await msg.edit({ embeds: [embed], components: [actionRow] });
-  console.log('✅ Successfully edited message 1559148840647524393 with clean formatting and code badges!');
+  console.log('✅ Removed Tech Stack section from message 1559148840647524393!');
   process.exit(0);
 }
 
