@@ -302,6 +302,65 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
       await interaction.showModal(modal);
       return;
     }
+
+    // C. Meeting Booking Button
+    if (
+      cid === 'nexus_book_meeting_btn' ||
+      cid === 'nexus_schedule_call' ||
+      ((cid === 'nexus_ticket_create' || cid === 'nexus_create_ticket') && chanName.includes('meeting'))
+    ) {
+      const modal = new ModalBuilder()
+        .setCustomId('nexus_book_meeting_modal')
+        .setTitle('Schedule Strategy Meeting');
+
+      const topicInput = new TextInputBuilder()
+        .setCustomId('meeting_topic')
+        .setLabel('Meeting Topic / Subject')
+        .setPlaceholder('e.g. Website Architecture, Discord Bot Scope, UI/UX Review')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+      const datetimeInput = new TextInputBuilder()
+        .setCustomId('meeting_datetime')
+        .setLabel('Preferred Date & Time (with Timezone)')
+        .setPlaceholder('e.g. Tomorrow 5:00 PM IST / Friday 3:00 PM UTC')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+      const platformInput = new TextInputBuilder()
+        .setCustomId('meeting_platform')
+        .setLabel('Preferred Platform / Room')
+        .setPlaceholder('e.g. Discord VC (Client Meeting 1) / Google Meet')
+        .setValue('Discord VC (Client Meeting 1)')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+      const durationInput = new TextInputBuilder()
+        .setCustomId('meeting_duration')
+        .setLabel('Estimated Duration')
+        .setPlaceholder('e.g. 15 Mins, 30 Mins, 45 Mins')
+        .setValue('30 Minutes')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false);
+
+      const notesInput = new TextInputBuilder()
+        .setCustomId('meeting_notes')
+        .setLabel('Agenda / Key Goals / Questions')
+        .setPlaceholder('Describe project goals, references, or topics to cover...')
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(false);
+
+      modal.addComponents(
+        new ActionRowBuilder<TextInputBuilder>().addComponents(topicInput),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(datetimeInput),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(platformInput),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(durationInput),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(notesInput)
+      );
+
+      await interaction.showModal(modal);
+      return;
+    }
   }
 
   // 3b. HANDLE PROJECT INQUIRY MODAL SUBMISSION
@@ -702,6 +761,206 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         await interaction.editReply({ content: 'Failed to create quotation channel. Please check bot permissions.' });
       }
     }
+    return;
+  }
+
+  // 3c-2. HANDLE MEETING RESERVATION MODAL SUBMISSION
+  if (interaction.isModalSubmit() && interaction.customId === 'nexus_book_meeting_modal') {
+    const guild = interaction.guild;
+    if (!guild) return;
+
+    try {
+      await interaction.deferReply({ ephemeral: true });
+
+      const topic = interaction.fields.getTextInputValue('meeting_topic');
+      const datetime = interaction.fields.getTextInputValue('meeting_datetime');
+      const platform = interaction.fields.getTextInputValue('meeting_platform') || 'Discord VC (Client Meeting 1)';
+      const duration = interaction.fields.getTextInputValue('meeting_duration') || '30 Minutes';
+      const notes = interaction.fields.getTextInputValue('meeting_notes') || 'No specific agenda provided.';
+
+      const meetingId = `NX-M${Date.now().toString().slice(-5)}`;
+      const cleanName = interaction.user.username.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 14) || 'client';
+      const userTag = interaction.user.discriminator && interaction.user.discriminator !== '0'
+        ? interaction.user.discriminator
+        : interaction.user.id.slice(-4);
+      const channelName = `meeting-${cleanName}-${userTag}`;
+
+      const settingsRes = await db.query(
+        `SELECT support_role_id, category_id, ticket_category_id FROM guild_settings WHERE guild_id = $1`,
+        [guild.id]
+      ).catch(() => null);
+
+      const supportRoleId = settingsRes?.rows?.[0]?.support_role_id;
+      const configuredCatId = settingsRes?.rows?.[0]?.category_id || settingsRes?.rows?.[0]?.ticket_category_id;
+
+      // Auto-resolve Support Center category
+      let targetCategoryId: string | undefined = undefined;
+      if (configuredCatId && guild.channels.cache.has(configuredCatId)) {
+        targetCategoryId = configuredCatId;
+      } else {
+        const found = guild.channels.cache.find(
+          (c) => c.type === ChannelType.GuildCategory && (/support/i.test(c.name) || /ticket/i.test(c.name))
+        );
+        if (found) {
+          targetCategoryId = found.id;
+          db.query(`UPDATE guild_settings SET category_id = $1 WHERE guild_id = $2`, [found.id, guild.id]).catch(() => {});
+        }
+      }
+
+      const permissionOverwrites: any[] = [
+        { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+        {
+          id: interaction.user.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.AttachFiles,
+            PermissionFlagsBits.EmbedLinks,
+          ],
+        },
+      ];
+
+      const botMember = guild.members.me || (await guild.members.fetchMe().catch(() => null));
+      if (botMember) {
+        permissionOverwrites.push({
+          id: botMember.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.ManageChannels,
+            PermissionFlagsBits.EmbedLinks,
+            PermissionFlagsBits.AttachFiles,
+          ],
+        });
+      }
+
+      if (supportRoleId && guild.roles.cache.has(supportRoleId)) {
+        permissionOverwrites.push({
+          id: supportRoleId,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.AttachFiles,
+            PermissionFlagsBits.EmbedLinks,
+          ],
+        });
+      }
+
+      const targetChannel = await guild.channels.create({
+        name: channelName,
+        type: ChannelType.GuildText,
+        parent: targetCategoryId,
+        permissionOverwrites,
+      });
+
+      await db.query(
+        `INSERT INTO guild_tickets (guild_id, channel_id, user_id, status, ticket_type, project_type, timeline, budget, pages, details)
+         VALUES ($1, $2, $3, 'OPEN', 'MEETING_REQUEST', $4, $5, $6, $7, $8)`,
+        [guild.id, targetChannel.id, interaction.user.id, topic, datetime, platform, duration, notes]
+      ).catch(() => {});
+
+      const meetingEmbed = new EmbedBuilder()
+        .setColor('#6366F1')
+        .setTitle(`📅 Strategy Meeting Requested — ${meetingId}`)
+        .setDescription(
+          `**Client:** <@${interaction.user.id}> (${interaction.user.tag})\n` +
+          `**Topic:** **${topic}**\n\n` +
+          `Thank you for scheduling a strategy session with **SRB Studio**! Our leadership & development engineering team has received your request and will confirm the calendar appointment shortly.`
+        )
+        .addFields(
+          { name: '📌 Discussion Subject', value: `\`${topic}\``, inline: true },
+          { name: '🕒 Requested Date & Time', value: `\`${datetime}\``, inline: true },
+          { name: '🎙️ Meeting Platform', value: `\`${platform}\``, inline: true },
+          { name: '⏱️ Estimated Duration', value: `\`${duration}\``, inline: true },
+          { name: '📌 Status', value: `\`🟡 Awaiting Staff Confirmation\``, inline: true },
+          { name: '📝 Agenda & Notes', value: `\`\`\`${notes.slice(0, 950)}\`\`\``, inline: false }
+        )
+        .setFooter({ text: `SRB Studio Client Operations • Ref: ${meetingId}` })
+        .setTimestamp();
+
+      const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`nexus_staff_confirm_meeting_${meetingId}`)
+          .setLabel('Confirm Meeting Schedule')
+          .setStyle(ButtonStyle.Success)
+          .setEmoji('✅'),
+        new ButtonBuilder()
+          .setCustomId('nexus_close_ticket')
+          .setLabel('Close Ticket')
+          .setStyle(ButtonStyle.Danger)
+          .setEmoji('🔒')
+      );
+
+      await targetChannel.send({
+        content: `🔔 <@${interaction.user.id}> | Staff notification`,
+        embeds: [meetingEmbed],
+        components: [actionRow],
+      });
+
+      // Send alert strictly to #💼・quotation-leads channel in Staff HQ
+      const meetingLogChan = guild.channels.cache.find(
+        (c) =>
+          c.isTextBased() &&
+          c.name.includes('quotation-leads') &&
+          c.id !== targetChannel.id &&
+          c.id !== interaction.channelId
+      ) as any;
+
+      if (meetingLogChan && 'send' in meetingLogChan) {
+        await meetingLogChan.send({
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#6366F1')
+              .setTitle(`📅 New Strategy Meeting Scheduled — ${meetingId}`)
+              .setDescription(
+                `**Client:** <@${interaction.user.id}>\n` +
+                `**Channel:** ${targetChannel}\n` +
+                `**Topic:** \`${topic}\`\n` +
+                `**Time:** \`${datetime}\` (${duration})\n` +
+                `**Platform:** \`${platform}\``
+              )
+              .setTimestamp(),
+          ],
+        }).catch(() => {});
+      }
+
+      await interaction.editReply({
+        content: `✅ Your strategy meeting request has been arranged under **Support Center**: ${targetChannel}!\n*(This message will auto-dismiss in 15 seconds)*`,
+      });
+
+      setTimeout(() => {
+        interaction.deleteReply().catch(() => {});
+      }, 15000);
+
+      broadcastLiveNotification(interaction.client, guild.id, {
+        type: 'ticket',
+        title: 'Meeting Reservation Requested',
+        description: `New meeting request by <@${interaction.user.id}> for **${topic}** in ${targetChannel}`,
+        severity: 'info',
+        fields: [
+          { name: 'Topic', value: topic, inline: true },
+          { name: 'Time', value: datetime, inline: true },
+        ],
+      }).catch(() => {});
+    } catch (err) {
+      logger.error({ err }, 'Failed to process meeting reservation modal');
+      if (interaction.deferred) {
+        await interaction.editReply({ content: 'Failed to create meeting channel. Please check bot permissions.' });
+      }
+    }
+    return;
+  }
+
+  // 3c-3. HANDLE STAFF CONFIRM MEETING BUTTON
+  if (interaction.isButton() && interaction.customId.startsWith('nexus_staff_confirm_meeting')) {
+    const meetingId = interaction.customId.replace('nexus_staff_confirm_meeting_', '').replace('nexus_staff_confirm_meeting', '');
+
+    await interaction.reply({
+      content: `✅ **Meeting Confirmed!** Staff member <@${interaction.user.id}> has confirmed strategy call **${meetingId || ''}**. Both parties please join the designated meeting room at the scheduled time!`,
+    });
     return;
   }
 
