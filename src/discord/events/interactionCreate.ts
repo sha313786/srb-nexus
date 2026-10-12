@@ -1033,7 +1033,14 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
       logger.error({ e }, 'Failed to edit meeting embed');
     }
 
-    const clientMention = clientId ? `<@${clientId}>` : 'Client';
+    // Query actual ticket client from database
+    const ticketRes = await db.query(
+      `SELECT user_id, project_type, timeline, budget FROM guild_tickets WHERE channel_id = $1`,
+      [interaction.channelId]
+    ).catch(() => null);
+
+    const actualClientId = ticketRes?.rows?.[0]?.user_id || clientId;
+    const clientMention = actualClientId ? `<@${actualClientId}>` : 'Client';
     await interaction.reply({
       content:
         `🎉 ${clientMention}, your strategy meeting has been **officially confirmed** by staff member <@${interaction.user.id}>!\n\n` +
