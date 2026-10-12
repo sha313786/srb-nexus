@@ -36,6 +36,7 @@ import { payCommand } from './pay';
 // Support Ticket Commands
 import { ticketCommand } from './ticket';
 import { ticketSetupCommand } from './ticketSetup';
+import { quotationCommand } from './quotation';
 
 // Advanced Multipurpose Commands
 import { reactionRoleCommand } from './reactionrole';
@@ -90,6 +91,7 @@ const allCommands = [
   // Tickets & Engagement
   ticketCommand,
   ticketSetupCommand,
+  quotationCommand,
   reactionRoleCommand,
   giveawayCommand,
   giveawayRerollCommand,

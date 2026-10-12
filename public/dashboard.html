@@ -1406,7 +1406,15 @@
               <h3 class="font-heading font-bold text-base text-white flex items-center gap-2">
                 <i class="fa-solid fa-paintbrush text-cyan-400"></i> Ticket Embed Panel Builder
               </h3>
-              <p class="text-xs text-slate-400">Customize the title, message, and button that members will click to open a ticket.</p>
+              <div class="flex items-center gap-2 pt-1 pb-1">
+                <span class="text-[11px] font-bold text-slate-400">Presets:</span>
+                <button type="button" onclick="applyTicketPreset('website')" class="px-3 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-[11px] font-bold transition flex items-center gap-1.5">
+                  <i class="fa-solid fa-laptop-code text-cyan-400"></i> Website Quotation Desk
+                </button>
+                <button type="button" onclick="applyTicketPreset('support')" class="px-3 py-1 rounded-lg bg-dark-800 hover:bg-dark-750 text-slate-300 border border-dark-700 text-[11px] font-semibold transition flex items-center gap-1.5">
+                  <i class="fa-solid fa-headset text-amber-400"></i> General Support
+                </button>
+              </div>
 
               <div>
                 <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Panel Title</label>
@@ -3211,6 +3219,31 @@
 
       const pBtn = document.getElementById('preview-ticket-btn');
       if (pBtn) pBtn.innerHTML = `<span>${emoji}</span> <span>${label}</span>`;
+    }
+
+    function applyTicketPreset(preset) {
+      if (preset === 'website') {
+        const titleEl = document.getElementById('input-ticket-title');
+        const descEl = document.getElementById('textarea-ticket-desc');
+        const labelEl = document.getElementById('input-ticket-button-label');
+        const emojiEl = document.getElementById('input-ticket-button-emoji');
+
+        if (titleEl) titleEl.value = 'Website Creation & Development Quotation';
+        if (descEl) descEl.value = 'Need a custom website, web app, or e-commerce store? Click below to submit your project requirements and receive a free itemized quotation from our development team.';
+        if (labelEl) labelEl.value = '💼 Request Website Quotation';
+        if (emojiEl) emojiEl.value = '💼';
+      } else {
+        const titleEl = document.getElementById('input-ticket-title');
+        const descEl = document.getElementById('textarea-ticket-desc');
+        const labelEl = document.getElementById('input-ticket-button-label');
+        const emojiEl = document.getElementById('input-ticket-button-emoji');
+
+        if (titleEl) titleEl.value = 'SRB NEXUS Support Desk';
+        if (descEl) descEl.value = 'Need assistance or have questions? Click the button below to open a private ticket with our staff.';
+        if (labelEl) labelEl.value = '📩 Open Ticket';
+        if (emojiEl) emojiEl.value = '📩';
+      }
+      updateTicketPreview();
     }
 
     function deployTicketPanelModal() {

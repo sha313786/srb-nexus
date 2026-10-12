@@ -33,23 +33,23 @@ export const ticketSetupCommand = {
       .setPlaceholder('Select a ticket category...')
       .addOptions(
         new StringSelectMenuOptionBuilder()
+          .setLabel('Website Creation Quotation')
+          .setDescription('Request a custom website development quotation')
+          .setValue('website-quote')
+          .setEmoji('🌐'),
+        new StringSelectMenuOptionBuilder()
           .setLabel('General Support')
           .setDescription('Get general help')
           .setValue('general')
           .setEmoji('❓'),
         new StringSelectMenuOptionBuilder()
-          .setLabel('Player Report')
-          .setDescription('Report a player')
-          .setValue('report')
-          .setEmoji('🚫'),
-        new StringSelectMenuOptionBuilder()
-          .setLabel('Billing & Purchases')
-          .setDescription('Store questions')
+          .setLabel('Billing & Invoicing')
+          .setDescription('Payment and milestone inquiries')
           .setValue('billing')
           .setEmoji('💳'),
         new StringSelectMenuOptionBuilder()
-          .setLabel('Bug Report')
-          .setDescription('Report technical issue')
+          .setLabel('Bug Report / Revision')
+          .setDescription('Report technical issues or site tweaks')
           .setValue('bug')
           .setEmoji('🐛')
       );
