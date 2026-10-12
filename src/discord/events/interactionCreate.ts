@@ -1041,9 +1041,14 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
 
     const actualClientId = ticketRes?.rows?.[0]?.user_id || clientId;
     const clientMention = actualClientId ? `<@${actualClientId}>` : 'Client';
+    const scheduledTime = ticketRes?.rows?.[0]?.timeline || 'As Scheduled';
+    const platform = ticketRes?.rows?.[0]?.budget || 'Discord VC (Client Meeting 1)';
+
     await interaction.reply({
       content:
         `🎉 ${clientMention}, your strategy meeting has been **officially confirmed** by staff member <@${interaction.user.id}>!\n\n` +
+        `🕒 **Scheduled Time:** \`${scheduledTime}\`\n` +
+        `🎙️ **Location:** \`${platform}\`\n\n` +
         `Please join the designated voice channel at the scheduled time. Our team looks forward to connecting with you!`,
     });
     return;
