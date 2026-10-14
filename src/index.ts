@@ -15,6 +15,7 @@ import {
   Message,
   EmbedBuilder,
   AttachmentBuilder,
+  ActivityType,
 } from 'discord.js';
 
 import { db } from './core/database';
@@ -141,6 +142,17 @@ export async function createWelcomeCard(
 // 1. Ready listener
 bot.once(Events.ClientReady, async () => {
   app.log.info(`[BOT] Discord bot online and logged in as ${bot.user?.tag}`);
+
+  // Set Discord presence with website domain
+  bot.user?.setPresence({
+    status: 'online',
+    activities: [
+      {
+        name: 'srb-nexus-eyaj.onrender.com',
+        type: ActivityType.Watching,
+      },
+    ],
+  });
 
   // REGISTER SLASH COMMANDS WITH DISCORD API (Only on demand or manual trigger to avoid Discord IP rate limits)
   if (bot.user && process.env.SYNC_SLASH_COMMANDS === 'true') {
@@ -366,7 +378,7 @@ async function start() {
     await app.register(guildRoutes);
 
     app.get('/', async (request, reply) => {
-      return reply.redirect('/dashboard');
+      return reply.sendFile('index.html');
     });
 
     app.get('/servers', async (request, reply) => {
