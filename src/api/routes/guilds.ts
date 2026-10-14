@@ -117,16 +117,6 @@ export async function guildRoutes(fastify: FastifyInstance) {
       return reply.status(401).send({ error: 'Invalid or missing authentication token' });
     }
 
-    // Dev Token Mode - return all guilds the bot is currently in
-    if (user.accessToken === 'dev-token') {
-      const botGuilds = bot.guilds.cache.map((guild) => ({
-        id: guild.id,
-        name: guild.name,
-        icon: guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : null,
-        hasBot: true,
-      }));
-      return reply.send({ guilds: botGuilds });
-    }
 
     let discordGuilds: DiscordGuild[] = [];
     try {

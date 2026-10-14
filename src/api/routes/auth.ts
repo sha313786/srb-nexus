@@ -90,32 +90,6 @@ export async function authRoutes(fastify: FastifyInstance) {
     return reply.redirect(getDiscordAuthUrl(redirectUri));
   });
 
-  // 1c. Quick Admin Login (Bypasses Discord IP rate limits)
-  fastify.get('/api/auth/dev-login', async (request: FastifyRequest, reply: FastifyReply) => {
-    const isHttps = Boolean(
-      request.headers['x-forwarded-proto'] === 'https' ||
-      (request.headers.host && request.headers.host.includes('onrender.com')) ||
-      process.env.NODE_ENV === 'production'
-    );
-
-    const jwtToken = fastify.jwt.sign({
-      id: 'local-admin',
-      username: 'SRB Nexus Admin',
-      avatar: null,
-      accessToken: 'dev-token',
-    });
-
-    reply.setCookie('nexus_token', jwtToken, {
-      path: '/',
-      httpOnly: true,
-      secure: isHttps,
-      sameSite: 'lax',
-      maxAge: 86400 * 7,
-    });
-
-    const { guild } = request.query as { guild?: string };
-    return reply.redirect(guild ? `/dashboard?guild=${guild}` : '/dashboard');
-  });
 
   // 1d. Diagnostic endpoint to check Discord API accessibility and rate limits from Render's IP
   fastify.get('/api/auth/status', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -210,27 +184,24 @@ export async function authRoutes(fastify: FastifyInstance) {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Discord Rate Limit - SRB NEXUS</title>
+  <title>Discord API Rate Limit - SRB NEXUS</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-[#07080c] text-white min-h-screen flex items-center justify-center p-4 font-sans">
   <div class="max-w-md w-full bg-[#121522] border border-amber-500/30 p-8 rounded-3xl text-center shadow-2xl space-y-6">
     <div class="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center text-3xl mx-auto">
-      ⚠️
+      ⏳
     </div>
     <div class="space-y-2">
-      <h2 class="text-2xl font-bold text-white">Discord IP Cooldown Active</h2>
-      <p class="text-sm text-slate-400">Discord's Cloudflare firewall has temporarily paused requests from Render's shared IP address for ~${minutes} minutes.</p>
+      <h2 class="text-2xl font-bold text-white">Discord API Cooldown Active</h2>
+      <p class="text-sm text-slate-400">Discord's Cloudflare network has temporarily throttled outgoing API connections from this hosting provider's shared IP address (~${minutes} minutes remaining).</p>
     </div>
-    <div class="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 text-xs text-amber-300">
-      You don't have to wait! You can bypass the Discord rate limit and access your dashboard right now:
+    <div class="p-4 rounded-xl bg-slate-800/60 border border-slate-700 text-xs text-slate-300">
+      This cooldown is enforced by Discord on shared cloud IPs and will clear automatically. Please retry shortly.
     </div>
     <div class="space-y-3 pt-2">
-      <a href="/api/auth/dev-login" class="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/30 transition">
-        ⚡ Continue to Dashboard as Admin
-      </a>
-      <a href="/" class="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-slate-400 hover:text-white text-xs font-semibold transition">
-        Return to Landing Page
+      <a href="/" class="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/30 transition">
+        Return to Home Page
       </a>
     </div>
   </div>
