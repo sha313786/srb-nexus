@@ -16,6 +16,15 @@ interface DiscordUserResponse {
   discriminator: string;
 }
 
+// Passive rate-limit tracker (prevents pinging Discord and resetting Cloudflare cooldowns)
+let rateLimitUntil = 0;
+let lastRateLimitMessage = '';
+let lastRateLimitCode = 0;
+
+export const getDiscordApiBase = () => {
+  return process.env.DISCORD_API_BASE_URL?.replace(/\/$/, '') || 'https://discord.com';
+};
+
 export async function authRoutes(fastify: FastifyInstance) {
   // Helper to dynamically resolve the matching registered Discord OAuth2 redirect URI
   const getRedirectUriForRequest = (request: FastifyRequest): string => {
@@ -90,30 +99,30 @@ export async function authRoutes(fastify: FastifyInstance) {
     return reply.redirect(getDiscordAuthUrl(redirectUri));
   });
 
-
-  // 1d. Diagnostic endpoint to check Discord API accessibility and rate limits from Render's IP
+  // 1c. Passive diagnostic endpoint to check cooldown countdown WITHOUT sending requests to Discord
   fastify.get('/api/auth/status', async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const resp = await axios.get('https://discord.com/api/v10/gateway', {
-        headers: { 'User-Agent': 'DiscordBot (https://srb-nexus-eyaj.onrender.com, 1.0.0)' },
-      });
-      return reply.send({
-        status: 'ready',
-        discordApiReachable: true,
-        message: 'Discord API is reachable from Render without rate limits.',
-        gateway: resp.data,
-      });
-    } catch (err: any) {
-      const retryAfter = err.response?.headers?.['retry-after'];
+    const now = Date.now();
+    if (now < rateLimitUntil) {
+      const remainingSeconds = Math.ceil((rateLimitUntil - now) / 1000);
       return reply.send({
         status: 'blocked_by_discord_rate_limit',
         discordApiReachable: false,
-        statusCode: err.response?.status,
-        retryAfterSeconds: retryAfter ? Number(retryAfter) : undefined,
+        statusCode: 429,
+        retryAfterSeconds: remainingSeconds,
+        remainingMinutes: Math.ceil(remainingSeconds / 60),
         message: 'Render egress IP is temporarily rate-limited by Discord Cloudflare protection.',
-        discordResponse: err.response?.data,
+        discordResponse: {
+          code: lastRateLimitCode,
+          message: lastRateLimitMessage,
+        },
       });
     }
+
+    return reply.send({
+      status: 'ready',
+      discordApiReachable: true,
+      message: 'Rate limit cooldown has expired. Discord OAuth2 is ready.',
+    });
   });
 
   // 2. OAuth2 Callback Handler
@@ -130,10 +139,11 @@ export async function authRoutes(fastify: FastifyInstance) {
     try {
       const clientId = process.env.DISCORD_CLIENT_ID || '1526885301736177705';
       const clientSecret = process.env.DISCORD_CLIENT_SECRET || 'jk9suaN2xxnt2ekfdTKhXfXIsx-uc3zv';
+      const apiBase = getDiscordApiBase();
 
       // Exchange Code for Token with matching redirect_uri
       const tokenResponse = await axios.post<DiscordTokenResponse>(
-        'https://discord.com/api/oauth2/token',
+        `${apiBase}/api/oauth2/token`,
         new URLSearchParams({
           client_id: clientId,
           client_secret: clientSecret,
@@ -147,7 +157,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       const { access_token } = tokenResponse.data;
 
       // Fetch User Info from Discord
-      const userResponse = await axios.get<DiscordUserResponse>('https://discord.com/api/users/@me', {
+      const userResponse = await axios.get<DiscordUserResponse>(`${apiBase}/api/users/@me`, {
         headers: { Authorization: `Bearer ${access_token}` },
       });
 
@@ -179,7 +189,11 @@ export async function authRoutes(fastify: FastifyInstance) {
       request.log.error({ err, discordError }, 'OAuth2 Exchange Failed');
 
       if (err.response?.status === 429) {
-        const minutes = Math.ceil(Number(retryAfter || 3000) / 60);
+        const retrySec = Number(retryAfter) || 1800;
+        rateLimitUntil = Date.now() + (retrySec * 1000);
+        lastRateLimitMessage = err.response?.data?.message || 'Exceeded global rate limits on shared IP';
+        lastRateLimitCode = err.response?.data?.code || 0;
+        const minutes = Math.ceil(retrySec / 60);
         return reply.type('text/html').send(`<!DOCTYPE html>
 <html lang="en">
 <head>

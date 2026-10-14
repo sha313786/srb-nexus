@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import axios from 'axios';
+import { getDiscordApiBase } from './auth';
 import { db } from '../../core/database';
 import { bot, createWelcomeCard } from '../../index';
 import {
@@ -75,7 +76,7 @@ async function verifyUserGuildAccess(accessToken: string, guildId: string): Prom
   if (!botGuild) return false;
 
   try {
-    const response = await axios.get<DiscordGuild[]>('https://discord.com/api/v10/users/@me/guilds', {
+    const response = await axios.get<DiscordGuild[]>(`${getDiscordApiBase()}/api/v10/users/@me/guilds`, {
       headers: { Authorization: `Bearer ${accessToken}` },
       timeout: 3500,
     });
@@ -120,7 +121,7 @@ export async function guildRoutes(fastify: FastifyInstance) {
 
     let discordGuilds: DiscordGuild[] = [];
     try {
-      const response = await axios.get<DiscordGuild[]>('https://discord.com/api/v10/users/@me/guilds', {
+      const response = await axios.get<DiscordGuild[]>(`${getDiscordApiBase()}/api/v10/users/@me/guilds`, {
         headers: { Authorization: `Bearer ${user.accessToken}` },
       });
       discordGuilds = response.data || [];
