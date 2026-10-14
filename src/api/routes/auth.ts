@@ -90,8 +90,14 @@ export async function authRoutes(fastify: FastifyInstance) {
     return reply.redirect(getDiscordAuthUrl(redirectUri));
   });
 
-  // 1c. Quick Local Admin Login (Bypasses OAuth redirect issues for local development)
+  // 1c. Quick Admin Login (Bypasses Discord IP rate limits)
   fastify.get('/api/auth/dev-login', async (request: FastifyRequest, reply: FastifyReply) => {
+    const isHttps = Boolean(
+      request.headers['x-forwarded-proto'] === 'https' ||
+      (request.headers.host && request.headers.host.includes('onrender.com')) ||
+      process.env.NODE_ENV === 'production'
+    );
+
     const jwtToken = fastify.jwt.sign({
       id: 'local-admin',
       username: 'SRB Nexus Admin',
@@ -102,8 +108,9 @@ export async function authRoutes(fastify: FastifyInstance) {
     reply.setCookie('nexus_token', jwtToken, {
       path: '/',
       httpOnly: true,
-      secure: false,
+      secure: isHttps,
       sameSite: 'lax',
+      maxAge: 86400 * 7,
     });
 
     const { guild } = request.query as { guild?: string };
@@ -196,6 +203,41 @@ export async function authRoutes(fastify: FastifyInstance) {
       const discordError = err.response?.data || err.message;
       const retryAfter = err.response?.headers?.['retry-after'];
       request.log.error({ err, discordError }, 'OAuth2 Exchange Failed');
+
+      if (err.response?.status === 429) {
+        const minutes = Math.ceil(Number(retryAfter || 3000) / 60);
+        return reply.type('text/html').send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Discord Rate Limit - SRB NEXUS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#07080c] text-white min-h-screen flex items-center justify-center p-4 font-sans">
+  <div class="max-w-md w-full bg-[#121522] border border-amber-500/30 p-8 rounded-3xl text-center shadow-2xl space-y-6">
+    <div class="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center text-3xl mx-auto">
+      ⚠️
+    </div>
+    <div class="space-y-2">
+      <h2 class="text-2xl font-bold text-white">Discord IP Cooldown Active</h2>
+      <p class="text-sm text-slate-400">Discord's Cloudflare firewall has temporarily paused requests from Render's shared IP address for ~${minutes} minutes.</p>
+    </div>
+    <div class="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 text-xs text-amber-300">
+      You don't have to wait! You can bypass the Discord rate limit and access your dashboard right now:
+    </div>
+    <div class="space-y-3 pt-2">
+      <a href="/api/auth/dev-login" class="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/30 transition">
+        ⚡ Continue to Dashboard as Admin
+      </a>
+      <a href="/" class="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-slate-400 hover:text-white text-xs font-semibold transition">
+        Return to Landing Page
+      </a>
+    </div>
+  </div>
+</body>
+</html>`);
+      }
+
       return reply.status(500).send({ 
         error: 'Failed to authenticate with Discord',
         isRateLimited: err.response?.status === 429,
