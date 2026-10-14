@@ -21,9 +21,9 @@ export async function authRoutes(fastify: FastifyInstance) {
   const getRedirectUriForRequest = (request: FastifyRequest): string => {
     const host = (request.headers['x-forwarded-host'] as string) || request.headers.host || '';
 
-    // 1. If accessed through Render domain
-    if (host.includes('srb-nexus.onrender.com')) {
-      return 'https://srb-nexus.onrender.com/api/auth/discord/callback';
+    // 1. If accessed through any Render domain (supports srb-nexus-eyaj.onrender.com, etc.)
+    if (host.includes('onrender.com')) {
+      return `https://${host}/api/auth/discord/callback`;
     }
 
     // 2. If accessed through localhost:10000
@@ -42,7 +42,7 @@ export async function authRoutes(fastify: FastifyInstance) {
     }
 
     // Default fallback
-    return 'https://srb-nexus.onrender.com/api/auth/discord/callback';
+    return 'https://srb-nexus-eyaj.onrender.com/api/auth/discord/callback';
   };
 
   // Helper to build the Discord OAuth2 URL
