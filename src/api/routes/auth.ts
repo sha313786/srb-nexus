@@ -151,14 +151,22 @@ export async function authRoutes(fastify: FastifyInstance) {
           code: code,
           redirect_uri: redirectUri,
         }),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+        { 
+          headers: { 
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'DiscordBot (https://srb-nexus-eyaj.onrender.com, 1.0.0)' 
+          } 
+        }
       );
 
       const { access_token } = tokenResponse.data;
 
       // Fetch User Info from Discord
       const userResponse = await axios.get<DiscordUserResponse>(`${apiBase}/api/users/@me`, {
-        headers: { Authorization: `Bearer ${access_token}` },
+        headers: { 
+          Authorization: `Bearer ${access_token}`,
+          'User-Agent': 'DiscordBot (https://srb-nexus-eyaj.onrender.com, 1.0.0)' 
+        },
       });
 
       const user = userResponse.data;

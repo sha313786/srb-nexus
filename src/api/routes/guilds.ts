@@ -77,7 +77,10 @@ async function verifyUserGuildAccess(accessToken: string, guildId: string): Prom
 
   try {
     const response = await axios.get<DiscordGuild[]>(`${getDiscordApiBase()}/api/v10/users/@me/guilds`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { 
+        Authorization: `Bearer ${accessToken}`,
+        'User-Agent': 'DiscordBot (https://srb-nexus-eyaj.onrender.com, 1.0.0)'
+      },
       timeout: 3500,
     });
 
@@ -122,7 +125,10 @@ export async function guildRoutes(fastify: FastifyInstance) {
     let discordGuilds: DiscordGuild[] = [];
     try {
       const response = await axios.get<DiscordGuild[]>(`${getDiscordApiBase()}/api/v10/users/@me/guilds`, {
-        headers: { Authorization: `Bearer ${user.accessToken}` },
+        headers: { 
+          Authorization: `Bearer ${user.accessToken}`,
+          'User-Agent': 'DiscordBot (https://srb-nexus-eyaj.onrender.com, 1.0.0)'
+        },
       });
       discordGuilds = response.data || [];
     } catch (err: any) {
