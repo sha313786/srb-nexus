@@ -638,17 +638,24 @@ async function start() {
 
     app.log.info('Database connection established & all tables and security schemas initialized successfully');
 
-    // 1. LOGIN DISCORD BOT FIRST
-    if (process.env.DISCORD_TOKEN) {
-      await bot.login(process.env.DISCORD_TOKEN);
-    } else {
-      app.log.warn('DISCORD_TOKEN is missing in environment variables. Bot client offline.');
-    }
-
-    // 2. START FASTIFY HTTP SERVER LAST
+    // 1. START FASTIFY HTTP SERVER FIRST (Render requires immediate port binding)
     const port = Number(process.env.PORT) || 10000;
     await app.listen({ port, host: '0.0.0.0' });
     app.log.info(`Fastify REST API server running on http://0.0.0.0:${port}`);
+
+    // 2. CONNECT DISCORD BOT IN BACKGROUND
+    const discordToken = process.env.DISCORD_TOKEN;
+    if (discordToken) {
+      bot.login(discordToken)
+        .then(() => {
+          app.log.info('[BOT] Connected to Discord Gateway successfully');
+        })
+        .catch((err) => {
+          app.log.error({ err }, '[BOT] Failed to connect to Discord Gateway');
+        });
+    } else {
+      app.log.warn('DISCORD_TOKEN is missing in environment variables. Bot client offline.');
+    }
 
   } catch (err) {
     app.log.error(err, 'Failed to start SRB NEXUS engine');
