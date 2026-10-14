@@ -231,6 +231,36 @@ export async function authRoutes(fastify: FastifyInstance) {
 </html>`);
       }
 
+      if (discordError?.error === 'invalid_grant') {
+        return reply.type('text/html').send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login Session Expired - SRB NEXUS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#07080c] text-white min-h-screen flex items-center justify-center p-4 font-sans">
+  <div class="max-w-md w-full bg-[#121522] border border-indigo-500/30 p-8 rounded-3xl text-center shadow-2xl space-y-6">
+    <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center text-3xl mx-auto">
+      🔄
+    </div>
+    <div class="space-y-2">
+      <h2 class="text-2xl font-bold text-white">Login Code Expired</h2>
+      <p class="text-sm text-slate-400">This Discord login code has already been used or expired. (Discord security only allows each authorization code to be used once).</p>
+    </div>
+    <div class="space-y-3 pt-2">
+      <a href="/api/auth/login" class="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-sm shadow-lg shadow-indigo-600/30 transition">
+        Click Here to Login Fresh
+      </a>
+      <a href="/" class="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-slate-400 hover:text-white text-xs font-semibold transition">
+        Return to Landing Page
+      </a>
+    </div>
+  </div>
+</body>
+</html>`);
+      }
+
       return reply.status(500).send({ 
         error: 'Failed to authenticate with Discord',
         isRateLimited: err.response?.status === 429,
