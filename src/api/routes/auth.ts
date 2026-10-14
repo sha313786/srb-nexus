@@ -110,6 +110,31 @@ export async function authRoutes(fastify: FastifyInstance) {
     return reply.redirect(guild ? `/dashboard?guild=${guild}` : '/dashboard');
   });
 
+  // 1d. Diagnostic endpoint to check Discord API accessibility and rate limits from Render's IP
+  fastify.get('/api/auth/status', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const resp = await axios.get('https://discord.com/api/v10/gateway', {
+        headers: { 'User-Agent': 'DiscordBot (https://srb-nexus-eyaj.onrender.com, 1.0.0)' },
+      });
+      return reply.send({
+        status: 'ready',
+        discordApiReachable: true,
+        message: 'Discord API is reachable from Render without rate limits.',
+        gateway: resp.data,
+      });
+    } catch (err: any) {
+      const retryAfter = err.response?.headers?.['retry-after'];
+      return reply.send({
+        status: 'blocked_by_discord_rate_limit',
+        discordApiReachable: false,
+        statusCode: err.response?.status,
+        retryAfterSeconds: retryAfter ? Number(retryAfter) : undefined,
+        message: 'Render egress IP is temporarily rate-limited by Discord Cloudflare protection.',
+        discordResponse: err.response?.data,
+      });
+    }
+  });
+
   // 2. OAuth2 Callback Handler
   fastify.get('/api/auth/discord/callback', async (request: FastifyRequest, reply: FastifyReply) => {
     const { code } = request.query as { code?: string };
@@ -169,9 +194,12 @@ export async function authRoutes(fastify: FastifyInstance) {
       return reply.redirect('/dashboard');
     } catch (err: any) {
       const discordError = err.response?.data || err.message;
+      const retryAfter = err.response?.headers?.['retry-after'];
       request.log.error({ err, discordError }, 'OAuth2 Exchange Failed');
       return reply.status(500).send({ 
         error: 'Failed to authenticate with Discord',
+        isRateLimited: err.response?.status === 429,
+        retryAfterSeconds: retryAfter ? Number(retryAfter) : undefined,
         details: discordError,
         redirectUriUsed: redirectUri,
       });

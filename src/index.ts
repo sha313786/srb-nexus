@@ -142,8 +142,8 @@ export async function createWelcomeCard(
 bot.once(Events.ClientReady, async () => {
   app.log.info(`[BOT] Discord bot online and logged in as ${bot.user?.tag}`);
 
-  // REGISTER SLASH COMMANDS WITH DISCORD API
-  if (bot.user) {
+  // REGISTER SLASH COMMANDS WITH DISCORD API (Only on demand or manual trigger to avoid Discord IP rate limits)
+  if (bot.user && process.env.SYNC_SLASH_COMMANDS === 'true') {
     try {
       await registerSlashCommands(bot.user.id);
       app.log.info('[BOT] Slash commands successfully registered with Discord API.');
