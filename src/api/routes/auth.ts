@@ -17,25 +17,69 @@ interface DiscordUserResponse {
 }
 
 export async function authRoutes(fastify: FastifyInstance) {
+  // Helper to dynamically resolve the matching registered Discord OAuth2 redirect URI
+  const getRedirectUriForRequest = (request: FastifyRequest): string => {
+    const host = (request.headers['x-forwarded-host'] as string) || request.headers.host || '';
+
+    // 1. If accessed through Render domain
+    if (host.includes('srb-nexus.onrender.com')) {
+      return 'https://srb-nexus.onrender.com/api/auth/discord/callback';
+    }
+
+    // 2. If accessed through localhost:10000
+    if (host.includes(':10000')) {
+      return 'http://localhost:10000/api/auth/discord/callback';
+    }
+
+    // 3. If accessed through localhost:3000
+    if (host.includes(':3000') || host.includes('127.0.0.1')) {
+      return 'http://localhost:3000/api/auth/discord/callback';
+    }
+
+    // 4. If DISCORD_REDIRECT_URI is set in environment, use it
+    if (process.env.DISCORD_REDIRECT_URI) {
+      return process.env.DISCORD_REDIRECT_URI;
+    }
+
+    // Default fallback
+    return 'https://srb-nexus.onrender.com/api/auth/discord/callback';
+  };
+
   // Helper to build the Discord OAuth2 URL
-  const getDiscordAuthUrl = () => {
+  const getDiscordAuthUrl = (redirectUri: string) => {
     const clientId = process.env.DISCORD_CLIENT_ID;
-    const redirectUri = encodeURIComponent(process.env.DISCORD_REDIRECT_URI || '');
+    const encodedRedirectUri = encodeURIComponent(redirectUri);
     const scope = encodeURIComponent('identify guilds');
 
-    return `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&prompt=consent`;
+    return `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodedRedirectUri}&response_type=code&scope=${scope}&prompt=consent`;
   };
 
   // 1a. Standard login route: /api/auth/login
   fastify.get('/api/auth/login', async (request: FastifyRequest, reply: FastifyReply) => {
+    const redirectUri = getRedirectUriForRequest(request);
     reply.clearCookie('nexus_token', { path: '/' });
-    return reply.redirect(getDiscordAuthUrl());
+    reply.setCookie('oauth_redirect_uri', redirectUri, {
+      path: '/',
+      httpOnly: true,
+      secure: redirectUri.startsWith('https://'),
+      sameSite: 'lax',
+      maxAge: 300,
+    });
+    return reply.redirect(getDiscordAuthUrl(redirectUri));
   });
 
   // 1b. Discord-specific login route: /api/auth/discord/login
   fastify.get('/api/auth/discord/login', async (request: FastifyRequest, reply: FastifyReply) => {
+    const redirectUri = getRedirectUriForRequest(request);
     reply.clearCookie('nexus_token', { path: '/' });
-    return reply.redirect(getDiscordAuthUrl());
+    reply.setCookie('oauth_redirect_uri', redirectUri, {
+      path: '/',
+      httpOnly: true,
+      secure: redirectUri.startsWith('https://'),
+      sameSite: 'lax',
+      maxAge: 300,
+    });
+    return reply.redirect(getDiscordAuthUrl(redirectUri));
   });
 
   // 1c. Quick Local Admin Login (Bypasses OAuth redirect issues for local development)
@@ -66,8 +110,11 @@ export async function authRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Missing authorization code' });
     }
 
+    const cookieRedirectUri = (request.cookies as any)?.oauth_redirect_uri;
+    const redirectUri = cookieRedirectUri || getRedirectUriForRequest(request);
+
     try {
-      // Exchange Code for Token
+      // Exchange Code for Token with matching redirect_uri
       const tokenResponse = await axios.post<DiscordTokenResponse>(
         'https://discord.com/api/oauth2/token',
         new URLSearchParams({
@@ -75,7 +122,7 @@ export async function authRoutes(fastify: FastifyInstance) {
           client_secret: process.env.DISCORD_CLIENT_SECRET || '',
           grant_type: 'authorization_code',
           code: code,
-          redirect_uri: process.env.DISCORD_REDIRECT_URI || '',
+          redirect_uri: redirectUri,
         }),
         { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
       );
@@ -97,11 +144,14 @@ export async function authRoutes(fastify: FastifyInstance) {
         accessToken: access_token,
       });
 
+      // Clear temporary oauth redirect cookie
+      reply.clearCookie('oauth_redirect_uri', { path: '/' });
+
       // Set HttpOnly Cookie and Redirect to Dashboard
       reply.setCookie('nexus_token', jwtToken, {
         path: '/',
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: redirectUri.startsWith('https://') || process.env.NODE_ENV === 'production',
         sameSite: 'lax',
       });
 
