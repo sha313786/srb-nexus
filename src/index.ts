@@ -32,7 +32,10 @@ import { startStreamWatcher } from './services/streamNotifications';
 
 dotenv.config();
 
-const app = Fastify({ logger: true });
+const app = Fastify({ 
+  logger: true,
+  trustProxy: true,
+});
 
 export const bot = new Client({
   intents: [

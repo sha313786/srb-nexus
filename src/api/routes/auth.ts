@@ -19,24 +19,32 @@ interface DiscordUserResponse {
 export async function authRoutes(fastify: FastifyInstance) {
   // Helper to dynamically resolve the matching registered Discord OAuth2 redirect URI
   const getRedirectUriForRequest = (request: FastifyRequest): string => {
+    // 1. If running on Render (Render sets RENDER=true and RENDER_EXTERNAL_URL)
+    if (process.env.RENDER === 'true' || process.env.RENDER_EXTERNAL_URL) {
+      const renderBase = process.env.RENDER_EXTERNAL_URL 
+        ? process.env.RENDER_EXTERNAL_URL.replace(/\/$/, '') 
+        : 'https://srb-nexus-eyaj.onrender.com';
+      return `${renderBase}/api/auth/discord/callback`;
+    }
+
     const host = (request.headers['x-forwarded-host'] as string) || request.headers.host || '';
 
-    // 1. If accessed through any Render domain (supports srb-nexus-eyaj.onrender.com, etc.)
+    // 2. If accessed through any Render domain (supports srb-nexus-eyaj.onrender.com, etc.)
     if (host.includes('onrender.com')) {
       return `https://${host}/api/auth/discord/callback`;
     }
 
-    // 2. If accessed through localhost:10000
+    // 3. If accessed through localhost:10000
     if (host.includes(':10000')) {
       return 'http://localhost:10000/api/auth/discord/callback';
     }
 
-    // 3. If accessed through localhost:3000
+    // 4. If accessed through localhost:3000
     if (host.includes(':3000') || host.includes('127.0.0.1')) {
       return 'http://localhost:3000/api/auth/discord/callback';
     }
 
-    // 4. If DISCORD_REDIRECT_URI is set in environment, use it
+    // 5. If DISCORD_REDIRECT_URI is set in environment, use it
     if (process.env.DISCORD_REDIRECT_URI) {
       return process.env.DISCORD_REDIRECT_URI;
     }
