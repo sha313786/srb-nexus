@@ -55,7 +55,7 @@ export async function authRoutes(fastify: FastifyInstance) {
 
   // Helper to build the Discord OAuth2 URL
   const getDiscordAuthUrl = (redirectUri: string) => {
-    const clientId = process.env.DISCORD_CLIENT_ID;
+    const clientId = process.env.DISCORD_CLIENT_ID || '1526885301736177705';
     const encodedRedirectUri = encodeURIComponent(redirectUri);
     const scope = encodeURIComponent('identify guilds');
 
@@ -122,12 +122,15 @@ export async function authRoutes(fastify: FastifyInstance) {
     const redirectUri = cookieRedirectUri || getRedirectUriForRequest(request);
 
     try {
+      const clientId = process.env.DISCORD_CLIENT_ID || '1526885301736177705';
+      const clientSecret = process.env.DISCORD_CLIENT_SECRET || 'jk9suaN2xxnt2ekfdTKhXfXIsx-uc3zv';
+
       // Exchange Code for Token with matching redirect_uri
       const tokenResponse = await axios.post<DiscordTokenResponse>(
         'https://discord.com/api/oauth2/token',
         new URLSearchParams({
-          client_id: process.env.DISCORD_CLIENT_ID || '',
-          client_secret: process.env.DISCORD_CLIENT_SECRET || '',
+          client_id: clientId,
+          client_secret: clientSecret,
           grant_type: 'authorization_code',
           code: code,
           redirect_uri: redirectUri,
@@ -165,8 +168,13 @@ export async function authRoutes(fastify: FastifyInstance) {
 
       return reply.redirect('/dashboard');
     } catch (err: any) {
-      request.log.error(err, 'OAuth2 Exchange Failed');
-      return reply.status(500).send({ error: 'Failed to authenticate with Discord' });
+      const discordError = err.response?.data || err.message;
+      request.log.error({ err, discordError }, 'OAuth2 Exchange Failed');
+      return reply.status(500).send({ 
+        error: 'Failed to authenticate with Discord',
+        details: discordError,
+        redirectUriUsed: redirectUri,
+      });
     }
   });
 
