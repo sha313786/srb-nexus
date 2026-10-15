@@ -59,6 +59,15 @@ export const bot = new Client({
 });
 
 let lastBotError: { message: string; code?: string | number; attempt: number; timestamp: string } | null = null;
+let lastBotRateLimit: any = null;
+
+bot.rest.on('rateLimited', (info: any) => {
+  lastBotRateLimit = {
+    ...info,
+    timestamp: new Date().toISOString(),
+  };
+  app.log.warn({ info }, `[BOT] Discord.js REST rate limited on ${info.route}. Retry after: ${info.timeToReset}ms`);
+});
 
 // Helper function to insert/sync guild
 async function registerGuild(guildId: string, guildName?: string) {
@@ -418,7 +427,10 @@ async function start() {
           user: bot.user ? bot.user.tag : null,
           guildCount: bot.guilds.cache.size,
           ping: bot.ws?.ping ?? -1,
+          tokenConfigured: !!process.env.DISCORD_TOKEN,
+          apiBase: process.env.DISCORD_API_BASE_URL || 'https://discord.com',
           lastError: lastBotError,
+          lastRateLimit: lastBotRateLimit,
         },
         uptime: Math.floor(process.uptime()),
         timestamp: new Date().toISOString(),
