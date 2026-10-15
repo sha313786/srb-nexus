@@ -4,11 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SRB NEXUS — Central Infrastructure & Security Shield</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -17,83 +19,143 @@
           fontFamily: {
             sans: ['"Plus Jakarta Sans"', 'sans-serif'],
             heading: ['Outfit', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
           },
           colors: {
+            cyan: {
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              accent: '#00f0ff',
+            },
             dark: {
-              950: '#07080c',
-              900: '#0d0f17',
-              850: '#121522',
-              800: '#171b2b',
-              700: '#232942',
+              950: '#05070c',
+              900: '#090d16',
+              850: '#0f1422',
+              800: '#161c30',
+              750: '#1d243d',
+              700: '#262f4e',
             },
             blurple: {
               DEFAULT: '#5865F2',
               hover: '#4752c4',
+            }
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'float': 'float 6s ease-in-out infinite',
+            'spin-slow': 'spin 20s linear infinite',
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-12px)' },
             }
           }
         }
       }
     }
   </script>
+
   <style>
     body {
-      background-color: #07080c;
+      background-color: #05070c;
       color: #f1f5f9;
       background-image: 
-        radial-gradient(at 0% 0%, rgba(88, 101, 242, 0.12) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.10) 0px, transparent 50%),
-        radial-gradient(at 50% 50%, rgba(6, 182, 212, 0.05) 0px, transparent 50%);
+        radial-gradient(at 15% 15%, rgba(0, 240, 255, 0.08) 0px, transparent 45%),
+        radial-gradient(at 85% 20%, rgba(88, 101, 242, 0.12) 0px, transparent 45%),
+        radial-gradient(at 50% 85%, rgba(14, 165, 233, 0.06) 0px, transparent 50%);
       background-attachment: fixed;
     }
+    
+    .cyber-grid {
+      background-size: 40px 40px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    }
+
     .glass-card {
-      background: rgba(18, 21, 34, 0.7);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(15, 20, 34, 0.72);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .glass-card:hover {
-      border-color: rgba(99, 102, 241, 0.4);
-      box-shadow: 0 10px 30px -10px rgba(88, 101, 242, 0.2);
+      border-color: rgba(0, 240, 255, 0.35);
+      box-shadow: 0 12px 40px -10px rgba(0, 240, 255, 0.18);
+      transform: translateY(-2px);
     }
-    .glow-blurple {
-      box-shadow: 0 0 35px -5px rgba(88, 101, 242, 0.45);
+
+    .cyber-card-active {
+      border-color: rgba(0, 240, 255, 0.4);
+      box-shadow: 0 0 25px -5px rgba(0, 240, 255, 0.25);
+    }
+
+    .neon-text-cyan {
+      text-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+    }
+
+    .neon-border-cyan {
+      box-shadow: 0 0 20px -3px rgba(0, 240, 255, 0.35);
+    }
+
+    .logo-glow {
+      filter: drop-shadow(0 0 24px rgba(0, 240, 255, 0.45));
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+<body class="min-h-screen flex flex-col font-sans selection:bg-cyan-500 selection:text-black cyber-grid">
+
+  <!-- Top Announcement Bar -->
+  <div class="border-b border-cyan-500/15 bg-gradient-to-r from-dark-950 via-cyan-950/30 to-dark-950 px-4 py-2 text-center text-xs">
+    <div class="max-w-7xl mx-auto flex items-center justify-center gap-2">
+      <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-accent border border-cyan-500/30 text-[10px] font-bold uppercase tracking-wider">
+        <i class="fa-solid fa-bolt-lightning text-yellow-400"></i> SYSTEM UPGRADE
+      </span>
+      <span class="text-slate-300 font-medium">SRB NEXUS v2.5 Online — Advanced Invite Tracker, Anti-Raid Shield & 37 Command Suite Deployed</span>
+    </div>
+  </div>
 
   <!-- Navigation Bar -->
-  <header class="sticky top-0 z-50 border-b border-dark-700/60 bg-dark-950/75 backdrop-blur-xl">
+  <header class="sticky top-0 z-50 border-b border-dark-700/60 bg-dark-950/80 backdrop-blur-xl">
     <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
       
-      <!-- Logo -->
-      <a href="/" class="flex items-center gap-3 group">
-        <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-600 via-blurple to-purple-500 flex items-center justify-center text-white text-xl font-black shadow-lg shadow-indigo-500/25 group-hover:scale-105 transition-transform">
-          <i class="fa-solid fa-shield-halved"></i>
+      <!-- Brand & Official Logo -->
+      <a href="/" class="flex items-center gap-3.5 group">
+        <div class="relative flex items-center justify-center">
+          <div class="absolute -inset-1 rounded-full bg-cyan-accent/20 blur-md opacity-70 group-hover:opacity-100 transition duration-300"></div>
+          <img src="/nexus-logo.png" alt="SRB NEXUS Logo" class="relative w-11 h-11 object-contain logo-glow group-hover:scale-105 transition-transform duration-300">
         </div>
         <div>
-          <span class="font-heading font-extrabold text-xl tracking-tight text-white flex items-center gap-2">
-            SRB NEXUS
-            <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">v2.0</span>
-          </span>
-          <p class="text-[11px] text-slate-400 font-medium">Infrastructure & Security Suite</p>
+          <div class="flex items-center gap-2">
+            <span class="font-heading font-black text-xl tracking-tight text-white flex items-center gap-2">
+              SRB <span class="bg-gradient-to-r from-cyan-accent via-cyan-400 to-indigo-400 bg-clip-text text-transparent">NEXUS</span>
+            </span>
+            <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-accent border border-cyan-500/30 font-mono">
+              v2.5
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-400 font-medium">Central Infrastructure & Defense</p>
         </div>
       </a>
 
       <!-- Quick Nav Links -->
       <nav class="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-300">
-        <a href="#features" class="hover:text-white transition">Features</a>
-        <a href="#modules" class="hover:text-white transition">Modules</a>
-        <a href="#security" class="hover:text-white transition">Security Shield</a>
-        <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+        <a href="#features" class="hover:text-cyan-accent transition">Capabilities</a>
+        <a href="#modules" class="hover:text-cyan-accent transition">Control Modules</a>
+        <a href="#security" class="hover:text-cyan-accent transition">Security Shield</a>
+        <a href="#metrics" class="hover:text-cyan-accent transition">Live Gateway</a>
+        <div id="live-bot-status-pill" class="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
           <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          Nexus Bot Online
+          <span id="header-status-text">Core Operational</span>
         </div>
       </nav>
 
       <!-- User Auth Section -->
       <div id="auth-header-slot" class="flex items-center gap-3">
-        <a href="/api/auth/login" class="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-blurple hover:bg-blurple-hover text-white text-sm font-bold tracking-wide transition-all shadow-lg shadow-blurple/25 hover:shadow-blurple/40">
+        <a href="/api/auth/login" class="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blurple to-indigo-600 hover:from-blurple-hover hover:to-indigo-500 text-white text-sm font-bold tracking-wide transition-all shadow-lg shadow-blurple/25 hover:shadow-blurple/40">
           <i class="fa-brands fa-discord text-lg"></i>
           <span>Login with Discord</span>
         </a>
@@ -103,72 +165,115 @@
   </header>
 
   <!-- Main Container -->
-  <main class="flex-1 max-w-7xl mx-auto w-full px-6 py-12">
+  <main class="flex-1 max-w-7xl mx-auto w-full px-6 py-10">
 
     <!-- 1. HERO SECTION (Unauthenticated View) -->
-    <section id="hero-section" class="py-12 md:py-20 text-center">
+    <section id="hero-section" class="py-8 md:py-16 text-center relative">
       
-      <!-- Super Badge -->
-      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-bold tracking-wide mb-8 animate-fade-in">
-        <i class="fa-solid fa-bolt-lightning text-yellow-400"></i>
-        <span>NEXT-GEN DISCORD SERVER DEFENSE & MANAGEMENT</span>
+      <!-- Ambient Glow Behind Hero -->
+      <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[350px] bg-cyan-accent/10 blur-[130px] rounded-full pointer-events-none"></div>
+
+      <!-- Hero Cyber Badge -->
+      <div class="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-dark-850/90 border border-cyan-500/30 text-cyan-300 text-xs font-bold tracking-wide mb-8 shadow-inner shadow-cyan-500/10">
+        <span class="flex h-2 w-2 relative">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-accent opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-cyan-accent"></span>
+        </span>
+        <span class="font-mono text-cyan-accent">GATEWAY ONLINE</span>
+        <span class="text-slate-500">|</span>
+        <span class="text-slate-300">DISCORD CLOUD INFRASTRUCTURE & AUTOMATION</span>
+      </div>
+
+      <!-- Centerpiece 3D Hologram Logo Showcase -->
+      <div class="mb-8 flex justify-center items-center relative animate-float">
+        <div class="relative w-40 h-40 sm:w-48 sm:h-48 flex items-center justify-center">
+          <div class="absolute inset-0 rounded-full bg-gradient-to-tr from-cyan-accent/20 via-transparent to-blurple/20 blur-2xl animate-pulse-slow"></div>
+          <div class="absolute -inset-4 border border-cyan-500/20 rounded-full border-dashed animate-spin-slow"></div>
+          <img src="/nexus-logo.png" alt="Nexus Emblem" class="w-36 h-36 sm:w-44 sm:h-44 object-contain logo-glow relative z-10 transition-transform duration-500 hover:scale-105">
+        </div>
       </div>
 
       <!-- Main Headline -->
-      <h1 class="font-heading font-black text-4xl sm:text-6xl lg:text-7xl tracking-tight text-white max-w-4xl mx-auto leading-[1.1] mb-6">
-        Defend, Manage & Empower Your <span class="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">Discord Community</span>
+      <h1 class="font-heading font-black text-4xl sm:text-6xl lg:text-7xl tracking-tight text-white max-w-4xl mx-auto leading-[1.08] mb-6">
+        The Autonomous Engine Behind Elite <span class="bg-gradient-to-r from-cyan-accent via-cyan-400 to-indigo-400 bg-clip-text text-transparent neon-text-cyan">Discord Communities</span>
       </h1>
 
-      <p class="text-slate-400 text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed mb-10">
-        All-in-one centralized infrastructure featuring real-time Anti-Raid detection, dynamic Canvas welcome banners, high-speed moderation, and server control.
+      <p class="text-slate-300 text-base sm:text-xl max-w-2xl mx-auto leading-relaxed mb-10 font-normal">
+        Real-time velocity Anti-Raid defense, intelligent invite tracking with role assignment, canvas cards, and unified cloud governance in a cyber control panel.
       </p>
 
       <!-- Action Buttons -->
-      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-        <a href="/api/auth/login" class="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-blurple hover:from-indigo-500 hover:to-blurple text-white font-bold text-base shadow-xl shadow-indigo-600/30 hover:scale-[1.02] transition-all">
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 relative z-10">
+        <a href="/api/auth/login" class="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-cyan-500 via-blurple to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-base shadow-xl shadow-cyan-500/20 hover:shadow-cyan-500/35 hover:scale-[1.02] transition-all">
           <i class="fa-brands fa-discord text-xl"></i>
-          <span>Login with Discord</span>
+          <span>Open Control Panel</span>
         </a>
-        <a href="https://discord.com/oauth2/authorize?client_id=1526885301736177705&permissions=8&scope=bot%20applications.commands" target="_blank" class="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-dark-850 hover:bg-dark-800 text-slate-200 border border-dark-700 font-bold text-base hover:border-slate-600 transition-all">
-          <i class="fa-solid fa-plus text-indigo-400"></i>
-          <span>Invite Bot</span>
+        <a href="https://discord.com/oauth2/authorize?client_id=1526885301736177705&permissions=8&scope=bot%20applications.commands" target="_blank" class="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-dark-850 hover:bg-dark-800 text-slate-200 border border-dark-700 hover:border-cyan-500/50 font-bold text-base transition-all">
+          <i class="fa-solid fa-plus text-cyan-accent"></i>
+          <span>Invite Bot to Server</span>
         </a>
       </div>
 
       <!-- Live Feature Metric Strip -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-        <div class="glass-card rounded-2xl p-5 text-center">
-          <div class="font-heading font-black text-3xl text-indigo-400 mb-1">9</div>
-          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Slash Commands</p>
+      <div id="metrics" class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto text-left">
+        <div class="glass-card rounded-2xl p-5 border-l-4 border-l-cyan-accent">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-heading font-black text-3xl text-white font-mono" id="stat-cmd-count">37</span>
+            <i class="fa-solid fa-terminal text-cyan-accent/60 text-lg"></i>
+          </div>
+          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Slash Commands</p>
+          <span class="text-[10px] text-cyan-300/80 font-mono">Globally Deployed</span>
         </div>
-        <div class="glass-card rounded-2xl p-5 text-center">
-          <div class="font-heading font-black text-3xl text-emerald-400 mb-1">&lt; 50ms</div>
-          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">API Latency</p>
+
+        <div class="glass-card rounded-2xl p-5 border-l-4 border-l-emerald-400">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-heading font-black text-3xl text-white font-mono" id="stat-latency-val">~240ms</span>
+            <i class="fa-solid fa-wave-square text-emerald-400/60 text-lg"></i>
+          </div>
+          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Gateway Latency</p>
+          <span class="text-[10px] text-emerald-300/80 font-mono">Discord Shard Heartbeat</span>
         </div>
-        <div class="glass-card rounded-2xl p-5 text-center">
-          <div class="font-heading font-black text-3xl text-purple-400 mb-1">100%</div>
-          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Anti-Raid Guard</p>
+
+        <div class="glass-card rounded-2xl p-5 border-l-4 border-l-blurple">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-heading font-black text-3xl text-white font-mono" id="stat-guild-count">5</span>
+            <i class="fa-solid fa-server text-blurple/60 text-lg"></i>
+          </div>
+          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Connected Guilds</p>
+          <span class="text-[10px] text-blurple font-mono">Guarded by Nexus</span>
         </div>
-        <div class="glass-card rounded-2xl p-5 text-center">
-          <div class="font-heading font-black text-3xl text-pink-400 mb-1">1024×450</div>
-          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Canvas Card Engine</p>
+
+        <div class="glass-card rounded-2xl p-5 border-l-4 border-l-purple-400">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-heading font-black text-3xl text-white font-mono">1024×450</span>
+            <i class="fa-solid fa-paintbrush text-purple-400/60 text-lg"></i>
+          </div>
+          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Canvas Engine</p>
+          <span class="text-[10px] text-purple-300 font-mono">Dynamic Welcomer</span>
         </div>
       </div>
     </section>
 
     <!-- 2. SERVER SELECTION VIEW (Authenticated View) -->
-    <section id="servers-section" class="hidden">
+    <section id="servers-section" class="hidden py-4">
       
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-6 border-b border-dark-800">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-6 border-b border-dark-750">
         <div>
-          <h2 class="font-heading font-extrabold text-3xl text-white">Your Discord Servers</h2>
-          <p class="text-sm text-slate-400 mt-1">Select a server with Administrator or Manage Server permissions to open its control panel.</p>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-dark-800 border border-cyan-500/30 flex items-center justify-center text-cyan-accent shadow-sm">
+              <i class="fa-solid fa-server text-lg"></i>
+            </div>
+            <div>
+              <h2 class="font-heading font-extrabold text-2xl sm:text-3xl text-white">Your Discord Servers</h2>
+              <p class="text-sm text-slate-400 mt-0.5">Select a server to manage permissions, anti-raid shield, invites, and automation.</p>
+            </div>
+          </div>
         </div>
         
         <!-- Search Filter -->
-        <div class="relative w-full md:w-72">
+        <div class="relative w-full md:w-80">
           <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
-          <input type="text" id="guild-search-input" oninput="filterGuilds()" placeholder="Search your servers..." class="w-full bg-dark-900 border border-dark-700 rounded-xl pl-11 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
+          <input type="text" id="guild-search-input" oninput="filterGuilds()" placeholder="Search servers by name..." class="w-full bg-dark-900 border border-dark-700 rounded-xl pl-11 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-accent transition shadow-inner">
         </div>
       </div>
 
@@ -196,94 +301,110 @@
     <!-- 3. FEATURE SHOWCASE GRID -->
     <section id="features" class="py-16">
       <div class="text-center max-w-2xl mx-auto mb-14">
-        <h2 class="font-heading font-extrabold text-3xl sm:text-4xl text-white mb-4">Engineered for Complete Protection</h2>
-        <p class="text-slate-400 text-sm sm:text-base">Every layer of SRB NEXUS is built for high concurrency, zero latency, and rock-solid reliability.</p>
+        <span class="text-xs uppercase font-mono tracking-widest font-bold text-cyan-accent px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 inline-block mb-3">CYBERNETIC ARSENAL</span>
+        <h2 class="font-heading font-extrabold text-3xl sm:text-4xl text-white mb-4">Complete Server Sovereignty</h2>
+        <p class="text-slate-400 text-sm sm:text-base">Built on Node.js, Fastify, Discord.js REST Proxy, and Cloud PostgreSQL for sub-millisecond reaction speeds.</p>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="modules">
         
-        <!-- Anti-Raid -->
-        <div class="glass-card rounded-3xl p-8 relative overflow-hidden group">
-          <div class="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform">
+        <!-- Invite Tracking & Auto-Role -->
+        <div class="glass-card rounded-3xl p-7 relative overflow-hidden group border-t-2 border-t-cyan-accent">
+          <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-accent flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-cyan-500/10">
+            <i class="fa-solid fa-link"></i>
+          </div>
+          <h3 class="font-heading font-bold text-xl text-white mb-2 flex items-center gap-2">
+            Invite Tracker & Auto-Role
+            <span class="text-[9px] uppercase font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-accent border border-cyan-500/30">NEW</span>
+          </h3>
+          <p class="text-slate-400 text-sm leading-relaxed mb-5">
+            Auto-caches server invite codes and diffs join counts in real time. Assign designated member roles automatically based on which invite link was used.
+          </p>
+          <div class="flex items-center justify-between pt-4 border-t border-dark-750 text-xs">
+            <span class="text-cyan-accent font-semibold flex items-center gap-1.5">
+              <i class="fa-solid fa-check"></i> Vanity & Single-use Detection
+            </span>
+          </div>
+        </div>
+
+        <!-- Anti-Raid Shield -->
+        <div class="glass-card rounded-3xl p-7 relative overflow-hidden group border-t-2 border-t-red-500">
+          <div class="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-red-500/10">
             <i class="fa-solid fa-shield-virus"></i>
           </div>
           <h3 class="font-heading font-bold text-xl text-white mb-2">Anti-Raid Velocity Shield</h3>
-          <p class="text-slate-400 text-sm leading-relaxed mb-4">
-            Tracks real-time join velocity in sliding windows. If mass-bot raids are detected, it locks down channels and auto-kicks malicious raiders instantly.
+          <p class="text-slate-400 text-sm leading-relaxed mb-5">
+            Sliding-window velocity algorithms detect influxes of mass bot accounts. Automatically locks down channels and neutralizes rogue raids instantly.
           </p>
-          <span class="inline-flex items-center text-xs font-semibold text-red-400 gap-1.5">
-            <i class="fa-solid fa-circle-check"></i> Zero-Delay Reaction
-          </span>
+          <div class="flex items-center justify-between pt-4 border-t border-dark-750 text-xs">
+            <span class="text-red-400 font-semibold flex items-center gap-1.5">
+              <i class="fa-solid fa-check"></i> Sub-Second Auto Lockdown
+            </span>
+          </div>
         </div>
 
-        <!-- Anti-Scam -->
-        <div class="glass-card rounded-3xl p-8 relative overflow-hidden group">
-          <div class="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform">
+        <!-- Anti-Scam & Phishing -->
+        <div class="glass-card rounded-3xl p-7 relative overflow-hidden group border-t-2 border-t-purple-500">
+          <div class="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-purple-500/10">
             <i class="fa-solid fa-lock"></i>
           </div>
-          <h3 class="font-heading font-bold text-xl text-white mb-2">Anti-Scam & Phishing Guard</h3>
-          <p class="text-slate-400 text-sm leading-relaxed mb-4">
-            Proactively identifies and deletes free Nitro scams, typosquatted Discord domains, and crypto phishing links before members fall victim.
+          <h3 class="font-heading font-bold text-xl text-white mb-2">Anti-Scam Phishing Guard</h3>
+          <p class="text-slate-400 text-sm leading-relaxed mb-5">
+            Continuously blocks malicious URLs, fake Discord Nitro phishing scams, and suspicious links with zero tolerance and staff alert dispatches.
           </p>
-          <span class="inline-flex items-center text-xs font-semibold text-purple-400 gap-1.5">
-            <i class="fa-solid fa-circle-check"></i> Pattern Matching
-          </span>
+          <div class="flex items-center justify-between pt-4 border-t border-dark-750 text-xs">
+            <span class="text-purple-400 font-semibold flex items-center gap-1.5">
+              <i class="fa-solid fa-check"></i> Zero-Day Threat Shield
+            </span>
+          </div>
         </div>
 
-        <!-- Canvas Card -->
-        <div class="glass-card rounded-3xl p-8 relative overflow-hidden group">
-          <div class="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform">
+        <!-- Canvas Card Welcomer -->
+        <div class="glass-card rounded-3xl p-7 relative overflow-hidden group border-t-2 border-t-indigo-500">
+          <div class="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-indigo-500/10">
             <i class="fa-solid fa-wand-magic-sparkles"></i>
           </div>
-          <h3 class="font-heading font-bold text-xl text-white mb-2">Dynamic Canvas Cards</h3>
-          <p class="text-slate-400 text-sm leading-relaxed mb-4">
-            Generates custom 1024x450 high-definition welcome cards featuring user avatars, custom background art, and member ordinal counters.
+          <h3 class="font-heading font-bold text-xl text-white mb-2">Canvas Visual Welcomer</h3>
+          <p class="text-slate-400 text-sm leading-relaxed mb-5">
+            High-definition 1024x450 dynamic graphics rendered directly via @napi-rs/canvas with user avatar circular clipping, server statistics, and customizable backdrops.
           </p>
-          <span class="inline-flex items-center text-xs font-semibold text-indigo-400 gap-1.5">
-            <i class="fa-solid fa-circle-check"></i> High Resolution
-          </span>
-        </div>
-
-        <!-- Moderation -->
-        <div class="glass-card rounded-3xl p-8 relative overflow-hidden group">
-          <div class="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform">
-            <i class="fa-solid fa-gavel"></i>
+          <div class="flex items-center justify-between pt-4 border-t border-dark-750 text-xs">
+            <span class="text-indigo-400 font-semibold flex items-center gap-1.5">
+              <i class="fa-solid fa-check"></i> HD Graphic Rendering
+            </span>
           </div>
-          <h3 class="font-heading font-bold text-xl text-white mb-2">Automated Moderation</h3>
-          <p class="text-slate-400 text-sm leading-relaxed mb-4">
-            Slash commands for `/nexus-ban`, `/nexus-kick`, `/nexus-timeout`, and `/nexus-purge` tied to persistent PostgreSQL audit logs.
-          </p>
-          <span class="inline-flex items-center text-xs font-semibold text-blue-400 gap-1.5">
-            <i class="fa-solid fa-circle-check"></i> Audit Trail
-          </span>
         </div>
 
-        <!-- Leveling & Economy -->
-        <div class="glass-card rounded-3xl p-8 relative overflow-hidden group">
-          <div class="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform">
-            <i class="fa-solid fa-coins"></i>
-          </div>
-          <h3 class="font-heading font-bold text-xl text-white mb-2">Leveling & Economy</h3>
-          <p class="text-slate-400 text-sm leading-relaxed mb-4">
-            Message XP tracking with customizable multipliers, daily rewards, server currency symbols, and role assignment upon level up.
-          </p>
-          <span class="inline-flex items-center text-xs font-semibold text-amber-400 gap-1.5">
-            <i class="fa-solid fa-circle-check"></i> Community Engagement
-          </span>
-        </div>
-
-        <!-- Support Tickets -->
-        <div class="glass-card rounded-3xl p-8 relative overflow-hidden group">
-          <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform">
+        <!-- Interactive Support & Quotations -->
+        <div class="glass-card rounded-3xl p-7 relative overflow-hidden group border-t-2 border-t-emerald-500">
+          <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-emerald-500/10">
             <i class="fa-solid fa-ticket"></i>
           </div>
-          <h3 class="font-heading font-bold text-xl text-white mb-2">Interactive Support Tickets</h3>
-          <p class="text-slate-400 text-sm leading-relaxed mb-4">
-            One-click button ticket generation creating isolated channels for customer support with automated transcript archives.
+          <h3 class="font-heading font-bold text-xl text-white mb-2">Tickets & Quotation Desk</h3>
+          <p class="text-slate-400 text-sm leading-relaxed mb-5">
+            Interactive modal forms for project quotations, web dev pricing requests, and private member support with HTML transcript archiving.
           </p>
-          <span class="inline-flex items-center text-xs font-semibold text-emerald-400 gap-1.5">
-            <i class="fa-solid fa-circle-check"></i> Private Channels
-          </span>
+          <div class="flex items-center justify-between pt-4 border-t border-dark-750 text-xs">
+            <span class="text-emerald-400 font-semibold flex items-center gap-1.5">
+              <i class="fa-solid fa-check"></i> Private Channel Transcripts
+            </span>
+          </div>
+        </div>
+
+        <!-- Live Streams & Free Games Notifications -->
+        <div class="glass-card rounded-3xl p-7 relative overflow-hidden group border-t-2 border-t-amber-500">
+          <div class="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-amber-500/10">
+            <i class="fa-solid fa-gamepad"></i>
+          </div>
+          <h3 class="font-heading font-bold text-xl text-white mb-2">Streams & Free Games Radar</h3>
+          <p class="text-slate-400 text-sm leading-relaxed mb-5">
+            Automated Epic Games 100% OFF alerts and YouTube/Twitch broadcast tracker. Instantly notifies your server with rich embeds and role pings.
+          </p>
+          <div class="flex items-center justify-between pt-4 border-t border-dark-750 text-xs">
+            <span class="text-amber-400 font-semibold flex items-center gap-1.5">
+              <i class="fa-solid fa-check"></i> Live Stream Notifications
+            </span>
+          </div>
         </div>
 
       </div>
@@ -291,18 +412,27 @@
 
   </main>
 
-  <!-- Footer -->
-  <footer class="border-t border-dark-800 bg-dark-950/80 py-8 text-center text-xs text-slate-500">
-    <div class="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-      <div class="flex items-center gap-2 text-slate-400 font-medium">
-        <i class="fa-solid fa-shield-halved text-indigo-400"></i>
-        <span>SRB NEXUS Central Infrastructure &copy; 2026. All rights reserved.</span>
+  <!-- Cyber Footer -->
+  <footer class="border-t border-dark-750 bg-dark-950/90 py-10 text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
+      
+      <div class="flex items-center gap-3">
+        <img src="/nexus-logo.png" alt="Logo" class="w-8 h-8 object-contain logo-glow">
+        <div>
+          <span class="text-white font-heading font-bold text-sm tracking-wide">SRB NEXUS CLOUD</span>
+          <p class="text-[11px] text-slate-400">&copy; 2026 SRB Studio. Built for high-concurrency Discord architectures.</p>
+        </div>
       </div>
-      <div class="flex items-center gap-6">
-        <a href="https://discord.com" target="_blank" class="hover:text-slate-300 transition">Discord API</a>
-        <a href="https://neon.tech" target="_blank" class="hover:text-slate-300 transition">Cloud PostgreSQL</a>
-        <a href="https://github.com/sha313786/srb-nexus" target="_blank" class="hover:text-slate-300 transition">GitHub</a>
+
+      <div class="flex items-center gap-6 font-medium">
+        <a href="#hero-section" class="hover:text-cyan-accent transition">Overview</a>
+        <a href="#modules" class="hover:text-cyan-accent transition">Features</a>
+        <a href="https://discord.com" target="_blank" class="hover:text-cyan-accent transition">Discord API</a>
+        <a href="https://github.com/sha313786/srb-nexus" target="_blank" class="hover:text-cyan-accent transition">
+          <i class="fa-brands fa-github text-sm"></i> GitHub
+        </a>
       </div>
+
     </div>
   </footer>
 
@@ -311,7 +441,35 @@
     const urlParams = new URLSearchParams(window.location.search);
     const isExplicitServerList = urlParams.has('servers') || window.location.pathname.includes('/servers');
 
+    // Fetch live bot stats from /health
+    async function fetchGatewayHealth() {
+      try {
+        const res = await fetch('/health');
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        if (data.bot) {
+          if (data.bot.online) {
+            document.getElementById('header-status-text').innerText = 'Nexus Core Online';
+            document.getElementById('live-bot-status-pill').className = 'flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold';
+          }
+          if (data.bot.ping && data.bot.ping > 0) {
+            const latEl = document.getElementById('stat-latency-val');
+            if (latEl) latEl.innerText = `${data.bot.ping}ms`;
+          }
+          if (data.bot.guildCount !== undefined) {
+            const gEl = document.getElementById('stat-guild-count');
+            if (gEl) gEl.innerText = data.bot.guildCount;
+          }
+        }
+      } catch (e) {
+        console.warn('Gateway health check silent fail', e);
+      }
+    }
+
     async function checkAuth() {
+      fetchGatewayHealth();
+
       try {
         const res = await fetch('/api/auth/me');
         if (!res.ok) {
@@ -337,7 +495,7 @@
 
         document.getElementById('auth-header-slot').innerHTML = `
           <div class="flex items-center gap-3 bg-dark-850 border border-dark-700 py-1.5 px-3 rounded-2xl">
-            <img src="${avatarUrl}" class="w-8 h-8 rounded-full border border-indigo-500/50 object-cover" />
+            <img src="${avatarUrl}" class="w-8 h-8 rounded-full border border-cyan-500/50 object-cover" />
             <span class="text-sm font-bold text-white">${user.username}</span>
             <button onclick="logout()" title="Logout" class="text-slate-400 hover:text-red-400 transition ml-2 text-sm">
               <i class="fa-solid fa-arrow-right-from-bracket"></i>
@@ -389,15 +547,15 @@
 
       container.innerHTML = guilds.map(guild => {
         const iconHtml = guild.icon
-          ? `<img src="${guild.icon}" class="w-14 h-14 rounded-2xl object-cover border border-dark-700 shadow-md">`
-          : `<div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-700 to-purple-600 font-extrabold text-white text-lg flex items-center justify-center shadow-md">${guild.name.substring(0, 2).toUpperCase()}</div>`;
+          ? `<img src="${guild.icon}" class="w-14 h-14 rounded-2xl object-cover border border-cyan-500/20 shadow-md">`
+          : `<div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-900 to-indigo-900 font-extrabold text-cyan-accent text-lg flex items-center justify-center border border-cyan-500/30 shadow-md">${guild.name.substring(0, 2).toUpperCase()}</div>`;
 
         const actionButton = guild.hasBot
-          ? `<a href="/dashboard?guild=${guild.id}" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition w-full shadow-md shadow-indigo-600/20">
+          ? `<a href="/dashboard?guild=${guild.id}" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blurple hover:from-cyan-500 hover:to-blurple text-white text-xs font-bold transition w-full shadow-md shadow-cyan-600/20">
                <i class="fa-solid fa-sliders"></i> Open Control Panel
              </a>`
-          : `<a href="https://discord.com/oauth2/authorize?client_id=1526885301736177705&guild_id=${guild.id}&permissions=8&scope=bot%20applications.commands" target="_blank" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-dark-700 hover:bg-dark-600 text-slate-200 text-xs font-bold transition w-full border border-dark-600">
-               <i class="fa-solid fa-plus text-indigo-400"></i> Add Bot to Server
+          : `<a href="https://discord.com/oauth2/authorize?client_id=1526885301736177705&guild_id=${guild.id}&permissions=8&scope=bot%20applications.commands" target="_blank" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-dark-800 hover:bg-dark-750 text-slate-200 text-xs font-bold transition w-full border border-dark-700 hover:border-cyan-500/40">
+               <i class="fa-solid fa-plus text-cyan-accent"></i> Add Bot to Server
              </a>`;
 
         const badgeHtml = guild.hasBot
