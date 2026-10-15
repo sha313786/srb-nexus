@@ -98,14 +98,13 @@ export async function createWelcomeCard(
 
   let bgLoaded = false;
 
-  // Try loading custom background image from dashboard setting
+  // 1. Base Wallpaper
   if (customBgUrl) {
     try {
       const bgImage = await loadImage(customBgUrl);
       ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
-
-      // Dark translucent overlay for crisp text readability
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+      // Dark vignette overlay
+      ctx.fillStyle = 'rgba(5, 7, 12, 0.60)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       bgLoaded = true;
     } catch (err) {
@@ -113,57 +112,188 @@ export async function createWelcomeCard(
     }
   }
 
-  // Default theme background fallback
   if (!bgLoaded) {
-    ctx.fillStyle = '#111319';
+    // Cyber deep space gradient
+    const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    grad.addColorStop(0, '#060913');
+    grad.addColorStop(0.5, '#0b1326');
+    grad.addColorStop(1, '#110b24');
+    ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.strokeStyle = '#e74c3c';
-    ctx.lineWidth = 8;
-    ctx.strokeRect(15, 15, canvas.width - 30, canvas.height - 30);
+    // Subtle cyber grid
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.04)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < canvas.width; x += 40) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvas.height);
+      ctx.stroke();
+    }
+    for (let y = 0; y < canvas.height; y += 40) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+      ctx.stroke();
+    }
   }
 
-  // Welcome Text
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 42px Sans-Serif';
-  ctx.fillText(`WELCOME TO ${member.guild.name.toUpperCase()}`, 350, 170);
-
-  // Username
-  ctx.fillStyle = '#e74c3c';
-  ctx.font = 'bold 36px Sans-Serif';
-  ctx.fillText(member.user.username, 350, 230);
-
-  // Member Count Badge
-  ctx.fillStyle = 'rgba(44, 47, 56, 0.85)';
-  ctx.roundRect(350, 260, 200, 45, 10);
+  // 2. Central Frosted Glass Panel
+  const panelX = 35, panelY = 35, panelW = 954, panelH = 380, panelR = 24;
+  ctx.save();
+  ctx.fillStyle = 'rgba(9, 14, 26, 0.80)';
+  ctx.beginPath();
+  ctx.roundRect(panelX, panelY, panelW, panelH, panelR);
   ctx.fill();
 
-  ctx.fillStyle = '#3498db';
-  ctx.font = 'bold 22px Sans-Serif';
-  ctx.fillText(`Member #${member.guild.memberCount}`, 375, 290);
+  ctx.strokeStyle = 'rgba(0, 240, 255, 0.28)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
 
-  // User Circle Avatar
+  // 3. Cyber Corner Accent Brackets
+  const cornerLen = 28;
+  ctx.strokeStyle = '#00f0ff';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+
+  // Top-Left
+  ctx.beginPath();
+  ctx.moveTo(panelX + cornerLen, panelY);
+  ctx.lineTo(panelX + 4, panelY);
+  ctx.lineTo(panelX + 4, panelY + cornerLen);
+  ctx.stroke();
+
+  // Top-Right
+  ctx.beginPath();
+  ctx.moveTo(panelX + panelW - cornerLen, panelY);
+  ctx.lineTo(panelX + panelW - 4, panelY);
+  ctx.lineTo(panelX + panelW - 4, panelY + cornerLen);
+  ctx.stroke();
+
+  // Bottom-Left
+  ctx.beginPath();
+  ctx.moveTo(panelX + cornerLen, panelY + panelH);
+  ctx.lineTo(panelX + 4, panelY + panelH);
+  ctx.lineTo(panelX + 4, panelY + panelH - cornerLen);
+  ctx.stroke();
+
+  // Bottom-Right
+  ctx.beginPath();
+  ctx.moveTo(panelX + panelW - cornerLen, panelY + panelH);
+  ctx.lineTo(panelX + panelW - 4, panelY + panelH);
+  ctx.lineTo(panelX + panelW - 4, panelY + panelH - cornerLen);
+  ctx.stroke();
+
+  // 4. Top-Right Protocol Tag
+  ctx.save();
+  ctx.fillStyle = 'rgba(0, 240, 255, 0.08)';
+  ctx.beginPath();
+  ctx.roundRect(750, 56, 210, 32, 8);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0, 240, 255, 0.25)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Glowing status dot
+  ctx.fillStyle = '#10b981';
+  ctx.beginPath();
+  ctx.arc(766, 72, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = 'bold 11px Sans-Serif';
+  ctx.fillText('SRB NEXUS GATEWAY', 780, 76);
+  ctx.restore();
+
+  // 5. User Avatar Area
+  const avatarCenterX = 195;
+  const avatarCenterY = 225;
+  const avatarRadius = 88;
+
   try {
     const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 256 });
     const avatar = await loadImage(avatarUrl);
 
+    // Glowing Cyan Outer Halo
     ctx.save();
     ctx.beginPath();
-    ctx.arc(200, 225, 100, 0, Math.PI * 2, true);
+    ctx.arc(avatarCenterX, avatarCenterY, avatarRadius + 6, 0, Math.PI * 2);
+    ctx.strokeStyle = '#00f0ff';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(avatarCenterX, avatarCenterY, avatarRadius + 1, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Clipped circular avatar
+    ctx.beginPath();
+    ctx.arc(avatarCenterX, avatarCenterY, avatarRadius, 0, Math.PI * 2);
     ctx.closePath();
     ctx.clip();
-    ctx.drawImage(avatar, 100, 125, 200, 200);
+    ctx.drawImage(avatar, avatarCenterX - avatarRadius, avatarCenterY - avatarRadius, avatarRadius * 2, avatarRadius * 2);
     ctx.restore();
 
-    // Circle Outline for Avatar
+    // Online Status Badge on Avatar
     ctx.beginPath();
-    ctx.arc(200, 225, 102, 0, Math.PI * 2, true);
-    ctx.strokeStyle = '#e74c3c';
-    ctx.lineWidth = 6;
+    ctx.arc(avatarCenterX + 60, avatarCenterY + 60, 14, 0, Math.PI * 2);
+    ctx.fillStyle = '#10b981';
+    ctx.fill();
+    ctx.strokeStyle = '#090d16';
+    ctx.lineWidth = 4;
     ctx.stroke();
   } catch (err) {
     console.error('[BOT] Failed to draw avatar on canvas', err);
   }
+
+  // 6. Typography & Text Hierarchy
+  // Subtitle
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = 'bold 13px Sans-Serif';
+  ctx.fillText('// NEW OPERATIVE JOINED', 335, 145);
+
+  // Server Name
+  const serverName = member.guild.name.toUpperCase();
+  const truncatedServer = serverName.length > 24 ? serverName.slice(0, 22) + '...' : serverName;
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 36px Sans-Serif';
+  ctx.fillText(`WELCOME TO ${truncatedServer}`, 335, 192);
+
+  // Username
+  ctx.fillStyle = '#00f0ff';
+  ctx.font = 'bold 38px Sans-Serif';
+  ctx.fillText(member.user.username, 335, 242);
+
+  // 7. Member Count Badge Pill
+  ctx.save();
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+  ctx.beginPath();
+  ctx.roundRect(335, 276, 270, 48, 12);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0, 240, 255, 0.28)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Green Indicator Dot
+  ctx.fillStyle = '#10b981';
+  ctx.beginPath();
+  ctx.arc(358, 300, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#f1f5f9';
+  ctx.font = 'bold 18px Sans-Serif';
+  ctx.fillText(`Member #${member.guild.memberCount}`, 375, 307);
+  ctx.restore();
+
+  // 8. Bottom Telemetry
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px Sans-Serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(`STATUS: VERIFIED  |  GUILD ID: ${member.guild.id}`, 955, 395);
+  ctx.textAlign = 'left';
 
   const buffer = await canvas.encode('png');
   return new AttachmentBuilder(buffer, { name: 'welcome-card.png' });

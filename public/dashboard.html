@@ -57,18 +57,23 @@
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid rgba(255, 255, 255, 0.08);
     }
+    .custom-scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: #232942 transparent;
+    }
     .custom-scrollbar::-webkit-scrollbar {
-      width: 6px;
+      width: 5px;
+      height: 5px;
     }
     .custom-scrollbar::-webkit-scrollbar-track {
       background: transparent;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb {
       background: #232942;
-      border-radius: 4px;
+      border-radius: 9999px;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: #323a5c;
+      background: #00f0ff;
     }
   </style>
 </head>
@@ -180,7 +185,7 @@
   <main class="flex-1 max-w-[1600px] mx-auto w-full px-6 py-8 flex flex-col md:flex-row gap-8">
     
     <!-- Sidebar Navigation -->
-    <aside class="w-full md:w-72 shrink-0 space-y-6 md:sticky md:top-24 md:max-h-[calc(100vh-7rem)] md:overflow-y-auto pr-1">
+    <aside class="w-full md:w-72 shrink-0 space-y-6 md:sticky md:top-24 md:max-h-[calc(100vh-7rem)] md:overflow-y-auto pr-1 custom-scrollbar">
       
       <div class="glass-panel rounded-3xl p-4 space-y-6">
         
@@ -766,40 +771,51 @@
             <div>
               <div class="flex items-center gap-2.5">
                 <h2 class="font-heading font-extrabold text-2xl text-white flex items-center gap-2">
-                  <i class="fa-solid fa-hand-wave text-indigo-400"></i> Welcome & Canvas Studio
+                  <i class="fa-solid fa-paintbrush text-cyan-accent"></i> Welcome & Canvas Studio
                 </h2>
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-bold">
-                  <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span> Dynamic Canvas
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-accent border border-cyan-500/20 text-xs font-bold font-mono">
+                  <span class="w-1.5 h-1.5 rounded-full bg-cyan-accent animate-pulse"></span> HD CANVASCRAFT v2.5
                 </span>
               </div>
-              <p class="text-sm text-slate-400 mt-1">Real-time Canvas studio (1024×450 banners), preset neon styles, token chips, and auto-roles.</p>
+              <p class="text-sm text-slate-400 mt-1">Real-time Canvas studio (1024×450 banners), frosted glass styling, cyber presets, and instant role grants.</p>
             </div>
             <div class="flex items-center gap-3">
-              <button onclick="testWelcomeCard()" id="btn-test-welcome" class="px-4 py-2 rounded-xl bg-dark-800 hover:bg-dark-700 text-indigo-300 font-bold text-xs border border-dark-700 transition flex items-center gap-1.5">
-                <i class="fa-solid fa-paper-plane"></i> Send Test Card
+              <button onclick="testWelcomeCard()" id="btn-test-welcome" class="px-4 py-2.5 rounded-xl bg-dark-800 hover:bg-dark-750 text-cyan-300 font-bold text-xs border border-dark-700 hover:border-cyan-500/40 transition flex items-center gap-2 shadow-sm">
+                <i class="fa-solid fa-paper-plane text-cyan-accent"></i> Send Test Card
               </button>
-              <button onclick="saveModule('welcome')" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/25 transition">
-                <i class="fa-solid fa-floppy-disk"></i> Save Welcome Setup
+              <button onclick="saveModule('welcome')" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 via-blurple to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-cyan-600/25 transition">
+                <i class="fa-solid fa-floppy-disk"></i> Save Setup
               </button>
             </div>
           </div>
 
           <!-- Real-Time Live Canvas Card Preview -->
-          <div class="p-6 bg-dark-900/80 border border-dark-700 rounded-3xl space-y-4">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+          <div class="p-6 bg-dark-900/90 border border-dark-700 rounded-3xl space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <span class="text-xs font-bold uppercase tracking-wider text-cyan-accent flex items-center gap-2">
                 <i class="fa-solid fa-eye"></i> Real-Time Canvas Banner Preview
               </span>
-              <div class="flex items-center gap-3 text-xs text-slate-400">
-                <span>Presets:</span>
-                <button type="button" onclick="setWelcomePreset('cyber')" class="px-2 py-0.5 rounded-lg bg-dark-800 hover:bg-indigo-600/30 text-indigo-300 border border-dark-700 transition">Cyber Neon</button>
-                <button type="button" onclick="setWelcomePreset('space')" class="px-2 py-0.5 rounded-lg bg-dark-800 hover:bg-indigo-600/30 text-indigo-300 border border-dark-700 transition">Deep Space</button>
-                <button type="button" onclick="setWelcomePreset('aurora')" class="px-2 py-0.5 rounded-lg bg-dark-800 hover:bg-indigo-600/30 text-indigo-300 border border-dark-700 transition">Aurora</button>
-                <button type="button" onclick="setWelcomePreset('minimal')" class="px-2 py-0.5 rounded-lg bg-dark-800 hover:bg-indigo-600/30 text-indigo-300 border border-dark-700 transition">Dark Obsidian</button>
+              <div class="flex flex-wrap items-center gap-2 text-xs">
+                <span class="text-slate-400 font-semibold mr-1 text-[11px]">Themes:</span>
+                <button type="button" onclick="setWelcomePreset('cyber')" class="px-3 py-1 rounded-xl bg-dark-800 hover:bg-cyan-500/20 text-cyan-300 border border-dark-700 hover:border-cyan-500/40 transition flex items-center gap-1.5 text-xs font-bold">
+                  <i class="fa-solid fa-city text-cyan-accent"></i> Cyber Neon
+                </button>
+                <button type="button" onclick="setWelcomePreset('space')" class="px-3 py-1 rounded-xl bg-dark-800 hover:bg-purple-500/20 text-purple-300 border border-dark-700 hover:border-purple-500/40 transition flex items-center gap-1.5 text-xs font-bold">
+                  <i class="fa-solid fa-meteor text-purple-400"></i> Deep Space
+                </button>
+                <button type="button" onclick="setWelcomePreset('aurora')" class="px-3 py-1 rounded-xl bg-dark-800 hover:bg-emerald-500/20 text-emerald-300 border border-dark-700 hover:border-emerald-500/40 transition flex items-center gap-1.5 text-xs font-bold">
+                  <i class="fa-solid fa-wind text-emerald-400"></i> Aurora
+                </button>
+                <button type="button" onclick="setWelcomePreset('battlestation')" class="px-3 py-1 rounded-xl bg-dark-800 hover:bg-pink-500/20 text-pink-300 border border-dark-700 hover:border-pink-500/40 transition flex items-center gap-1.5 text-xs font-bold">
+                  <i class="fa-solid fa-gamepad text-pink-400"></i> Battlestation
+                </button>
+                <button type="button" onclick="setWelcomePreset('minimal')" class="px-3 py-1 rounded-xl bg-dark-800 hover:bg-dark-700 text-slate-300 border border-dark-700 transition flex items-center gap-1.5 text-xs font-bold">
+                  <i class="fa-solid fa-shield text-slate-400"></i> Dark Titanium
+                </button>
               </div>
             </div>
             
-            <div class="w-full aspect-[1024/450] max-w-3xl mx-auto rounded-2xl overflow-hidden border-2 border-indigo-500/30 shadow-2xl relative bg-[#111319]">
+            <div class="w-full aspect-[1024/450] max-w-3xl mx-auto rounded-2xl overflow-hidden border border-cyan-500/40 shadow-[0_0_35px_rgba(0,240,255,0.18)] relative bg-[#060913]">
               <canvas id="welcome-preview-canvas" width="1024" height="450" class="w-full h-full block"></canvas>
             </div>
           </div>
@@ -2175,13 +2191,13 @@
     // Switch between sidebar tabs
     function switchTab(tabName) {
       document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-md', 'shadow-indigo-600/20');
-        btn.classList.add('text-slate-400');
+        btn.classList.remove('bg-gradient-to-r', 'from-cyan-500/20', 'via-indigo-500/15', 'to-transparent', 'border-l-4', 'border-l-cyan-accent', 'text-white', 'shadow-md', 'shadow-cyan-500/10', 'bg-indigo-600');
+        btn.classList.add('text-slate-400', 'border-l-4', 'border-l-transparent');
       });
       const activeBtn = document.getElementById(`btn-${tabName}`);
       if (activeBtn) {
-        activeBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-md', 'shadow-indigo-600/20');
-        activeBtn.classList.remove('text-slate-400');
+        activeBtn.classList.remove('text-slate-400', 'border-l-transparent');
+        activeBtn.classList.add('bg-gradient-to-r', 'from-cyan-500/20', 'via-indigo-500/15', 'to-transparent', 'border-l-4', 'border-l-cyan-accent', 'text-white', 'shadow-md', 'shadow-cyan-500/10');
       }
 
       document.querySelectorAll('.module-panel').forEach(panel => panel.classList.add('hidden'));
@@ -3078,61 +3094,183 @@
       renderBannedWords();
     }
 
-    // Canvas Welcome Banner
+    // Canvas Welcome Banner - Cybernetic Studio
+    let avatarPreviewImage = null;
+    function getPreviewAvatarImg() {
+      if (!avatarPreviewImage) {
+        avatarPreviewImage = new Image();
+        avatarPreviewImage.crossOrigin = 'anonymous';
+        avatarPreviewImage.src = '/nexus-logo.png';
+      }
+      return avatarPreviewImage;
+    }
+
     function renderWelcomePreview() {
       const canvas = document.getElementById('welcome-preview-canvas');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       const bgUrl = document.getElementById('input-welcome-bg')?.value.trim() || '';
-      const serverName = currentGuild ? currentGuild.name.toUpperCase() : 'YOUR SERVER';
+      const rawServerName = currentGuild ? currentGuild.name.toUpperCase() : 'YOUR SERVER';
+      const serverName = rawServerName.length > 24 ? rawServerName.slice(0, 22) + '...' : rawServerName;
 
       function drawContent() {
-        // Red / Blurple Accent Border
-        ctx.strokeStyle = '#5865F2';
-        ctx.lineWidth = 8;
-        ctx.strokeRect(15, 15, canvas.width - 30, canvas.height - 30);
-
-        // Welcome Text
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 38px "Plus Jakarta Sans", sans-serif';
-        ctx.fillText(`WELCOME TO ${serverName}`, 340, 170);
-
-        // Username
-        ctx.fillStyle = '#5865F2';
-        ctx.font = 'bold 34px "Plus Jakarta Sans", sans-serif';
-        ctx.fillText('NewMember#0001', 340, 230);
-
-        // Member Count Badge
-        ctx.fillStyle = 'rgba(20, 22, 30, 0.85)';
-        ctx.beginPath();
-        ctx.roundRect(340, 260, 240, 48, 12);
-        ctx.fill();
-
-        ctx.fillStyle = '#10B981';
-        ctx.font = 'bold 20px "Plus Jakarta Sans", sans-serif';
-        ctx.fillText('Member #1,234', 365, 292);
-
-        // Avatar Circle
+        // 1. Frosted Glass Inner Container
+        const px = 35, py = 35, pw = 954, ph = 380, pr = 24;
         ctx.save();
+        ctx.fillStyle = 'rgba(9, 14, 26, 0.82)';
         ctx.beginPath();
-        ctx.arc(190, 225, 95, 0, Math.PI * 2, true);
-        ctx.fillStyle = '#5865F2';
+        ctx.roundRect(px, py, pw, ph, pr);
         ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 50px "Outfit", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('SN', 190, 242);
+
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.32)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
         ctx.restore();
 
-        // Avatar Outline
+        // 2. Cyber Corner Accent Brackets
+        const cornerLen = 28;
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+
+        // Top-Left
         ctx.beginPath();
-        ctx.arc(190, 225, 98, 0, Math.PI * 2, true);
-        ctx.strokeStyle = '#5865F2';
-        ctx.lineWidth = 6;
+        ctx.moveTo(px + cornerLen, py);
+        ctx.lineTo(px + 4, py);
+        ctx.lineTo(px + 4, py + cornerLen);
         ctx.stroke();
+
+        // Top-Right
+        ctx.beginPath();
+        ctx.moveTo(px + pw - cornerLen, py);
+        ctx.lineTo(px + pw - 4, py);
+        ctx.lineTo(px + pw - 4, py + cornerLen);
+        ctx.stroke();
+
+        // Bottom-Left
+        ctx.beginPath();
+        ctx.moveTo(px + cornerLen, py + ph);
+        ctx.lineTo(px + 4, py + ph);
+        ctx.lineTo(px + 4, py + ph - cornerLen);
+        ctx.stroke();
+
+        // Bottom-Right
+        ctx.beginPath();
+        ctx.moveTo(px + pw - cornerLen, py + ph);
+        ctx.lineTo(px + pw - 4, py + ph);
+        ctx.lineTo(px + pw - 4, py + ph - cornerLen);
+        ctx.stroke();
+
+        // 3. Top-Right Cyber Tag
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 240, 255, 0.08)';
+        ctx.beginPath();
+        ctx.roundRect(750, 56, 210, 32, 8);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.25)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.arc(766, 72, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = 'bold 11px "Plus Jakarta Sans", sans-serif';
+        ctx.fillText('SRB NEXUS GATEWAY', 780, 76);
+        ctx.restore();
+
+        // 4. Avatar Section
+        const acx = 195, acy = 225, ar = 88;
+
+        // Glowing Cyan Halo
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(acx, acy, ar + 6, 0, Math.PI * 2);
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(acx, acy, ar + 1, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Draw Avatar (Nexus logo or profile image)
+        const avImg = getPreviewAvatarImg();
+        ctx.beginPath();
+        ctx.arc(acx, acy, ar, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        if (avImg.complete && avImg.naturalWidth > 0) {
+          ctx.drawImage(avImg, acx - ar, acy - ar, ar * 2, ar * 2);
+        } else {
+          ctx.fillStyle = '#0f172a';
+          ctx.fill();
+          ctx.fillStyle = '#00f0ff';
+          ctx.font = 'bold 48px "Outfit", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('N', acx, acy + 16);
+          avImg.onload = () => renderWelcomePreview();
+        }
+        ctx.restore();
+
+        // Online Status Badge
+        ctx.beginPath();
+        ctx.arc(acx + 60, acy + 60, 14, 0, Math.PI * 2);
+        ctx.fillStyle = '#10b981';
+        ctx.fill();
+        ctx.strokeStyle = '#090d16';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        // 5. Typography
+        // Subtitle
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = 'bold 13px "JetBrains Mono", monospace';
+        ctx.fillText('// NEW OPERATIVE JOINED', 335, 145);
+
+        // Welcome text
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 36px "Outfit", sans-serif';
+        ctx.fillText(`WELCOME TO ${serverName}`, 335, 192);
+
+        // Username
+        ctx.fillStyle = '#00f0ff';
+        ctx.font = 'bold 38px "Outfit", sans-serif';
+        ctx.fillText('NewMember#0001', 335, 242);
+
+        // Member Count Pill
+        ctx.save();
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+        ctx.beginPath();
+        ctx.roundRect(335, 276, 270, 48, 12);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.28)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.arc(358, 300, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#f1f5f9';
+        ctx.font = 'bold 18px "Plus Jakarta Sans", sans-serif';
+        ctx.fillText('Member #1,234', 375, 307);
+        ctx.restore();
+
+        // 6. Bottom Telemetry
+        ctx.fillStyle = '#64748b';
+        ctx.font = '11px "JetBrains Mono", monospace';
+        ctx.textAlign = 'right';
+        ctx.fillText('STATUS: VERIFIED  |  ID: 1525065834572021851', 955, 395);
+        ctx.textAlign = 'left';
       }
 
-      ctx.fillStyle = '#0d0f17';
+      ctx.fillStyle = '#05070c';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       if (bgUrl) {
@@ -3140,22 +3278,42 @@
         img.crossOrigin = 'anonymous';
         img.onload = () => {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+          ctx.fillStyle = 'rgba(5, 7, 12, 0.60)';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
           drawContent();
         };
         img.onerror = () => {
+          drawFallback();
           drawContent();
         };
         img.src = bgUrl;
       } else {
-        // Gradient fallback
+        drawFallback();
+        drawContent();
+      }
+
+      function drawFallback() {
         const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-        grad.addColorStop(0, '#0a0d1a');
-        grad.addColorStop(1, '#1a102b');
+        grad.addColorStop(0, '#060913');
+        grad.addColorStop(0.5, '#0b1326');
+        grad.addColorStop(1, '#110b24');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        drawContent();
+
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.04)';
+        ctx.lineWidth = 1;
+        for (let x = 0; x < canvas.width; x += 40) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, canvas.height);
+          ctx.stroke();
+        }
+        for (let y = 0; y < canvas.height; y += 40) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(canvas.width, y);
+          ctx.stroke();
+        }
       }
     }
 
@@ -3163,16 +3321,18 @@
       const bgInput = document.getElementById('input-welcome-bg');
       if (!bgInput) return;
       if (theme === 'cyber') {
-        bgInput.value = 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1024&q=80';
+        bgInput.value = 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1024&q=80';
       } else if (theme === 'space') {
         bgInput.value = 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=1024&q=80';
       } else if (theme === 'aurora') {
         bgInput.value = 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=1024&q=80';
+      } else if (theme === 'battlestation') {
+        bgInput.value = 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1024&q=80';
       } else {
         bgInput.value = '';
       }
       renderWelcomePreview();
-      showToast(`Welcome banner preset set to ${theme}!`);
+      showToast(`Applied ${theme} canvas background theme!`);
     }
 
     function insertWelcomeVar(v) {
