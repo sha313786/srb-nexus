@@ -58,6 +58,8 @@ export const bot = new Client({
   ],
 });
 
+let lastBotError: { message: string; code?: string | number; attempt: number; timestamp: string } | null = null;
+
 // Helper function to insert/sync guild
 async function registerGuild(guildId: string, guildName?: string) {
   await db.query(
@@ -416,6 +418,7 @@ async function start() {
           user: bot.user ? bot.user.tag : null,
           guildCount: bot.guilds.cache.size,
           ping: bot.ws?.ping ?? -1,
+          lastError: lastBotError,
         },
         uptime: Math.floor(process.uptime()),
         timestamp: new Date().toISOString(),
@@ -720,8 +723,15 @@ async function start() {
         try {
           app.log.info(`[BOT] Connecting to Discord Gateway (attempt #${attempt})...`);
           await bot.login(discordToken);
+          lastBotError = null;
           app.log.info(`[BOT] Connected to Discord Gateway successfully as ${bot.user?.tag}`);
         } catch (err: any) {
+          lastBotError = {
+            message: err.message || String(err),
+            code: err.code || err.status || 0,
+            attempt,
+            timestamp: new Date().toISOString(),
+          };
           app.log.error({ err: err.message, code: err.code }, `[BOT] Connection failed on attempt #${attempt}`);
           const delaySec = Math.min(5 * attempt, 30);
           app.log.info(`[BOT] Retrying Discord Gateway connection in ${delaySec}s...`);
