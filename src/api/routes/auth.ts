@@ -210,16 +210,22 @@ export async function authRoutes(fastify: FastifyInstance) {
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-[#07080c] text-white min-h-screen flex items-center justify-center p-4 font-sans">
-  <div class="max-w-md w-full bg-[#121522] border border-amber-500/30 p-8 rounded-3xl text-center shadow-2xl space-y-6">
+  <div class="max-w-lg w-full bg-[#121522] border border-amber-500/30 p-8 rounded-3xl text-center shadow-2xl space-y-6">
     <div class="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center text-3xl mx-auto">
-      ⏳
+      🛡️
     </div>
     <div class="space-y-2">
-      <h2 class="text-2xl font-bold text-white">Discord API Cooldown Active</h2>
-      <p class="text-sm text-slate-400">Discord's Cloudflare network has temporarily throttled outgoing API connections from this hosting provider's shared IP address (~${minutes} minutes remaining).</p>
+      <h2 class="text-2xl font-bold text-white">Hosting IP Rate-Limited by Discord</h2>
+      <p class="text-sm text-slate-400">
+        Discord's Cloudflare DDoS protection has throttled Render's shared Singapore egress IP. Because other apps on Render share this outbound IP, the cooldown timer (~${minutes} min) continuously resets whenever any app connects.
+      </p>
     </div>
-    <div class="p-4 rounded-xl bg-slate-800/60 border border-slate-700 text-xs text-slate-300">
-      This cooldown is enforced by Discord on shared cloud IPs and will clear automatically. Please retry shortly.
+    <div class="p-4 rounded-xl bg-slate-800/60 border border-slate-700 text-left text-xs text-slate-300 space-y-2">
+      <div class="font-bold text-amber-400 flex items-center gap-1.5">
+        <span>⚡</span> Permanent Fix:
+      </div>
+      <p>1. Deploy a free <strong>Cloudflare Worker</strong> proxy or switch your Render service region to <strong>Oregon (US)</strong>.</p>
+      <p>2. Set <code>DISCORD_API_BASE_URL</code> in Render environment variables to bypass the blocked host IP.</p>
     </div>
     <div class="space-y-3 pt-2">
       <a href="/" class="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/30 transition">
