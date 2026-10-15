@@ -60,6 +60,14 @@ export const bot = new Client({
 
 let lastBotError: { message: string; code?: string | number; attempt: number; timestamp: string } | null = null;
 let lastBotRateLimit: any = null;
+let lastDebugEvents: string[] = [];
+
+bot.on('debug', (info: string) => {
+  const line = `${new Date().toISOString().slice(11, 19)}: ${info}`;
+  lastDebugEvents.push(line);
+  if (lastDebugEvents.length > 10) lastDebugEvents.shift();
+  app.log.debug(`[DISCORD DEBUG] ${info}`);
+});
 
 bot.rest.on('rateLimited', (info: any) => {
   lastBotRateLimit = {
@@ -431,6 +439,7 @@ async function start() {
           apiBase: process.env.DISCORD_API_BASE_URL || 'https://discord.com',
           lastError: lastBotError,
           lastRateLimit: lastBotRateLimit,
+          debugEvents: lastDebugEvents,
         },
         uptime: Math.floor(process.uptime()),
         timestamp: new Date().toISOString(),
