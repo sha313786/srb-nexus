@@ -5,7 +5,7 @@ import fastifyStatic from '@fastify/static';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
-import { createCanvas, loadImage } from '@napi-rs/canvas';
+import { createCanvas, loadImage, GlobalFonts } from '@napi-rs/canvas';
 import {
   Client,
   GatewayIntentBits,
@@ -17,6 +17,25 @@ import {
   AttachmentBuilder,
   ActivityType,
 } from 'discord.js';
+
+// Register cross-platform fonts for Canvas rendering on Linux/Docker/Render
+try {
+  const fontDir = fs.existsSync(path.join(__dirname, '../assets/fonts'))
+    ? path.join(__dirname, '../assets/fonts')
+    : fs.existsSync(path.join(__dirname, 'assets/fonts'))
+    ? path.join(__dirname, 'assets/fonts')
+    : path.join(process.cwd(), 'assets/fonts');
+
+  if (fs.existsSync(path.join(fontDir, 'Outfit.ttf'))) {
+    GlobalFonts.registerFromPath(path.join(fontDir, 'Outfit.ttf'), 'Outfit');
+  }
+  if (fs.existsSync(path.join(fontDir, 'JetBrainsMono.ttf'))) {
+    GlobalFonts.registerFromPath(path.join(fontDir, 'JetBrainsMono.ttf'), 'JetBrainsMono');
+  }
+  console.log('[CANVAS] Successfully registered custom fonts (Outfit, JetBrainsMono)');
+} catch (fontErr) {
+  console.error('[CANVAS] Failed to register custom fonts', fontErr);
+}
 
 import { db } from './core/database';
 import { authRoutes } from './api/routes/auth';
@@ -202,7 +221,7 @@ export async function createWelcomeCard(
   ctx.fill();
 
   ctx.fillStyle = '#38bdf8';
-  ctx.font = 'bold 11px Sans-Serif';
+  ctx.font = 'bold 11px JetBrainsMono, Outfit, sans-serif';
   ctx.fillText('SRB NEXUS GATEWAY', 780, 76);
   ctx.restore();
 
@@ -252,19 +271,19 @@ export async function createWelcomeCard(
   // 6. Typography & Text Hierarchy
   // Subtitle
   ctx.fillStyle = '#38bdf8';
-  ctx.font = 'bold 13px Sans-Serif';
+  ctx.font = 'bold 13px JetBrainsMono, monospace, sans-serif';
   ctx.fillText('// NEW OPERATIVE JOINED', 335, 145);
 
   // Server Name
   const serverName = member.guild.name.toUpperCase();
   const truncatedServer = serverName.length > 24 ? serverName.slice(0, 22) + '...' : serverName;
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 36px Sans-Serif';
+  ctx.font = 'bold 36px Outfit, sans-serif';
   ctx.fillText(`WELCOME TO ${truncatedServer}`, 335, 192);
 
   // Username
   ctx.fillStyle = '#00f0ff';
-  ctx.font = 'bold 38px Sans-Serif';
+  ctx.font = 'bold 38px Outfit, sans-serif';
   ctx.fillText(member.user.username, 335, 242);
 
   // 7. Member Count Badge Pill
@@ -284,13 +303,13 @@ export async function createWelcomeCard(
   ctx.fill();
 
   ctx.fillStyle = '#f1f5f9';
-  ctx.font = 'bold 18px Sans-Serif';
+  ctx.font = 'bold 18px Outfit, sans-serif';
   ctx.fillText(`Member #${member.guild.memberCount}`, 375, 307);
   ctx.restore();
 
   // 8. Bottom Telemetry
   ctx.fillStyle = '#64748b';
-  ctx.font = '11px Sans-Serif';
+  ctx.font = '11px JetBrainsMono, monospace, sans-serif';
   ctx.textAlign = 'right';
   ctx.fillText(`STATUS: VERIFIED  |  GUILD ID: ${member.guild.id}`, 955, 395);
   ctx.textAlign = 'left';
