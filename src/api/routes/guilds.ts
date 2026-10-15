@@ -1505,4 +1505,200 @@ export async function guildRoutes(fastify: FastifyInstance) {
     await db.query('DELETE FROM guild_shop_items WHERE id = $1 AND guild_id = $2', [Number(itemId), id]);
     return reply.send({ success: true, message: 'Shop item deleted' });
   });
+
+  // =========================================================================
+  // INVITE TRACKER MODULE ENDPOINTS
+  // =========================================================================
+
+  // GET /api/guilds/:id/invites - Fetch invite-role mappings, active guild invites, and join logs
+  fastify.get('/api/guilds/:id/invites', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) return reply.status(401).send({ error: 'Unauthorized' });
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) return reply.status(403).send({ error: 'Forbidden' });
+
+    try {
+      const guild = bot.guilds.cache.get(id);
+
+      // 1. Fetch DB role mappings
+      const mappingsRes = await db.query(
+        `SELECT invite_code, role_id, created_at FROM guild_invite_roles WHERE guild_id = $1 ORDER BY created_at DESC`,
+        [id]
+      );
+
+      // Enhance mappings with role name and role color
+      const mappings = mappingsRes.rows.map((row: any) => {
+        const role = guild?.roles.cache.get(row.role_id);
+        return {
+          invite_code: row.invite_code,
+          role_id: row.role_id,
+          role_name: role ? role.name : 'Unknown Role',
+          role_color: role ? role.hexColor : '#99aab5',
+          created_at: row.created_at,
+        };
+      });
+
+      // 2. Fetch live guild invites from Discord
+      let activeInvites: any[] = [];
+      let vanity: any = null;
+
+      if (guild) {
+        try {
+          const fetchedInvites = await guild.invites.fetch().catch(() => null);
+          if (fetchedInvites) {
+            activeInvites = Array.from(fetchedInvites.values()).map((inv) => ({
+              code: inv.code,
+              url: inv.url,
+              uses: inv.uses ?? 0,
+              maxUses: inv.maxUses ?? 0,
+              inviter: inv.inviter
+                ? {
+                    id: inv.inviter.id,
+                    username: inv.inviter.username,
+                    avatar: inv.inviter.displayAvatarURL({ size: 64 }),
+                  }
+                : null,
+              temporary: inv.temporary,
+              expiresAt: inv.expiresAt ? inv.expiresAt.toISOString() : null,
+              createdAt: inv.createdAt ? inv.createdAt.toISOString() : null,
+            }));
+          }
+
+          if (guild.vanityURLCode) {
+            const v = await guild.fetchVanityData().catch(() => null);
+            vanity = {
+              code: guild.vanityURLCode,
+              uses: v ? v.uses : 0,
+            };
+          }
+        } catch (e: any) {
+          request.log.warn({ e }, '[INVITE-API] Could not fetch live Discord invites');
+        }
+      }
+
+      // 3. Fetch recent joins from audit logs
+      const logsRes = await db.query(
+        `SELECT user_id, user_tag, user_avatar, invite_code, role_id, role_name, joined_at 
+         FROM guild_invite_logs 
+         WHERE guild_id = $1 
+         ORDER BY joined_at DESC 
+         LIMIT 50`,
+        [id]
+      ).catch(() => ({ rows: [] }));
+
+      return reply.send({
+        success: true,
+        mappings,
+        activeInvites,
+        vanity,
+        recentJoins: logsRes.rows,
+      });
+    } catch (err: any) {
+      request.log.error({ err }, '[INVITE-API] Failed to fetch invite tracking data');
+      return reply.status(500).send({ error: 'Failed to fetch invite tracking data: ' + err.message });
+    }
+  });
+
+  // POST /api/guilds/:id/invites - Bind invite code to a role
+  fastify.post('/api/guilds/:id/invites', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) return reply.status(401).send({ error: 'Unauthorized' });
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) return reply.status(403).send({ error: 'Forbidden' });
+
+    const body = (request.body as Record<string, any>) || {};
+    const rawCode = body.code ? String(body.code).trim() : '';
+    const cleanRoleId = body.role_id ? String(body.role_id).replace(/[<#@!&>]/g, '').trim() : '';
+
+    if (!rawCode) return reply.status(400).send({ error: 'Invite code or link is required' });
+    if (!cleanRoleId) return reply.status(400).send({ error: 'Role is required' });
+
+    // Clean invite link to raw code
+    const cleanCode = rawCode
+      .replace(/^https?:\/\/(www\.)?(discord\.gg|discord\.com\/invite)\//i, '')
+      .trim();
+
+    const guild = bot.guilds.cache.get(id);
+    if (!guild) {
+      return reply.status(404).send({ error: 'Guild not found or bot is not in server' });
+    }
+
+    const botMember = guild.members.me || (await guild.members.fetchMe().catch(() => null));
+    if (!botMember || !botMember.permissions.has(PermissionFlagsBits.ManageRoles)) {
+      return reply.status(400).send({ error: 'Bot lacks "Manage Roles" permission in this server' });
+    }
+
+    const role = guild.roles.cache.get(cleanRoleId) || (await guild.roles.fetch(cleanRoleId).catch(() => null));
+    if (!role) {
+      return reply.status(400).send({ error: 'Selected role was not found in server' });
+    }
+
+    if (botMember.roles.highest.position <= role.position) {
+      return reply.status(400).send({
+        error: `Cannot assign "${role.name}": Role is positioned higher than or equal to bot's highest role. Move the bot role above this role in Server Settings > Roles.`,
+      });
+    }
+
+    if (role.managed) {
+      return reply.status(400).send({ error: `"${role.name}" is a managed integration role and cannot be assigned.` });
+    }
+
+    try {
+      await db.query(
+        `INSERT INTO guild_invite_roles (guild_id, invite_code, role_id)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (guild_id, invite_code)
+         DO UPDATE SET role_id = EXCLUDED.role_id, created_at = CURRENT_TIMESTAMP`,
+        [id, cleanCode, role.id]
+      );
+
+      return reply.send({
+        success: true,
+        message: `Successfully mapped invite "${cleanCode}" to role @${role.name}!`,
+        mapping: {
+          invite_code: cleanCode,
+          role_id: role.id,
+          role_name: role.name,
+          role_color: role.hexColor,
+        },
+      });
+    } catch (err: any) {
+      request.log.error({ err }, '[INVITE-API] Failed to save invite role');
+      return reply.status(500).send({ error: 'Database error: ' + err.message });
+    }
+  });
+
+  // DELETE /api/guilds/:id/invites/:code - Remove invite role mapping
+  fastify.delete('/api/guilds/:id/invites/:code', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id, code } = request.params as { id: string; code: string };
+
+    if (!user || !user.accessToken) return reply.status(401).send({ error: 'Unauthorized' });
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) return reply.status(403).send({ error: 'Forbidden' });
+
+    const cleanCode = code
+      .replace(/^https?:\/\/(www\.)?(discord\.gg|discord\.com\/invite)\//i, '')
+      .trim();
+
+    try {
+      const res = await db.query(
+        `DELETE FROM guild_invite_roles WHERE guild_id = $1 AND invite_code = $2 RETURNING *`,
+        [id, cleanCode]
+      );
+
+      if (res.rowCount === 0) {
+        return reply.status(404).send({ error: 'No mapping found for this invite code' });
+      }
+
+      return reply.send({ success: true, message: `Removed mapping for invite "${cleanCode}"` });
+    } catch (err: any) {
+      request.log.error({ err }, '[INVITE-API] Failed to delete invite role');
+      return reply.status(500).send({ error: 'Database error: ' + err.message });
+    }
+  });
 }

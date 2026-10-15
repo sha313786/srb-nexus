@@ -728,6 +728,19 @@ async function start() {
         UNIQUE (guild_id, invite_code)
       );
       CREATE INDEX IF NOT EXISTS idx_invite_roles_guild ON guild_invite_roles (guild_id);
+
+      CREATE TABLE IF NOT EXISTS guild_invite_logs (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(32) NOT NULL,
+        user_id VARCHAR(32) NOT NULL,
+        user_tag VARCHAR(100) NOT NULL,
+        user_avatar TEXT,
+        invite_code VARCHAR(32) NOT NULL,
+        role_id VARCHAR(32),
+        role_name VARCHAR(100),
+        joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_invite_logs_guild ON guild_invite_logs (guild_id);
     `);
 
     app.log.info('Database connection established & all tables and security schemas initialized successfully');

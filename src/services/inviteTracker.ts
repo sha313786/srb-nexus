@@ -195,6 +195,17 @@ export async function handleInviteRoleAssignment(
     );
 
     if (res.rows.length === 0) {
+      await db.query(
+        `INSERT INTO guild_invite_logs (guild_id, user_id, user_tag, user_avatar, invite_code, role_id, role_name)
+         VALUES ($1, $2, $3, $4, $5, NULL, NULL)`,
+        [
+          member.guild.id,
+          member.user.id,
+          member.user.tag,
+          member.user.displayAvatarURL({ size: 128 }),
+          inviteCode,
+        ]
+      ).catch(() => {});
       return { matched: false, assigned: false };
     }
 
@@ -236,6 +247,21 @@ export async function handleInviteRoleAssignment(
     // 6. Assign the role to the member
     await member.roles.add(role, `Auto-assigned via invite code: ${inviteCode}`);
     logger.info(`[INVITE] Successfully assigned role '${role.name}' to ${member.user.tag} (Invite: ${inviteCode})`);
+
+    // 7. Log tracked join to audit database
+    await db.query(
+      `INSERT INTO guild_invite_logs (guild_id, user_id, user_tag, user_avatar, invite_code, role_id, role_name)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        guild.id,
+        member.user.id,
+        member.user.tag,
+        member.user.displayAvatarURL({ size: 128 }),
+        inviteCode,
+        role.id,
+        role.name,
+      ]
+    ).catch(() => {});
 
     return {
       matched: true,

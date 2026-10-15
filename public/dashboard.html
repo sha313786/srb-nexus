@@ -204,6 +204,10 @@
               <i class="fa-solid fa-hand-wave w-5 text-center text-indigo-400"></i>
               <span>Welcome & Leave</span>
             </button>
+            <button onclick="switchTab('invites')" id="btn-invites" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-dark-800 hover:text-white">
+              <i class="fa-solid fa-ticket-simple w-5 text-center text-emerald-400"></i>
+              <span>Invite Tracker</span>
+            </button>
             <button onclick="switchTab('levels')" id="btn-levels" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-dark-800 hover:text-white">
               <i class="fa-solid fa-award w-5 text-center text-yellow-400"></i>
               <span>Leveling & XP</span>
@@ -1869,6 +1873,200 @@
         </div>
       </div>
 
+      <!-- 12. INVITE TRACKER & AUTO-ROLES PANEL -->
+      <div id="panel-invites" class="module-panel space-y-6 hidden">
+        <div class="glass-panel rounded-3xl p-8 space-y-8">
+          
+          <!-- Header and Action Buttons -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-dark-700/60 gap-4">
+            <div>
+              <div class="flex items-center gap-2.5">
+                <h2 class="font-heading font-extrabold text-2xl text-white">Invite Tracker & Auto-Roles</h2>
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Gateway Live
+                </span>
+              </div>
+              <p class="text-sm text-slate-400 mt-1">Detect which invite code was used by joining members, auto-grant custom roles, and track server invitation analytics.</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <button onclick="loadInviteTracker()" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-dark-800 hover:bg-dark-700 text-slate-300 font-bold text-xs border border-dark-700 transition">
+                <i class="fa-solid fa-arrows-rotate"></i> Refresh Invites
+              </button>
+            </div>
+          </div>
+
+          <!-- Quick Stats Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div class="bg-dark-900/60 border border-dark-700/80 rounded-2xl p-5 flex items-center justify-between">
+              <div>
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Role Mappings</span>
+                <span id="stat-invite-mappings-count" class="text-2xl font-black text-white mt-1 block">0</span>
+              </div>
+              <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl">
+                <i class="fa-solid fa-link"></i>
+              </div>
+            </div>
+
+            <div class="bg-dark-900/60 border border-dark-700/80 rounded-2xl p-5 flex items-center justify-between">
+              <div>
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Active Invites</span>
+                <span id="stat-invite-active-count" class="text-2xl font-black text-emerald-400 mt-1 block">0</span>
+              </div>
+              <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl">
+                <i class="fa-solid fa-ticket-simple"></i>
+              </div>
+            </div>
+
+            <div class="bg-dark-900/60 border border-dark-700/80 rounded-2xl p-5 flex items-center justify-between">
+              <div>
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Tracked Joins</span>
+                <span id="stat-invite-joins-count" class="text-2xl font-black text-cyan-400 mt-1 block">0</span>
+              </div>
+              <div class="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center text-xl">
+                <i class="fa-solid fa-user-plus"></i>
+              </div>
+            </div>
+
+            <div class="bg-dark-900/60 border border-dark-700/80 rounded-2xl p-5 flex items-center justify-between">
+              <div>
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Vanity URL</span>
+                <span id="stat-invite-vanity-code" class="text-lg font-black text-purple-400 mt-1 block truncate">None</span>
+              </div>
+              <div class="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center text-xl">
+                <i class="fa-solid fa-star"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bind Invite to Role Form & Current Mappings Grid -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Bind New Invite Form -->
+            <div class="lg:col-span-1 bg-dark-900/80 border border-dark-700 rounded-2xl p-6 space-y-4">
+              <div class="flex items-center gap-2 pb-3 border-b border-dark-750">
+                <i class="fa-solid fa-plus-circle text-emerald-400"></i>
+                <h3 class="font-heading font-bold text-base text-white">Bind Role to Invite</h3>
+              </div>
+              
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">Invite Code or URL</label>
+                  <input type="text" id="input-invite-code" placeholder="e.g. abcXYZ or https://discord.gg/abcXYZ" 
+                    class="w-full px-4 py-2.5 rounded-xl bg-dark-800 border border-dark-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 transition">
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">Role to Automatically Grant</label>
+                  <select id="select-invite-role" class="w-full px-4 py-2.5 rounded-xl bg-dark-800 border border-dark-700 text-white text-sm focus:outline-none focus:border-indigo-500 transition">
+                    <option value="">Select a role...</option>
+                  </select>
+                </div>
+
+                <div class="pt-2">
+                  <button onclick="saveInviteRoleMapping()" id="btn-save-invite-role" class="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-600/25 transition">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Mapping
+                  </button>
+                </div>
+
+                <p class="text-[11px] text-slate-400 leading-relaxed pt-1">
+                  💡 When a new member joins using this invite, the bot will automatically grant them this role. Ensure the bot's role is positioned <strong>above</strong> this role in Discord Server Settings.
+                </p>
+              </div>
+            </div>
+
+            <!-- Configured Mappings Table -->
+            <div class="lg:col-span-2 bg-dark-900/80 border border-dark-700 rounded-2xl p-6 space-y-4">
+              <div class="flex items-center justify-between pb-3 border-b border-dark-750">
+                <div class="flex items-center gap-2">
+                  <i class="fa-solid fa-list-check text-indigo-400"></i>
+                  <h3 class="font-heading font-bold text-base text-white">Configured Role Mappings</h3>
+                </div>
+                <span id="badge-mappings-total" class="px-2.5 py-0.5 rounded-full bg-dark-800 border border-dark-700 text-xs text-slate-400 font-semibold">0 mappings</span>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                  <thead class="text-slate-400 uppercase tracking-wider bg-dark-850/60 border-b border-dark-750">
+                    <tr>
+                      <th class="py-3 px-4">Invite Code</th>
+                      <th class="py-3 px-4">Role Granted</th>
+                      <th class="py-3 px-4">Created Date</th>
+                      <th class="py-3 px-4 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-invite-mappings-body" class="divide-y divide-dark-800">
+                    <tr>
+                      <td colspan="4" class="py-8 text-center text-slate-500">Loading configured mappings...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Active Server Invites Table (From Discord API) -->
+          <div class="bg-dark-900/80 border border-dark-700 rounded-2xl p-6 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-dark-750 gap-2">
+              <div class="flex items-center gap-2">
+                <i class="fa-brands fa-discord text-[#5865F2]"></i>
+                <h3 class="font-heading font-bold text-base text-white">Active Server Invites (Live from Discord)</h3>
+              </div>
+              <span class="text-xs text-slate-400">Click "Use Code" to quickly bind a role</span>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead class="text-slate-400 uppercase tracking-wider bg-dark-850/60 border-b border-dark-750">
+                  <tr>
+                    <th class="py-3 px-4">Invite Link</th>
+                    <th class="py-3 px-4">Created By</th>
+                    <th class="py-3 px-4">Uses / Max</th>
+                    <th class="py-3 px-4">Expiration</th>
+                    <th class="py-3 px-4 text-right">Quick Action</th>
+                  </tr>
+                </thead>
+                <tbody id="table-active-invites-body" class="divide-y divide-dark-800">
+                  <tr>
+                    <td colspan="5" class="py-8 text-center text-slate-500">Loading server invites...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Recent Member Joins via Invites (Audit Logs) -->
+          <div class="bg-dark-900/80 border border-dark-700 rounded-2xl p-6 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-dark-750">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left text-cyan-400"></i>
+                <h3 class="font-heading font-bold text-base text-white">Recent Joins via Invites (Audit Log)</h3>
+              </div>
+              <span id="badge-recent-joins-total" class="px-2.5 py-0.5 rounded-full bg-dark-800 border border-dark-700 text-xs text-slate-400 font-semibold">0 joins</span>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead class="text-slate-400 uppercase tracking-wider bg-dark-850/60 border-b border-dark-750">
+                  <tr>
+                    <th class="py-3 px-4">Joined Member</th>
+                    <th class="py-3 px-4">Invite Code Used</th>
+                    <th class="py-3 px-4">Role Assigned</th>
+                    <th class="py-3 px-4 text-right">Joined At</th>
+                  </tr>
+                </thead>
+                <tbody id="table-recent-joins-body" class="divide-y divide-dark-800">
+                  <tr>
+                    <td colspan="4" class="py-8 text-center text-slate-500">No tracked joins recorded yet.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
     </section>
 
   </main>
@@ -1994,6 +2192,8 @@
         pollLiveFeed(true);
       } else if (tabName === 'streams') {
         loadStreamTrackers();
+      } else if (tabName === 'invites') {
+        loadInviteTracker();
       }
     }
 
@@ -4341,6 +4541,265 @@
         }
       } catch (e) {
         showToast('Connection error during test broadcast', 'error');
+      }
+    }
+
+    // =========================================================================
+    // INVITE TRACKER & AUTO-ROLES CLIENT LOGIC
+    // =========================================================================
+    let currentInviteData = { mappings: [], activeInvites: [], recentJoins: [] };
+
+    function populateInviteRoles() {
+      const select = document.getElementById('select-invite-role');
+      if (!select) return;
+      
+      const prevVal = select.value;
+      const validRoles = (serverRoles || []).filter(r => r.name !== '@everyone' && !r.managed);
+
+      select.innerHTML = '<option value="">Select a role...</option>' +
+        validRoles.map(r => `<option value="${r.id}" ${r.id === prevVal ? 'selected' : ''}>@${r.name}</option>`).join('');
+    }
+
+    async function loadInviteTracker() {
+      populateInviteRoles();
+      
+      const mappingsBody = document.getElementById('table-invite-mappings-body');
+      const activeInvitesBody = document.getElementById('table-active-invites-body');
+      const recentJoinsBody = document.getElementById('table-recent-joins-body');
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/invites`);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          showToast(err.error || 'Failed to load invite data', 'error');
+          return;
+        }
+
+        const data = await res.json();
+        currentInviteData = data;
+
+        // 1. Stats Counter Updates
+        document.getElementById('stat-invite-mappings-count').innerText = (data.mappings || []).length;
+        document.getElementById('stat-invite-active-count').innerText = (data.activeInvites || []).length;
+        document.getElementById('stat-invite-joins-count').innerText = (data.recentJoins || []).length;
+        document.getElementById('stat-invite-vanity-code').innerText = data.vanity 
+          ? `${data.vanity.code} (${data.vanity.uses} uses)` 
+          : 'None';
+
+        document.getElementById('badge-mappings-total').innerText = `${(data.mappings || []).length} mappings`;
+        document.getElementById('badge-recent-joins-total').innerText = `${(data.recentJoins || []).length} joins`;
+
+        // 2. Render Configured Role Mappings Table
+        if (!data.mappings || data.mappings.length === 0) {
+          mappingsBody.innerHTML = `
+            <tr>
+              <td colspan="4" class="py-8 text-center text-slate-500">
+                <i class="fa-solid fa-link-slash text-2xl text-slate-600 mb-2 block"></i>
+                No invite role mappings configured yet. Use the form on the left to bind an invite link!
+              </td>
+            </tr>
+          `;
+        } else {
+          mappingsBody.innerHTML = data.mappings.map(m => {
+            const dateStr = m.created_at ? new Date(m.created_at).toLocaleDateString() : 'N/A';
+            return `
+              <tr class="hover:bg-dark-850/50 transition">
+                <td class="py-3 px-4">
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono font-bold text-white bg-dark-800 px-2.5 py-1 rounded-lg border border-dark-700">${m.invite_code}</span>
+                    <a href="https://discord.gg/${m.invite_code}" target="_blank" class="text-xs text-indigo-400 hover:text-indigo-300 transition" title="Open Link">
+                      <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    </a>
+                  </div>
+                </td>
+                <td class="py-3 px-4">
+                  <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl font-bold text-xs border"
+                    style="background-color: ${m.role_color || '#5865F2'}15; border-color: ${m.role_color || '#5865F2'}40; color: ${m.role_color || '#5865F2'}">
+                    <span class="w-2 h-2 rounded-full" style="background-color: ${m.role_color || '#5865F2'}"></span>
+                    @${m.role_name || 'Role'}
+                  </span>
+                </td>
+                <td class="py-3 px-4 text-slate-400 font-medium">${dateStr}</td>
+                <td class="py-3 px-4 text-right">
+                  <button onclick="deleteInviteRoleMapping('${m.invite_code}')" class="px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold transition" title="Delete mapping">
+                    <i class="fa-solid fa-trash-can"></i>
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        // 3. Render Active Server Invites Table
+        if (!data.activeInvites || data.activeInvites.length === 0) {
+          activeInvitesBody.innerHTML = `
+            <tr>
+              <td colspan="5" class="py-8 text-center text-slate-500">
+                <i class="fa-brands fa-discord text-2xl text-slate-600 mb-2 block"></i>
+                No active server invites found. (Ensure the bot has the "Manage Server" permission to view invites).
+              </td>
+            </tr>
+          `;
+        } else {
+          activeInvitesBody.innerHTML = data.activeInvites.map(inv => {
+            const creator = inv.inviter
+              ? `
+                <div class="flex items-center gap-2">
+                  <img src="${inv.inviter.avatar}" class="w-6 h-6 rounded-full border border-dark-700 object-cover" />
+                  <span class="font-semibold text-slate-200">${inv.inviter.username}</span>
+                </div>
+              `
+              : '<span class="text-slate-500 italic">Unknown</span>';
+
+            const maxStr = inv.maxUses === 0 ? 'Unlimited' : inv.maxUses;
+            const expStr = inv.expiresAt ? new Date(inv.expiresAt).toLocaleDateString() : '<span class="text-emerald-400 font-medium">Permanent</span>';
+
+            return `
+              <tr class="hover:bg-dark-850/50 transition">
+                <td class="py-3 px-4">
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono font-bold text-white">${inv.code}</span>
+                    <a href="https://discord.gg/${inv.code}" target="_blank" class="text-xs text-indigo-400 hover:text-indigo-300" title="Open Discord Link">
+                      <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    </a>
+                  </div>
+                </td>
+                <td class="py-3 px-4">${creator}</td>
+                <td class="py-3 px-4">
+                  <span class="font-bold text-emerald-400">${inv.uses}</span>
+                  <span class="text-slate-500">/ ${maxStr}</span>
+                </td>
+                <td class="py-3 px-4 text-slate-400">${expStr}</td>
+                <td class="py-3 px-4 text-right">
+                  <button onclick="useInviteCode('${inv.code}')" class="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 text-xs font-bold transition">
+                    <i class="fa-solid fa-arrow-turn-up"></i> Bind Role
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        // 4. Render Recent Joins via Invites Audit Log
+        if (!data.recentJoins || data.recentJoins.length === 0) {
+          recentJoinsBody.innerHTML = `
+            <tr>
+              <td colspan="4" class="py-8 text-center text-slate-500">
+                <i class="fa-solid fa-user-clock text-2xl text-slate-600 mb-2 block"></i>
+                No member joins recorded yet. When members join through server invites, their logs will appear here live!
+              </td>
+            </tr>
+          `;
+        } else {
+          recentJoinsBody.innerHTML = data.recentJoins.map(j => {
+            const avatar = j.user_avatar || 'https://cdn.discordapp.com/embed/avatars/0.png';
+            const roleBadge = j.role_name
+              ? `<span class="px-2.5 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold">@${j.role_name}</span>`
+              : `<span class="text-slate-500 italic text-xs">No role bound</span>`;
+            const dateStr = j.joined_at ? new Date(j.joined_at).toLocaleString() : 'N/A';
+
+            return `
+              <tr class="hover:bg-dark-850/50 transition">
+                <td class="py-3 px-4">
+                  <div class="flex items-center gap-2.5">
+                    <img src="${avatar}" class="w-7 h-7 rounded-full border border-dark-700 object-cover" />
+                    <div>
+                      <div class="font-bold text-white">${j.user_tag}</div>
+                      <div class="text-[10px] text-slate-500 font-mono">${j.user_id}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="py-3 px-4">
+                  <span class="font-mono font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20">${j.invite_code}</span>
+                </td>
+                <td class="py-3 px-4">${roleBadge}</td>
+                <td class="py-3 px-4 text-right text-slate-400 font-mono text-[11px]">${dateStr}</td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+      } catch (err) {
+        console.error('Failed to load invite tracker data', err);
+        showToast('Connection error loading invite data', 'error');
+      }
+    }
+
+    function useInviteCode(code) {
+      const input = document.getElementById('input-invite-code');
+      const select = document.getElementById('select-invite-role');
+      if (input) {
+        input.value = code;
+        input.classList.add('ring-2', 'ring-emerald-500');
+        setTimeout(() => input.classList.remove('ring-2', 'ring-emerald-500'), 1500);
+      }
+      if (select) {
+        select.focus();
+      }
+      showToast(`Selected invite: ${code}`, 'success');
+    }
+
+    async function saveInviteRoleMapping() {
+      const codeInput = document.getElementById('input-invite-code');
+      const roleSelect = document.getElementById('select-invite-role');
+      const btn = document.getElementById('btn-save-invite-role');
+
+      const code = codeInput ? codeInput.value.trim() : '';
+      const role_id = roleSelect ? roleSelect.value : '';
+
+      if (!code) {
+        showToast('Please specify an invite code or link.', 'error');
+        return;
+      }
+      if (!role_id) {
+        showToast('Please select a role to automatically grant.', 'error');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/invites`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, role_id })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          showToast(data.message || 'Invite role mapping saved!', 'success');
+          if (codeInput) codeInput.value = '';
+          if (roleSelect) roleSelect.value = '';
+          loadInviteTracker();
+        } else {
+          showToast(data.error || 'Failed to save mapping', 'error');
+        }
+      } catch (e) {
+        showToast('Connection error saving mapping', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Mapping';
+      }
+    }
+
+    async function deleteInviteRoleMapping(code) {
+      if (!confirm(`Are you sure you want to delete the role mapping for invite "${code}"?`)) return;
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/invites/${encodeURIComponent(code)}`, {
+          method: 'DELETE'
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          showToast(data.message || 'Mapping removed.', 'success');
+          loadInviteTracker();
+        } else {
+          showToast(data.error || 'Failed to delete mapping', 'error');
+        }
+      } catch (e) {
+        showToast('Connection error deleting mapping', 'error');
       }
     }
 
