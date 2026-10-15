@@ -187,16 +187,16 @@ export async function guildRoutes(fastify: FastifyInstance) {
     }
 
     try {
-      const fetchedChannels = await guild.channels.fetch();
-      const channels = fetchedChannels
-        .filter((c) => c !== null && (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement))
-        .map((c) => ({ id: c!.id, name: c!.name }))
+      const fetchedChannels = (await guild.channels.fetch().catch(() => null)) || guild.channels.cache;
+      const channels = Array.from(fetchedChannels.values())
+        .filter((c): c is any => c !== null && (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement))
+        .map((c) => ({ id: c.id, name: c.name }))
         .sort((a, b) => a.name.localeCompare(b.name));
 
-      const fetchedRoles = await guild.roles.fetch();
-      const roles = fetchedRoles
-        .filter((r) => r.name !== '@everyone' && !r.managed)
-        .map((r) => ({ id: r.id, name: r.name }))
+      const fetchedRoles = (await guild.roles.fetch().catch(() => null)) || guild.roles.cache;
+      const roles = Array.from(fetchedRoles.values())
+        .filter((r): r is any => r !== null && r.name !== '@everyone' && !r.managed)
+        .map((r) => ({ id: r.id, name: r.name, color: r.hexColor, position: r.position }))
         .sort((a, b) => a.name.localeCompare(b.name));
 
       return reply.send({ channels, roles });
@@ -1588,12 +1588,40 @@ export async function guildRoutes(fastify: FastifyInstance) {
         [id]
       ).catch(() => ({ rows: [] }));
 
+      // 4. Fetch available guild roles directly for the dropdown
+      let roles: any[] = [];
+      if (guild) {
+        try {
+          const fetchedRoles = (await guild.roles.fetch().catch(() => null)) || guild.roles.cache;
+          roles = Array.from(fetchedRoles.values())
+            .filter((r): r is any => r !== null && r.name !== '@everyone' && !r.managed)
+            .map((r) => ({
+              id: r.id,
+              name: r.name,
+              color: r.hexColor,
+              position: r.position,
+            }))
+            .sort((a, b) => b.position - a.position);
+        } catch (e: any) {
+          roles = Array.from(guild.roles.cache.values())
+            .filter((r): r is any => r !== null && r.name !== '@everyone' && !r.managed)
+            .map((r) => ({
+              id: r.id,
+              name: r.name,
+              color: r.hexColor,
+              position: r.position,
+            }))
+            .sort((a, b) => b.position - a.position);
+        }
+      }
+
       return reply.send({
         success: true,
         mappings,
         activeInvites,
         vanity,
         recentJoins: logsRes.rows,
+        roles,
       });
     } catch (err: any) {
       request.log.error({ err }, '[INVITE-API] Failed to fetch invite tracking data');

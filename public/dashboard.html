@@ -1957,7 +1957,7 @@
 
                 <div>
                   <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">Role to Automatically Grant</label>
-                  <select id="select-invite-role" class="w-full px-4 py-2.5 rounded-xl bg-dark-800 border border-dark-700 text-white text-sm focus:outline-none focus:border-indigo-500 transition">
+                  <select id="select-invite-role" class="role-dropdown w-full px-4 py-2.5 rounded-xl bg-dark-800 border border-dark-700 text-white text-sm focus:outline-none focus:border-indigo-500 transition">
                     <option value="">Select a role...</option>
                   </select>
                 </div>
@@ -4549,12 +4549,18 @@
     // =========================================================================
     let currentInviteData = { mappings: [], activeInvites: [], recentJoins: [] };
 
-    function populateInviteRoles() {
+    function populateInviteRoles(rolesList) {
       const select = document.getElementById('select-invite-role');
       if (!select) return;
       
       const prevVal = select.value;
-      const validRoles = (serverRoles || []).filter(r => r.name !== '@everyone' && !r.managed);
+      const roles = (rolesList && rolesList.length > 0) ? rolesList : (serverRoles || []);
+      const validRoles = roles.filter(r => r.name !== '@everyone' && !r.managed);
+
+      if (validRoles.length === 0) {
+        select.innerHTML = '<option value="">No assignable roles found...</option>';
+        return;
+      }
 
       select.innerHTML = '<option value="">Select a role...</option>' +
         validRoles.map(r => `<option value="${r.id}" ${r.id === prevVal ? 'selected' : ''}>@${r.name}</option>`).join('');
@@ -4577,6 +4583,14 @@
 
         const data = await res.json();
         currentInviteData = data;
+
+        // Populate roles directly from endpoint response!
+        if (data.roles && data.roles.length > 0) {
+          serverRoles = data.roles;
+          populateInviteRoles(data.roles);
+        } else {
+          populateInviteRoles();
+        }
 
         // 1. Stats Counter Updates
         document.getElementById('stat-invite-mappings-count').innerText = (data.mappings || []).length;
