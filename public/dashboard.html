@@ -103,13 +103,6 @@
 
         <div class="h-6 w-px bg-dark-700/80 hidden sm:block"></div>
 
-        <a href="/servers" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-dark-850 hover:bg-dark-800 text-slate-300 hover:text-white border border-dark-700 hover:border-cyan-500/40 text-xs font-bold transition">
-          <i class="fa-solid fa-server text-cyan-accent"></i>
-          <span class="hidden sm:inline">Servers</span>
-        </a>
-
-        <div class="h-6 w-px bg-dark-700/80"></div>
-
         <div class="flex items-center gap-3">
           <div id="active-guild-icon" class="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-900 to-indigo-900 border border-cyan-500/30 flex items-center justify-center font-bold text-white shadow-md text-xs">
             SN
@@ -2235,7 +2228,12 @@
 
     // Switch between manageable servers cleanly
     async function switchServer(newGuildId) {
-      if (!newGuildId || newGuildId === guildId) return;
+      if (!newGuildId) return;
+      if (newGuildId === '__servers_grid__') {
+        window.location.href = '/servers';
+        return;
+      }
+      if (newGuildId === guildId) return;
       guildId = newGuildId;
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.set('guild', guildId);
@@ -2353,7 +2351,10 @@
           if (switcher && availableGuilds.length > 0) {
             switcher.innerHTML = availableGuilds.map(g => `
               <option value="${g.id}" ${g.id === guildId ? 'selected' : ''}>${g.name}</option>
-            `).join('');
+            `).join('') + `
+              <option disabled>──────────</option>
+              <option value="__servers_grid__">📁 View All Servers Hub...</option>
+            `;
             switcher.value = guildId;
           }
         }
