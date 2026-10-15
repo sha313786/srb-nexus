@@ -44,6 +44,11 @@ const app = Fastify({
 });
 
 export const bot = new Client({
+  rest: {
+    api: process.env.DISCORD_API_BASE_URL
+      ? `${process.env.DISCORD_API_BASE_URL.replace(/\/$/, '')}/api`
+      : 'https://discord.com/api',
+  },
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
@@ -404,7 +409,17 @@ async function start() {
     });
 
     app.get('/health', async () => {
-      return { status: 'ok' };
+      return {
+        status: 'ok',
+        bot: {
+          online: bot.isReady(),
+          user: bot.user ? bot.user.tag : null,
+          guildCount: bot.guilds.cache.size,
+          ping: bot.ws?.ping ?? -1,
+        },
+        uptime: Math.floor(process.uptime()),
+        timestamp: new Date().toISOString(),
+      };
     });
 
     await app.register(authRoutes);
@@ -698,16 +713,22 @@ async function start() {
     await app.listen({ port, host: '0.0.0.0' });
     app.log.info(`Fastify REST API server running on http://0.0.0.0:${port}`);
 
-    // 2. CONNECT DISCORD BOT IN BACKGROUND
+    // 2. CONNECT DISCORD BOT IN BACKGROUND WITH AUTO-RECONNECT
     const discordToken = process.env.DISCORD_TOKEN;
     if (discordToken) {
-      bot.login(discordToken)
-        .then(() => {
-          app.log.info('[BOT] Connected to Discord Gateway successfully');
-        })
-        .catch((err) => {
-          app.log.error({ err }, '[BOT] Failed to connect to Discord Gateway');
-        });
+      const connectBot = async (attempt = 1) => {
+        try {
+          app.log.info(`[BOT] Connecting to Discord Gateway (attempt #${attempt})...`);
+          await bot.login(discordToken);
+          app.log.info(`[BOT] Connected to Discord Gateway successfully as ${bot.user?.tag}`);
+        } catch (err: any) {
+          app.log.error({ err: err.message, code: err.code }, `[BOT] Connection failed on attempt #${attempt}`);
+          const delaySec = Math.min(5 * attempt, 30);
+          app.log.info(`[BOT] Retrying Discord Gateway connection in ${delaySec}s...`);
+          setTimeout(() => connectBot(attempt + 1), delaySec * 1000);
+        }
+      };
+      connectBot();
     } else {
       app.log.warn('DISCORD_TOKEN is missing in environment variables. Bot client offline.');
     }
