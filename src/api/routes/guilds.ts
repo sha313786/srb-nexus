@@ -1181,7 +1181,7 @@ export async function guildRoutes(fastify: FastifyInstance) {
       if (bot.application?.id) {
         await registerSlashCommands(bot.application.id);
       }
-      return reply.send({ success: true, count: 34, message: 'All 34 slash commands synchronized with Discord!' });
+      return reply.send({ success: true, count: 37, message: 'All 37 slash commands synchronized with Discord!' });
     } catch (err: any) {
       return reply.status(500).send({ error: 'Failed to sync slash commands: ' + err.message });
     }
