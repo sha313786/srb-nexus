@@ -49,6 +49,7 @@ import { robCommand } from './rob';
 import { embedCommand } from './embed';
 import { streamCommand } from './stream';
 import { portfolioCommand } from './portfolio';
+import { inviteroleCommand } from './inviterole';
 
 export const commandRegistry = new Map<string, any>();
 
@@ -98,6 +99,7 @@ const allCommands = [
   giveawayRerollCommand,
   streamCommand,
   portfolioCommand,
+  inviteroleCommand,
 ];
 
 for (const cmd of allCommands) {

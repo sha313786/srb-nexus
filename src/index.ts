@@ -30,6 +30,11 @@ import { processAntiRaid } from './security/antiRaid';
 import { startBackgroundSchedulers } from './services/cronTasks';
 import { startFreeGamesWatcher } from './services/liveNotifications';
 import { startStreamWatcher } from './services/streamNotifications';
+import {
+  initInviteTracker,
+  detectUsedInvite,
+  handleInviteRoleAssignment,
+} from './services/inviteTracker';
 
 dotenv.config();
 
@@ -43,6 +48,7 @@ export const bot = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildInvites,
     GatewayIntentBits.MessageContent,
   ],
 });
@@ -182,6 +188,14 @@ bot.once(Events.ClientReady, async () => {
   } catch (err) {
     app.log.error({ err }, '[BOT] Failed to start background schedulers');
   }
+
+  // Initialize Invite Tracking Engine
+  try {
+    await initInviteTracker(bot);
+    app.log.info('[BOT] Invite tracker initialized and invites cached.');
+  } catch (err) {
+    app.log.error({ err }, '[BOT] Failed to initialize invite tracker');
+  }
 });
 
 // 2. Slash Commands & Button Interactions Listener
@@ -209,6 +223,25 @@ bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
     if (isRaid) {
       app.log.warn(`[BOT] Anti-Raid triggered for member join: ${member.user.tag}`);
     }
+
+    // 1. Invite Tracking & Custom Invite Role Assignment
+    try {
+      const usedInviteCode = await detectUsedInvite(member);
+      if (usedInviteCode) {
+        app.log.info(`[INVITE] Member ${member.user.tag} joined using invite code: ${usedInviteCode}`);
+        const result = await handleInviteRoleAssignment(member, usedInviteCode);
+        if (result.assigned) {
+          app.log.info(`[INVITE] Assigned role '${result.roleName}' (${result.roleId}) to ${member.user.tag} for invite ${usedInviteCode}`);
+        } else if (result.error) {
+          app.log.warn(`[INVITE] Could not assign role for invite ${usedInviteCode}: ${result.error}`);
+        }
+      } else {
+        app.log.info(`[INVITE] No specific invite match detected for ${member.user.tag}`);
+      }
+    } catch (inviteErr: any) {
+      app.log.error({ err: inviteErr }, `[INVITE] Failed during invite tracking for member ${member.user.tag}`);
+    }
+
     const res = await db.query(
       'SELECT welcome_channel_id, welcome_message, autorole_id, welcome_bg_url FROM guild_settings WHERE guild_id = $1',
       [member.guild.id]
@@ -646,6 +679,16 @@ async function start() {
       );
 
       ALTER TABLE stream_trackers ADD COLUMN IF NOT EXISTS event_type VARCHAR(20) DEFAULT 'all';
+
+      CREATE TABLE IF NOT EXISTS guild_invite_roles (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(32) NOT NULL,
+        invite_code VARCHAR(32) NOT NULL,
+        role_id VARCHAR(32) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (guild_id, invite_code)
+      );
+      CREATE INDEX IF NOT EXISTS idx_invite_roles_guild ON guild_invite_roles (guild_id);
     `);
 
     app.log.info('Database connection established & all tables and security schemas initialized successfully');
