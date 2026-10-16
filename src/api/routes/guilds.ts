@@ -299,6 +299,8 @@ export async function guildRoutes(fastify: FastifyInstance) {
             ticket_panel_description: 'Need assistance or have questions? Click the button below to open a private ticket with our staff.',
             ticket_button_label: '📩 Open Ticket',
             ticket_button_emoji: '📩',
+            ticket_mode: 'general',
+            ticket_welcome_msg: 'Welcome to your private support channel! Our staff team has been notified. Please describe your question or issue in detail below.',
             notifications_enabled: true,
             notifications_channel_id: null,
             free_games_enabled: true,
@@ -580,6 +582,9 @@ export async function guildRoutes(fastify: FastifyInstance) {
         const cleanCat = body.category_id ? String(body.category_id).replace(/[<#@!&>]/g, '').trim() : null;
         const cleanTranscriptChannel = body.transcript_channel_id ? String(body.transcript_channel_id).replace(/[<#@!&>]/g, '').trim() : null;
         const cleanSupportRole = body.support_role_id ? String(body.support_role_id).replace(/[<#@!&>]/g, '').trim() : null;
+        const ticketMode = body.ticket_mode || 'general';
+        const welcomeMsg = body.ticket_welcome_msg ? String(body.ticket_welcome_msg).trim() : 'Welcome to your private support channel! Our staff team has been notified. Please describe your question or issue in detail below.';
+
         await db.query(
           `UPDATE guild_settings 
            SET tickets_enabled = $1,
@@ -590,8 +595,10 @@ export async function guildRoutes(fastify: FastifyInstance) {
                ticket_panel_description = $6,
                ticket_button_label = $7,
                ticket_button_emoji = $8,
+               ticket_mode = $9,
+               ticket_welcome_msg = $10,
                updated_at = NOW()
-           WHERE guild_id = $9`,
+           WHERE guild_id = $11`,
           [
             Boolean(body.tickets_enabled ?? true),
             cleanCat,
@@ -601,6 +608,8 @@ export async function guildRoutes(fastify: FastifyInstance) {
             body.ticket_panel_description || 'Need assistance or have questions? Click the button below to open a private ticket with our staff.',
             body.ticket_button_label || '📩 Open Ticket',
             body.ticket_button_emoji || '📩',
+            ticketMode,
+            welcomeMsg,
             id,
           ]
         );

@@ -17,6 +17,224 @@ import { broadcastLiveNotification } from '../../services/liveNotifications';
 import { archiveAndSendTicketTranscript } from '../../services/transcriptService';
 import { handleVerificationButton, handleVerificationModal } from '../../services/verification';
 
+async function createUniversalTicket(
+  interaction: any,
+  mode: 'general' | 'instant' | 'report' | 'quote' | 'inquiry',
+  subject: string,
+  details: string,
+  extraFields: Array<{ name: string; value: string; inline?: boolean }> = []
+) {
+  const guild = interaction.guild;
+  if (!guild) return;
+
+  try {
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferReply({ ephemeral: true });
+    }
+
+    // 1. Check if user already has an active ticket
+    const existingTicket = await db.query(
+      `SELECT channel_id FROM guild_tickets WHERE guild_id = $1 AND user_id = $2 AND status = 'OPEN' LIMIT 1`,
+      [guild.id, interaction.user.id]
+    ).catch(() => null);
+
+    if (existingTicket && existingTicket.rows.length > 0) {
+      const existingChannel = guild.channels.cache.get(existingTicket.rows[0].channel_id) ||
+        (await guild.channels.fetch(existingTicket.rows[0].channel_id).catch(() => null));
+      if (existingChannel) {
+        await interaction.editReply({
+          content: `⚠️ You already have an active ticket channel: <#${existingChannel.id}>`,
+        });
+        return;
+      }
+    }
+
+    // 2. Query guild ticket settings
+    const settingsRes = await db.query(
+      `SELECT support_role_id, category_id, ticket_category_id, ticket_welcome_msg FROM guild_settings WHERE guild_id = $1`,
+      [guild.id]
+    ).catch(() => null);
+
+    const supportRoleId = settingsRes?.rows?.[0]?.support_role_id;
+    const configuredCatId = settingsRes?.rows?.[0]?.category_id || settingsRes?.rows?.[0]?.ticket_category_id;
+    const welcomeMsg = settingsRes?.rows?.[0]?.ticket_welcome_msg ||
+      'Welcome to your private support channel! Our staff team has been notified. Please describe your question or issue in detail below.';
+
+    // 3. Resolve category
+    let targetCategoryId: string | undefined = undefined;
+    if (configuredCatId && guild.channels.cache.has(configuredCatId)) {
+      targetCategoryId = configuredCatId;
+    } else {
+      const found = guild.channels.cache.find(
+        (c: any) => c.type === ChannelType.GuildCategory && (/support/i.test(c.name) || /ticket/i.test(c.name))
+      );
+      if (found) {
+        targetCategoryId = found.id;
+        db.query(`UPDATE guild_settings SET category_id = $1 WHERE guild_id = $2`, [found.id, guild.id]).catch(() => {});
+      }
+    }
+
+    // 4. Permission overwrites
+    const permissionOverwrites: any[] = [
+      { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+      {
+        id: interaction.user.id,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+          PermissionFlagsBits.AttachFiles,
+          PermissionFlagsBits.EmbedLinks,
+        ],
+      },
+    ];
+
+    const botMember = guild.members.me || (await guild.members.fetchMe().catch(() => null));
+    if (botMember) {
+      permissionOverwrites.push({
+        id: botMember.id,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+          PermissionFlagsBits.ManageChannels,
+          PermissionFlagsBits.EmbedLinks,
+          PermissionFlagsBits.AttachFiles,
+        ],
+      });
+    }
+
+    if (supportRoleId && guild.roles.cache.has(supportRoleId)) {
+      permissionOverwrites.push({
+        id: supportRoleId,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+          PermissionFlagsBits.AttachFiles,
+          PermissionFlagsBits.EmbedLinks,
+        ],
+      });
+    }
+
+    // 5. Channel Name
+    const prefix = mode === 'report' ? 'report' : mode === 'quote' ? 'quote' : 'ticket';
+    const cleanName = interaction.user.username.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 14) || 'user';
+    const userTag = interaction.user.discriminator && interaction.user.discriminator !== '0'
+      ? interaction.user.discriminator
+      : interaction.user.id.slice(-4);
+    const channelName = `${prefix}-${cleanName}-${userTag}`;
+
+    const targetChannel = await guild.channels.create({
+      name: channelName,
+      type: ChannelType.GuildText,
+      parent: targetCategoryId,
+      permissionOverwrites,
+    });
+
+    // 6. DB Record
+    const dbTicketType = mode === 'report' ? 'MEMBER_REPORT' : mode === 'instant' ? 'INSTANT_TICKET' : mode === 'quote' ? 'WEBSITE_QUOTATION' : 'GENERAL_SUPPORT';
+    await db.query(
+      `INSERT INTO guild_tickets (guild_id, channel_id, user_id, status, ticket_type, ticket_mode, subject, details)
+       VALUES ($1, $2, $3, 'OPEN', $4, $5, $6, $7)`,
+      [guild.id, targetChannel.id, interaction.user.id, dbTicketType, mode, subject, details]
+    ).catch(() => {});
+
+    // 7. Embed styling based on mode
+    let embedColor = '#10B981';
+    let embedTitle = `🎫 Support Ticket — ${subject}`;
+    if (mode === 'report') {
+      embedColor = '#EF4444';
+      embedTitle = `🛡️ Incident / Member Report — ${subject}`;
+    } else if (mode === 'quote') {
+      embedColor = '#6366F1';
+      embedTitle = `💼 Project Quotation — ${subject}`;
+    } else if (mode === 'instant') {
+      embedColor = '#06B6D4';
+      embedTitle = `⚡ Instant Support Ticket`;
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor(embedColor as any)
+      .setTitle(embedTitle)
+      .setDescription(
+        `**Opened By:** <@${interaction.user.id}> (${interaction.user.tag})\n\n` +
+        `${welcomeMsg}`
+      )
+      .addFields(
+        { name: '📌 Subject', value: `\`${subject.slice(0, 200)}\``, inline: true },
+        { name: '🕒 Status', value: '`🟢 Open (Awaiting Staff)`', inline: true },
+        { name: '🎫 Ticket Type', value: `\`${mode.toUpperCase()}\``, inline: true }
+      );
+
+    if (extraFields && extraFields.length > 0) {
+      embed.addFields(...extraFields);
+    } else if (details && details.trim().length > 0 && details !== subject) {
+      embed.addFields({
+        name: '📝 Description & Details',
+        value: `\`\`\`${details.slice(0, 950)}\`\`\``,
+        inline: false,
+      });
+    }
+
+    embed
+      .setFooter({ text: 'SRB NEXUS Ticket System • Click buttons below to manage' })
+      .setTimestamp();
+
+    // 8. Buttons
+    const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId('nexus_claim_ticket')
+        .setLabel('Claim Ticket')
+        .setStyle(ButtonStyle.Primary)
+        .setEmoji('🙋‍♂️'),
+      new ButtonBuilder()
+        .setCustomId('nexus_close_ticket')
+        .setLabel('Close Ticket')
+        .setStyle(ButtonStyle.Danger)
+        .setEmoji('🔒')
+    );
+
+    const pingContent = supportRoleId
+      ? `<@${interaction.user.id}> | <@&${supportRoleId}>`
+      : `<@${interaction.user.id}>`;
+
+    await targetChannel.send({
+      content: `🔔 ${pingContent} | Staff Notification`,
+      embeds: [embed],
+      components: [actionRow],
+    });
+
+    // 9. Reply ephemerally
+    await interaction.editReply({
+      content: `✅ Your ticket channel has been opened: <#${targetChannel.id}>!\n*(This message will auto-dismiss in 15 seconds)*`,
+    });
+
+    setTimeout(() => {
+      interaction.deleteReply().catch(() => {});
+    }, 15000);
+
+    // 10. Broadcast live notification
+    broadcastLiveNotification(interaction.client, guild.id, {
+      type: 'ticket',
+      title: `${mode.toUpperCase()} Ticket Opened`,
+      description: `New ticket created by <@${interaction.user.id}> in <#${targetChannel.id}>`,
+      severity: 'info',
+      fields: [
+        { name: 'Subject', value: subject, inline: true },
+        { name: 'Mode', value: mode, inline: true },
+      ],
+    }).catch(() => {});
+  } catch (err) {
+    logger.error({ err }, 'Failed to create universal ticket channel');
+    if (interaction.deferred) {
+      await interaction.editReply({
+        content: '❌ Failed to create ticket channel. Please verify bot permissions (Manage Channels).',
+      });
+    }
+  }
+}
+
 export async function handleInteractionCreate(interaction: Interaction): Promise<void> {
   // 1. HANDLE SLASH COMMANDS
   if (interaction.isChatInputCommand()) {
@@ -246,13 +464,8 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
       return;
     }
 
-    // B. Website Quotation Button
-    if (
-      cid === 'nexus_quote_ticket_create' ||
-      cid === 'nexus_open_quote_modal' ||
-      cid === 'nexus_ticket_create' ||
-      cid === 'nexus_create_ticket'
-    ) {
+    // B. Dedicated Website Quotation Button
+    if (cid === 'nexus_quote_ticket_create' || cid === 'nexus_open_quote_modal') {
       const modal = new ModalBuilder()
         .setCustomId('nexus_quote_modal')
         .setTitle('Website Quotation Request');
@@ -362,11 +575,176 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
       await interaction.showModal(modal);
       return;
     }
+
+    // D. Dynamic / Server-Configurable Support Ticket Button
+    if (cid === 'nexus_ticket_create' || cid === 'nexus_create_ticket') {
+      const guild = interaction.guild;
+      if (!guild) return;
+
+      const settingsRes = await db.query(
+        `SELECT ticket_mode, ticket_welcome_msg FROM guild_settings WHERE guild_id = $1`,
+        [guild.id]
+      ).catch(() => null);
+
+      const ticketMode = settingsRes?.rows?.[0]?.ticket_mode || 'general';
+
+      if (ticketMode === 'instant') {
+        await createUniversalTicket(
+          interaction,
+          'instant',
+          'Support Inquiry',
+          'Ticket opened via instant 1-click button.'
+        );
+        return;
+      }
+
+      if (ticketMode === 'report') {
+        const modal = new ModalBuilder()
+          .setCustomId('nexus_report_modal')
+          .setTitle('Submit Incident / Member Report');
+
+        const userInput = new TextInputBuilder()
+          .setCustomId('report_target')
+          .setLabel('Reported User / Offender')
+          .setPlaceholder('Username, @mention, or User ID')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true);
+
+        const reasonInput = new TextInputBuilder()
+          .setCustomId('report_reason')
+          .setLabel('Violation / Reason')
+          .setPlaceholder('e.g. Harassment, Spam, Exploiting, Scam')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true);
+
+        const evidenceInput = new TextInputBuilder()
+          .setCustomId('report_evidence')
+          .setLabel('Details & Evidence')
+          .setPlaceholder('Describe what happened, channel/message links, or provide details...')
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(true);
+
+        modal.addComponents(
+          new ActionRowBuilder<TextInputBuilder>().addComponents(userInput),
+          new ActionRowBuilder<TextInputBuilder>().addComponents(reasonInput),
+          new ActionRowBuilder<TextInputBuilder>().addComponents(evidenceInput)
+        );
+
+        await interaction.showModal(modal);
+        return;
+      }
+
+      if (ticketMode === 'quote') {
+        const modal = new ModalBuilder()
+          .setCustomId('nexus_quote_modal')
+          .setTitle('Website Quotation Request');
+
+        const typeInput = new TextInputBuilder()
+          .setCustomId('website_type')
+          .setLabel('Website Type / Category')
+          .setPlaceholder('e.g. E-Commerce, Portfolio, SaaS, Business Website')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true);
+
+        const pagesInput = new TextInputBuilder()
+          .setCustomId('website_pages')
+          .setLabel('Estimated Pages & Deliverables')
+          .setPlaceholder('e.g. 5 Pages, Landing Page, Blog, Customer Portal')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true);
+
+        const budgetInput = new TextInputBuilder()
+          .setCustomId('target_budget')
+          .setLabel('Target Budget & Currency')
+          .setPlaceholder('e.g. $500 - $1,500 USD / ₹30,000 INR / Flexible')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true);
+
+        const timelineInput = new TextInputBuilder()
+          .setCustomId('target_timeline')
+          .setLabel('Desired Timeline / Deadline')
+          .setPlaceholder('e.g. 10 Days, 3 Weeks, Urgent')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(false);
+
+        const detailsInput = new TextInputBuilder()
+          .setCustomId('project_details')
+          .setLabel('Key Features, Scope & References')
+          .setPlaceholder('Describe features (e.g. Stripe checkout, Discord auth, SEO) or link design references...')
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(true);
+
+        modal.addComponents(
+          new ActionRowBuilder<TextInputBuilder>().addComponents(typeInput),
+          new ActionRowBuilder<TextInputBuilder>().addComponents(pagesInput),
+          new ActionRowBuilder<TextInputBuilder>().addComponents(budgetInput),
+          new ActionRowBuilder<TextInputBuilder>().addComponents(timelineInput),
+          new ActionRowBuilder<TextInputBuilder>().addComponents(detailsInput)
+        );
+
+        await interaction.showModal(modal);
+        return;
+      }
+
+      // Default: 'general' support ticket
+      const modal = new ModalBuilder()
+        .setCustomId('nexus_general_support_modal')
+        .setTitle('Open Support Ticket');
+
+      const subjectInput = new TextInputBuilder()
+        .setCustomId('ticket_subject')
+        .setLabel('Subject / Issue Summary')
+        .setPlaceholder('e.g. Billing question, Role assistance, Bug report')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+      const detailsInput = new TextInputBuilder()
+        .setCustomId('ticket_details')
+        .setLabel('Detailed Explanation')
+        .setPlaceholder('Please describe your question or issue in detail...')
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(true);
+
+      modal.addComponents(
+        new ActionRowBuilder<TextInputBuilder>().addComponents(subjectInput),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(detailsInput)
+      );
+
+      await interaction.showModal(modal);
+      return;
+    }
   }
 
   // 3a. HANDLE VERIFICATION CAPTCHA MODAL SUBMISSION
   if (interaction.isModalSubmit() && interaction.customId.startsWith('nexus_verify_modal_')) {
     await handleVerificationModal(interaction);
+    return;
+  }
+
+  // 3a-2. HANDLE GENERAL SUPPORT MODAL SUBMISSION
+  if (interaction.isModalSubmit() && interaction.customId === 'nexus_general_support_modal') {
+    const subject = interaction.fields.getTextInputValue('ticket_subject');
+    const details = interaction.fields.getTextInputValue('ticket_details');
+    await createUniversalTicket(interaction, 'general', subject, details);
+    return;
+  }
+
+  // 3a-3. HANDLE MEMBER / INCIDENT REPORT MODAL SUBMISSION
+  if (interaction.isModalSubmit() && interaction.customId === 'nexus_report_modal') {
+    const targetUser = interaction.fields.getTextInputValue('report_target');
+    const reason = interaction.fields.getTextInputValue('report_reason');
+    const evidence = interaction.fields.getTextInputValue('report_evidence');
+    await createUniversalTicket(
+      interaction,
+      'report',
+      reason,
+      `Reported User: ${targetUser}\nReason: ${reason}\nEvidence: ${evidence}`,
+      [
+        { name: '🎯 Reported Member', value: `\`${targetUser}\``, inline: true },
+        { name: '⚠️ Violation / Reason', value: `\`${reason}\``, inline: true },
+        { name: '📝 Details & Evidence', value: `\`\`\`${evidence.slice(0, 950)}\`\`\``, inline: false },
+      ]
+    );
     return;
   }
 
@@ -1391,6 +1769,69 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
     } catch (err) {
       logger.error({ err }, 'Error closing ticket');
     }
+    return;
+  }
+
+  // 4b. HANDLE CLAIM TICKET BUTTON
+  if (interaction.isButton() && interaction.customId === 'nexus_claim_ticket') {
+    if (!interaction.guild || !interaction.channel || !interaction.channel.isTextBased()) return;
+
+    const member = interaction.member as any;
+    const settingsRes = await db.query(
+      `SELECT support_role_id FROM guild_settings WHERE guild_id = $1`,
+      [interaction.guild.id]
+    ).catch(() => null);
+    const supportRoleId = settingsRes?.rows?.[0]?.support_role_id;
+
+    const isStaff =
+      member?.permissions?.has(PermissionFlagsBits.Administrator) ||
+      member?.permissions?.has(PermissionFlagsBits.ManageChannels) ||
+      (supportRoleId && member?.roles?.cache?.has(supportRoleId)) ||
+      [
+        '1525076160990543892',
+        '1525076232247705711',
+        '1525111469056987268',
+        '1525111410651041973',
+        '1525095643972894730',
+      ].some((r) => member?.roles?.cache?.has(r));
+
+    if (!isStaff) {
+      await interaction.reply({
+        content: '❌ Only designated support staff can claim tickets.',
+        ephemeral: true,
+      });
+      return;
+    }
+
+    await db.query(
+      `UPDATE guild_tickets SET claimed_by = $1, status = 'CLAIMED' WHERE channel_id = $2`,
+      [interaction.user.id, interaction.channelId]
+    ).catch(() => {});
+
+    try {
+      const origMsg = interaction.message;
+      if (origMsg) {
+        const rows = origMsg.components.map((row: any) => {
+          const newRow = ActionRowBuilder.from(row) as ActionRowBuilder<ButtonBuilder>;
+          newRow.components.forEach((btn) => {
+            if ((btn.data as any).custom_id === 'nexus_claim_ticket') {
+              btn.setLabel(`Claimed by @${interaction.user.username}`);
+              btn.setStyle(ButtonStyle.Secondary);
+              btn.setDisabled(true);
+              btn.setEmoji('✅');
+            }
+          });
+          return newRow;
+        });
+        await origMsg.edit({ components: rows }).catch(() => {});
+      }
+    } catch (e) {
+      logger.error({ e }, 'Failed to edit claim ticket button');
+    }
+
+    await interaction.reply({
+      content: `🙋‍♂️ **Ticket Claimed!** <@${interaction.user.id}> has claimed this ticket and will be assisting you.`,
+    });
     return;
   }
 

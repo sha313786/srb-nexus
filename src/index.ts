@@ -946,6 +946,8 @@ async function start() {
       ADD COLUMN IF NOT EXISTS ticket_panel_description TEXT DEFAULT 'Need assistance or have questions? Click the button below to open a private ticket with our staff.',
       ADD COLUMN IF NOT EXISTS ticket_button_label VARCHAR(80) DEFAULT '📩 Open Ticket',
       ADD COLUMN IF NOT EXISTS ticket_button_emoji VARCHAR(32) DEFAULT '📩',
+      ADD COLUMN IF NOT EXISTS ticket_mode VARCHAR(32) DEFAULT 'general',
+      ADD COLUMN IF NOT EXISTS ticket_welcome_msg TEXT DEFAULT 'Welcome to your private support channel! Our staff team has been notified. Please describe your question or issue in detail below.',
       ADD COLUMN IF NOT EXISTS notifications_enabled BOOLEAN DEFAULT TRUE,
       ADD COLUMN IF NOT EXISTS notifications_channel_id VARCHAR(32),
       ADD COLUMN IF NOT EXISTS free_games_enabled BOOLEAN DEFAULT TRUE,
@@ -956,14 +958,17 @@ async function start() {
       ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
 
       ALTER TABLE guild_tickets
-      ADD COLUMN IF NOT EXISTS ticket_type VARCHAR(50) DEFAULT 'WEBSITE_QUOTATION',
+      ADD COLUMN IF NOT EXISTS ticket_type VARCHAR(50) DEFAULT 'GENERAL_SUPPORT',
+      ADD COLUMN IF NOT EXISTS ticket_mode VARCHAR(32) DEFAULT 'general',
+      ADD COLUMN IF NOT EXISTS subject VARCHAR(200),
       ADD COLUMN IF NOT EXISTS project_type VARCHAR(100),
       ADD COLUMN IF NOT EXISTS budget VARCHAR(100),
       ADD COLUMN IF NOT EXISTS timeline VARCHAR(100),
       ADD COLUMN IF NOT EXISTS pages VARCHAR(100),
       ADD COLUMN IF NOT EXISTS details TEXT,
       ADD COLUMN IF NOT EXISTS quote_amount VARCHAR(50),
-      ADD COLUMN IF NOT EXISTS quote_status VARCHAR(30) DEFAULT 'PENDING';
+      ADD COLUMN IF NOT EXISTS quote_status VARCHAR(30) DEFAULT 'PENDING',
+      ADD COLUMN IF NOT EXISTS claimed_by VARCHAR(32);
 
       CREATE TABLE IF NOT EXISTS guild_shop_items (
         id SERIAL PRIMARY KEY,
