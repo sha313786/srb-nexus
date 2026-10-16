@@ -4,63 +4,91 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Control Panel — SRB NEXUS</title>
+  <meta name="description" content="Manage server configuration, anti-raid velocity shield, invite tracking, welcome cards, and support tickets.">
   <link rel="icon" type="image/png" href="/favicon.png">
+
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
   <script>
     tailwind.config = {
       darkMode: 'class',
       theme: {
         extend: {
           fontFamily: {
-            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
             heading: ['Outfit', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
           },
           colors: {
-            cyan: {
-              400: '#38bdf8',
-              500: '#0ea5e9',
-              accent: '#00f0ff',
+            brand: {
+              DEFAULT: '#5865F2', // Discord Blurple
+              hover: '#4752c4',
+              cyan: '#00d2ff',
+              emerald: '#10b981',
             },
             dark: {
-              950: '#05070c',
-              900: '#090d16',
-              850: '#0f1422',
-              800: '#161c30',
-              700: '#232942',
-              600: '#323a5c',
+              950: '#07090e',
+              900: '#0c0f17',
+              850: '#121724',
+              800: '#181f30',
+              750: '#202940',
+              700: '#2b3652',
             },
-            blurple: {
-              DEFAULT: '#5865F2',
-              hover: '#4752c4',
+            discord: {
+              bg: '#313338',
+              sidebar: '#2b2d31',
+              channel: '#1e1f22',
+              embed: '#2b2d31',
+              text: '#dbdee1',
+              muted: '#949ba4',
             }
           }
         }
       }
     }
   </script>
+
   <style>
     body {
-      background-color: #05070c;
-      color: #f1f5f9;
+      background-color: #07090e;
+      color: #e2e8f0;
       background-image: 
-        radial-gradient(at 0% 0%, rgba(0, 240, 255, 0.08) 0px, transparent 45%),
-        radial-gradient(at 100% 100%, rgba(88, 101, 242, 0.08) 0px, transparent 45%);
+        radial-gradient(ellipse 90% 50% at 50% -10%, rgba(88, 101, 242, 0.12), transparent),
+        radial-gradient(ellipse 60% 40% at 90% 40%, rgba(0, 210, 255, 0.04), transparent);
       background-attachment: fixed;
     }
+    
+    .subtle-grid {
+      background-size: 32px 32px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+    }
+
     .glass-panel {
-      background: rgba(18, 21, 34, 0.75);
+      background: rgba(14, 18, 28, 0.78);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.35);
     }
-    .custom-scrollbar {
-      scrollbar-width: thin;
-      scrollbar-color: #232942 transparent;
+
+    .tab-btn {
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      border: 1px solid transparent;
     }
+    .tab-btn.tab-active-pill {
+      background-color: rgba(88, 101, 242, 0.15) !important;
+      color: #ffffff !important;
+      border-color: rgba(88, 101, 242, 0.4) !important;
+      box-shadow: 0 0 16px -3px rgba(88, 101, 242, 0.25);
+    }
+
     .custom-scrollbar::-webkit-scrollbar {
       width: 5px;
       height: 5px;
@@ -69,15 +97,15 @@
       background: transparent;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: #232942;
+      background: #202940;
       border-radius: 9999px;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: #00f0ff;
+      background: #5865F2;
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+<body class="min-h-screen flex flex-col font-sans selection:bg-brand selection:text-white subtle-grid antialiased">
 
   <!-- Toast Notification Container -->
   <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-3 pointer-events-none"></div>
@@ -86,31 +114,32 @@
   <div id="auth-modal-container"></div>
 
   <!-- Top Navigation Bar -->
-  <header class="sticky top-0 z-40 border-b border-dark-700/60 bg-dark-950/80 backdrop-blur-xl">
+  <header class="sticky top-0 z-40 border-b border-dark-750/70 bg-dark-950/80 backdrop-blur-xl">
     <div class="max-w-[1600px] mx-auto px-6 h-18 py-3.5 flex items-center justify-between">
       
-      <!-- Left: Brand Logo, Back Button & Server Switcher -->
-      <div class="flex items-center gap-3.5">
-        <a href="/" class="flex items-center gap-2.5 pr-2 group" title="Return to Home">
-          <div class="relative flex items-center justify-center">
-            <div class="absolute -inset-1 rounded-full bg-cyan-accent/20 blur-sm opacity-60 group-hover:opacity-100 transition"></div>
-            <img src="/nexus-logo.png" alt="Nexus Logo" class="relative w-9 h-9 object-contain drop-shadow-[0_0_12px_rgba(0,240,255,0.45)] group-hover:scale-105 transition-transform duration-300">
-          </div>
-          <span class="font-heading font-black text-base tracking-tight text-white hidden sm:inline-block">
-            SRB <span class="bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent">NEXUS</span>
+      <!-- Left: Brand Logo, Breadcrumbs & Server Switcher -->
+      <div class="flex items-center gap-4">
+        
+        <!-- Logo & Home Link -->
+        <a href="/" class="flex items-center gap-2.5 pr-2 group" title="Return to Landing Page">
+          <img src="/nexus-logo.png" alt="Nexus Logo" class="w-9 h-9 object-contain drop-shadow-[0_2px_8px_rgba(88,101,242,0.35)] group-hover:scale-105 transition-transform duration-300">
+          <span class="font-heading font-extrabold text-base tracking-tight text-white hidden sm:inline-block">
+            SRB <span class="bg-gradient-to-r from-white via-indigo-200 to-brand bg-clip-text text-transparent">NEXUS</span>
           </span>
         </a>
 
-        <div class="h-6 w-px bg-dark-700/80 hidden sm:block"></div>
+        <!-- Breadcrumb separator -->
+        <div class="h-5 w-px bg-dark-750 hidden md:block"></div>
 
+        <!-- Breadcrumb & Server Switcher -->
         <div class="flex items-center gap-3">
-          <div id="active-guild-icon" class="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-900 to-indigo-900 border border-cyan-500/30 flex items-center justify-center font-bold text-white shadow-md text-xs">
+          <div id="active-guild-icon" class="w-9 h-9 rounded-xl bg-dark-850 border border-brand/30 flex items-center justify-center font-bold text-brand shadow-sm text-xs shrink-0">
             SN
           </div>
           <div>
             <div class="flex items-center gap-2">
               <div id="switcher-wrapper" class="relative">
-                <select id="server-switcher-select" onchange="switchServer(this.value)" class="appearance-none bg-dark-850 hover:bg-dark-800 border border-dark-700 hover:border-cyan-500/50 rounded-xl pl-3 pr-8 py-1 font-heading font-bold text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-400 transition cursor-pointer shadow-sm">
+                <select id="server-switcher-select" onchange="switchServer(this.value)" class="appearance-none bg-dark-900 hover:bg-dark-850 border border-dark-700/80 hover:border-brand/40 rounded-xl pl-3 pr-8 py-1 font-heading font-bold text-xs sm:text-sm text-white focus:outline-none focus:border-brand transition cursor-pointer shadow-sm">
                   <option value="">Loading Servers...</option>
                 </select>
                 <i class="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
@@ -119,46 +148,57 @@
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Online
               </span>
             </div>
-            <p class="text-[10px] text-slate-400 hidden sm:block">Control Panel & Cyber Shield</p>
+            <div class="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5 hidden sm:flex">
+              <span>Server:</span>
+              <span id="active-guild-name" class="text-slate-300 font-semibold truncate max-w-[180px]">Connecting...</span>
+            </div>
           </div>
         </div>
+
       </div>
 
-      <!-- Right: Live Notifications & User Profile -->
+      <!-- Right: Shard Health, Live Notifications & User Profile -->
       <div class="flex items-center gap-3">
+        
+        <!-- Live Shard Latency Pill -->
+        <div class="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>Gateway <strong id="header-ping-val" class="font-mono">38ms</strong></span>
+        </div>
+
         <!-- Live Notification Bell & Dropdown -->
         <div class="relative" id="live-notif-container">
-          <button onclick="toggleNotifDropdown()" id="btn-live-notif-bell" title="Live Server Feed" class="relative p-2.5 rounded-2xl bg-dark-850 hover:bg-dark-800 border border-dark-700/80 text-slate-300 hover:text-white transition shadow-sm flex items-center justify-center">
+          <button onclick="toggleNotifDropdown()" id="btn-live-notif-bell" title="Live Stream Feed & Alerts" class="relative p-2.5 rounded-xl bg-dark-900 hover:bg-dark-850 border border-dark-700/80 text-slate-300 hover:text-white transition shadow-sm flex items-center justify-center">
             <i class="fa-solid fa-bell text-sm"></i>
-            <span id="notif-badge" class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-black text-white shadow-lg shadow-red-500/50 hidden">0</span>
+            <span id="notif-badge" class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand text-[9px] font-black text-white shadow-lg shadow-brand/50 hidden">0</span>
             <span id="notif-pulse" class="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-400"></span>
           </button>
 
           <!-- Dropdown Panel -->
-          <div id="notif-dropdown" class="hidden absolute right-0 mt-3 w-96 rounded-3xl glass-panel p-4 shadow-2xl border border-dark-700 z-50 animate-fade-in space-y-3">
-            <div class="flex items-center justify-between pb-3 border-b border-dark-700/80">
+          <div id="notif-dropdown" class="hidden absolute right-0 mt-3 w-96 rounded-2xl glass-panel p-4 shadow-2xl border border-dark-700 z-50 animate-fade-in space-y-3">
+            <div class="flex items-center justify-between pb-3 border-b border-dark-750">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span class="text-xs font-black text-white uppercase tracking-wider">Live Stream Feed</span>
+                <span class="text-xs font-bold text-white uppercase tracking-wider">Live Stream Feed</span>
               </div>
               <div class="flex items-center gap-2">
                 <button onclick="pollLiveFeed(true)" title="Refresh stream" class="text-slate-400 hover:text-white text-xs transition">
                   <i class="fa-solid fa-arrows-rotate"></i>
                 </button>
-                <button onclick="markAllNotificationsRead()" class="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold transition">Clear</button>
+                <button onclick="markAllNotificationsRead()" class="text-[10px] text-brand hover:text-indigo-300 font-bold transition">Clear</button>
               </div>
             </div>
 
-            <div id="notif-feed-list" class="max-h-72 overflow-y-auto space-y-2 pr-1 divide-y divide-dark-800/40">
+            <div id="notif-feed-list" class="max-h-72 overflow-y-auto space-y-2 pr-1 divide-y divide-dark-800/40 custom-scrollbar">
               <div class="py-6 text-center text-slate-500 text-xs">
                 <i class="fa-solid fa-satellite-dish text-slate-600 text-lg mb-2 block animate-pulse"></i>
                 Connecting to live stream...
               </div>
             </div>
 
-            <div class="pt-2 border-t border-dark-700/80 flex items-center justify-between text-[11px]">
-              <span class="text-slate-400 truncate max-w-[190px]">Channel: <span id="header-notif-channel" class="text-indigo-400 font-semibold">Not Set</span></span>
-              <button onclick="switchTab('notifications'); toggleNotifDropdown(false);" class="text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1 transition">
+            <div class="pt-2 border-t border-dark-750 flex items-center justify-between text-[11px]">
+              <span class="text-slate-400 truncate max-w-[190px]">Channel: <span id="header-notif-channel" class="text-brand font-semibold">Not Set</span></span>
+              <button onclick="switchTab('notifications'); toggleNotifDropdown(false);" class="text-brand hover:text-indigo-300 font-bold flex items-center gap-1 transition">
                 <span>Manage Hub</span>
                 <i class="fa-solid fa-arrow-right text-[10px]"></i>
               </button>
@@ -166,9 +206,11 @@
           </div>
         </div>
 
+        <!-- User Profile Slot -->
         <div id="user-profile-header" class="flex items-center gap-3">
           <div class="w-8 h-8 rounded-full bg-dark-800 animate-pulse"></div>
         </div>
+
       </div>
 
     </div>
@@ -180,18 +222,24 @@
     <!-- Sidebar Navigation -->
     <aside class="w-full md:w-72 shrink-0 space-y-6 md:sticky md:top-24 md:max-h-[calc(100vh-7rem)] md:overflow-y-auto pr-1 custom-scrollbar">
       
-      <div class="glass-panel rounded-3xl p-4 space-y-6">
+      <div class="glass-panel rounded-3xl p-4 space-y-5">
         
+        <!-- Module Quick Search Input -->
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+          <input type="text" id="sidebar-tab-search" oninput="filterSidebarTabs(this.value)" placeholder="Search modules..." class="w-full bg-dark-900 border border-dark-700/80 rounded-xl pl-8 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand transition shadow-inner">
+        </div>
+
         <!-- Section: General -->
         <div>
-          <p class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest px-3 mb-2">Core Settings</p>
+          <p class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest px-3 mb-2">Management</p>
           <div class="space-y-1">
-            <button onclick="switchTab('overview')" id="btn-overview" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition bg-indigo-600 text-white shadow-md shadow-indigo-600/20">
-              <i class="fa-solid fa-gauge-high w-5 text-center"></i>
+            <button onclick="switchTab('overview')" id="btn-overview" class="tab-btn tab-active-pill w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition bg-brand/15 text-white border-brand/40 shadow-sm">
+              <i class="fa-solid fa-gauge-high w-5 text-center text-brand"></i>
               <span>Overview</span>
             </button>
-            <button onclick="switchTab('audit')" id="btn-audit" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-dark-800 hover:text-white">
-              <i class="fa-solid fa-clock-rotate-left w-5 text-center"></i>
+            <button onclick="switchTab('audit')" id="btn-audit" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
+              <i class="fa-solid fa-clock-rotate-left w-5 text-center text-slate-400"></i>
               <span>Audit History</span>
             </button>
           </div>
@@ -199,69 +247,72 @@
 
         <!-- Section: Security -->
         <div>
-          <p class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest px-3 mb-2">Security & Shield</p>
+          <p class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest px-3 mb-2">Security &amp; Shield</p>
           <div class="space-y-1">
-            <button onclick="switchTab('security')" id="btn-security" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-dark-800 hover:text-white">
+            <button onclick="switchTab('security')" id="btn-security" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
               <i class="fa-solid fa-shield-virus w-5 text-center text-red-400"></i>
               <span>Anti-Raid Defense</span>
             </button>
-            <button onclick="switchTab('moderation')" id="btn-moderation" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-dark-800 hover:text-white">
+            <button onclick="switchTab('moderation')" id="btn-moderation" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
               <i class="fa-solid fa-gavel w-5 text-center text-amber-400"></i>
-              <span>Moderation & Auto-Mod</span>
+              <span>Moderation &amp; Auto-Mod</span>
             </button>
           </div>
         </div>
 
         <!-- Section: Community -->
         <div>
-          <p class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest px-3 mb-2">Community</p>
+          <p class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest px-3 mb-2">Community &amp; Growth</p>
           <div class="space-y-1">
-            <button onclick="switchTab('welcome')" id="btn-welcome" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-dark-800 hover:text-white">
+            <button onclick="switchTab('welcome')" id="btn-welcome" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
               <i class="fa-solid fa-hand-wave w-5 text-center text-indigo-400"></i>
-              <span>Welcome & Leave</span>
+              <span>Welcome &amp; Leave</span>
             </button>
-            <button onclick="switchTab('invites')" id="btn-invites" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-dark-800 hover:text-white">
-              <i class="fa-solid fa-ticket-simple w-5 text-center text-emerald-400"></i>
-              <span>Invite Tracker</span>
+            <button onclick="switchTab('invites')" id="btn-invites" class="tab-btn w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
+              <div class="flex items-center gap-3">
+                <i class="fa-solid fa-ticket-simple w-5 text-center text-brand-cyan"></i>
+                <span>Invite Tracker</span>
+              </div>
+              <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-brand-cyan/15 text-brand-cyan font-mono">NEW</span>
             </button>
-            <button onclick="switchTab('levels')" id="btn-levels" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-dark-800 hover:text-white">
+            <button onclick="switchTab('levels')" id="btn-levels" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
               <i class="fa-solid fa-award w-5 text-center text-yellow-400"></i>
-              <span>Leveling & XP</span>
+              <span>Leveling &amp; XP</span>
             </button>
           </div>
         </div>
 
         <!-- Section: Utilities -->
         <div>
-          <p class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest px-3 mb-2">Engagement & Utilities</p>
+          <p class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest px-3 mb-2">Engagement &amp; Utilities</p>
           <div class="space-y-1">
-            <button onclick="switchTab('music')" id="btn-music" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-dark-800 hover:text-white">
-              <i class="fa-solid fa-music w-5 text-center text-pink-400"></i>
-              <span>Music Player</span>
+            <button onclick="switchTab('tickets')" id="btn-tickets" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
+              <i class="fa-solid fa-ticket w-5 text-center text-emerald-400"></i>
+              <span>Support &amp; Quotes</span>
             </button>
-            <button onclick="switchTab('economy')" id="btn-economy" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-dark-800 hover:text-white">
-              <i class="fa-solid fa-coins w-5 text-center text-emerald-400"></i>
-              <span>Economy System</span>
-            </button>
-            <button onclick="switchTab('tickets')" id="btn-tickets" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-dark-800 hover:text-white">
-              <i class="fa-solid fa-ticket w-5 text-center text-cyan-400"></i>
-              <span>Support Tickets</span>
-            </button>
-            <button onclick="switchTab('reactionroles')" id="btn-reactionroles" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-dark-800 hover:text-white">
+            <button onclick="switchTab('reactionroles')" id="btn-reactionroles" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
               <i class="fa-solid fa-masks-theater w-5 text-center text-purple-400"></i>
               <span>Reaction Roles</span>
             </button>
-            <button onclick="switchTab('giveaways')" id="btn-giveaways" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-dark-800 hover:text-white">
+            <button onclick="switchTab('giveaways')" id="btn-giveaways" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
               <i class="fa-solid fa-gift w-5 text-center text-pink-400"></i>
               <span>Giveaways Hub</span>
             </button>
-            <button onclick="switchTab('notifications')" id="btn-notifications" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-dark-800 hover:text-white">
-              <i class="fa-solid fa-bell w-5 text-center text-yellow-400"></i>
-              <span>Live Notifications</span>
+            <button onclick="switchTab('music')" id="btn-music" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
+              <i class="fa-solid fa-music w-5 text-center text-pink-400"></i>
+              <span>Music Player</span>
             </button>
-            <button onclick="switchTab('streams')" id="btn-streams" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition text-slate-400 hover:bg-dark-800 hover:text-white">
+            <button onclick="switchTab('economy')" id="btn-economy" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
+              <i class="fa-solid fa-coins w-5 text-center text-amber-400"></i>
+              <span>Economy System</span>
+            </button>
+            <button onclick="switchTab('streams')" id="btn-streams" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
               <i class="fa-solid fa-satellite-dish w-5 text-center text-red-400"></i>
               <span>Stream Radar</span>
+            </button>
+            <button onclick="switchTab('notifications')" id="btn-notifications" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
+              <i class="fa-solid fa-bell w-5 text-center text-yellow-400"></i>
+              <span>Live Notifications</span>
             </button>
           </div>
         </div>
@@ -292,7 +343,7 @@
               <button onclick="fetchTelemetry()" title="Refresh telemetry" class="px-3.5 py-2 rounded-xl bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-bold border border-dark-700 transition flex items-center gap-2">
                 <i class="fa-solid fa-arrows-rotate"></i> Refresh Metrics
               </button>
-              <button onclick="saveModule('overview')" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/25 transition">
+              <button onclick="saveModule('overview')" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-xs shadow-lg shadow-brand/25 transition">
                 <i class="fa-solid fa-floppy-disk"></i> Save Overview
               </button>
             </div>
@@ -469,7 +520,7 @@
               </div>
               <p class="text-sm text-slate-400 mt-1">Real-time heuristics and velocity counters preventing mass-bot raids, nuking, and malicious disruptions.</p>
             </div>
-            <button onclick="saveModule('security')" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/25 transition">
+            <button onclick="saveModule('security')" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-xs shadow-lg shadow-brand/25 transition">
               <i class="fa-solid fa-floppy-disk"></i> Save Shield Policy
             </button>
           </div>
@@ -586,7 +637,7 @@
               </div>
               <p class="text-sm text-slate-400 mt-1">Intelligent filter engine: Banned words chips, link whitelists, anti-caps, anti-spam, and penalty ladders.</p>
             </div>
-            <button onclick="saveModule('moderation')" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/25 transition">
+            <button onclick="saveModule('moderation')" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-xs shadow-lg shadow-brand/25 transition">
               <i class="fa-solid fa-floppy-disk"></i> Save Moderation Settings
             </button>
           </div>
@@ -764,19 +815,19 @@
             <div>
               <div class="flex items-center gap-2.5">
                 <h2 class="font-heading font-extrabold text-2xl text-white flex items-center gap-2">
-                  <i class="fa-solid fa-paintbrush text-cyan-accent"></i> Welcome & Canvas Studio
+                  <i class="fa-solid fa-paintbrush text-brand"></i> Welcome &amp; Canvas Studio
                 </h2>
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-accent border border-cyan-500/20 text-xs font-bold font-mono">
-                  <span class="w-1.5 h-1.5 rounded-full bg-cyan-accent animate-pulse"></span> HD CANVASCRAFT v2.5
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-brand/10 text-brand border border-brand/20 text-xs font-bold font-mono">
+                  <span class="w-1.5 h-1.5 rounded-full bg-brand animate-pulse"></span> 1024×450 Canvas Studio
                 </span>
               </div>
-              <p class="text-sm text-slate-400 mt-1">Real-time Canvas studio (1024×450 banners), frosted glass styling, cyber presets, and instant role grants.</p>
+              <p class="text-sm text-slate-400 mt-1">Real-time Canvas studio (1024×450 banners), frosted glass styling, custom themes, and automatic welcome roles.</p>
             </div>
             <div class="flex items-center gap-3">
-              <button onclick="testWelcomeCard()" id="btn-test-welcome" class="px-4 py-2.5 rounded-xl bg-dark-800 hover:bg-dark-750 text-cyan-300 font-bold text-xs border border-dark-700 hover:border-cyan-500/40 transition flex items-center gap-2 shadow-sm">
-                <i class="fa-solid fa-paper-plane text-cyan-accent"></i> Send Test Card
+              <button onclick="testWelcomeCard()" id="btn-test-welcome" class="px-4 py-2.5 rounded-xl bg-dark-850 hover:bg-dark-800 text-brand-cyan font-bold text-xs border border-dark-700 hover:border-brand-cyan/40 transition flex items-center gap-2 shadow-sm">
+                <i class="fa-solid fa-paper-plane text-brand-cyan"></i> Send Test Card
               </button>
-              <button onclick="saveModule('welcome')" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 via-blurple to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-cyan-600/25 transition">
+              <button onclick="saveModule('welcome')" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-xs shadow-lg shadow-brand/25 transition">
                 <i class="fa-solid fa-floppy-disk"></i> Save Setup
               </button>
             </div>
@@ -785,18 +836,20 @@
           <!-- Real-Time Live Canvas Card Preview -->
           <div class="p-6 bg-dark-900/90 border border-dark-700 rounded-3xl space-y-4">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <span class="text-xs font-bold uppercase tracking-wider text-cyan-accent flex items-center gap-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-brand flex items-center gap-2">
                 <i class="fa-solid fa-eye"></i> Real-Time Canvas Banner Preview
               </span>
               <div class="flex flex-wrap items-center gap-2 text-xs">
                 <span class="text-slate-400 font-semibold mr-1 text-[11px]">Themes:</span>
-                <button type="button" onclick="setWelcomePreset('cyber')" class="px-3 py-1 rounded-xl bg-dark-800 hover:bg-cyan-500/20 text-cyan-300 border border-dark-700 hover:border-cyan-500/40 transition flex items-center gap-1.5 text-xs font-bold">
-                  <i class="fa-solid fa-city text-cyan-accent"></i> Cyber Neon
+                <button type="button" onclick="setWelcomePreset('cyber')" class="px-3 py-1 rounded-xl bg-dark-800 hover:bg-dark-750 text-brand-cyan border border-dark-700 hover:border-brand-cyan/40 transition flex items-center gap-1.5 text-xs font-bold">
+                  <i class="fa-solid fa-city text-brand-cyan"></i> Cyber Neon
                 </button>
-                <button type="button" onclick="setWelcomePreset('space')" class="px-3 py-1 rounded-xl bg-dark-800 hover:bg-purple-500/20 text-purple-300 border border-dark-700 hover:border-purple-500/40 transition flex items-center gap-1.5 text-xs font-bold">
+                <button type="button" onclick="setWelcomePreset('space')" class="px-3 py-1 rounded-xl bg-dark-800 hover:bg-dark-750 text-purple-300 border border-dark-700 hover:border-purple-500/40 transition flex items-center gap-1.5 text-xs font-bold">
                   <i class="fa-solid fa-meteor text-purple-400"></i> Deep Space
                 </button>
-                <button type="button" onclick="setWelcomePreset('aurora')" class="px-3 py-1 rounded-xl bg-dark-800 hover:bg-emerald-500/20 text-emerald-300 border border-dark-700 hover:border-emerald-500/40 transition flex items-center gap-1.5 text-xs font-bold">
+                <button type="button" onclick="setWelcomePreset('aurora')" class="px-3 py-1 rounded-xl bg-dark-800 hover:bg-dark-750 text-emerald-300 border border-dark-700 hover:border-emerald-500/40 transition flex items-center gap-1.5 text-xs font-bold">
+                  <i class="fa-solid fa-wind text-emerald-400"></i> Aurora
+                </button>
                   <i class="fa-solid fa-wind text-emerald-400"></i> Aurora
                 </button>
                 <button type="button" onclick="setWelcomePreset('battlestation')" class="px-3 py-1 rounded-xl bg-dark-800 hover:bg-pink-500/20 text-pink-300 border border-dark-700 hover:border-pink-500/40 transition flex items-center gap-1.5 text-xs font-bold">
@@ -995,7 +1048,7 @@
               </div>
               <p class="text-sm text-slate-400 mt-1">Reward active chat participation with progressive experience points and milestone roles.</p>
             </div>
-            <button onclick="saveModule('levels')" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/25 transition">
+            <button onclick="saveModule('levels')" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-xs shadow-lg shadow-brand/25 transition">
               <i class="fa-solid fa-floppy-disk"></i> Save Leveling Setup
             </button>
           </div>
@@ -1125,7 +1178,7 @@
               </div>
               <p class="text-sm text-slate-400 mt-1">Configure dedicated DJ roles, 24/7 channel standby, queue lengths, and DSP audio filter presets.</p>
             </div>
-            <button onclick="saveModule('music')" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/25 transition">
+            <button onclick="saveModule('music')" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-xs shadow-lg shadow-brand/25 transition">
               <i class="fa-solid fa-floppy-disk"></i> Save Music Setup
             </button>
           </div>
@@ -1252,7 +1305,7 @@
               </div>
               <p class="text-sm text-slate-400 mt-1">Manage currency symbols, daily login rewards, work payout ranges, robberies, and virtual server shops.</p>
             </div>
-            <button onclick="saveModule('economy')" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/25 transition">
+            <button onclick="saveModule('economy')" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-xs shadow-lg shadow-brand/25 transition">
               <i class="fa-solid fa-floppy-disk"></i> Save Economy Setup
             </button>
           </div>
@@ -1389,7 +1442,7 @@
               <button onclick="deployTicketPanelModal()" class="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-md shadow-cyan-600/30">
                 <i class="fa-solid fa-paper-plane"></i> Deploy Panel
               </button>
-              <button onclick="saveModule('tickets')" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/25 transition">
+              <button onclick="saveModule('tickets')" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-xs shadow-lg shadow-brand/25 transition">
                 <i class="fa-solid fa-floppy-disk"></i> Save Tickets Setup
               </button>
             </div>
@@ -1618,7 +1671,7 @@
               <button onclick="testLiveNotification()" id="btn-test-notif" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-dark-800 hover:bg-dark-750 text-indigo-300 hover:text-white border border-indigo-500/30 font-bold text-xs shadow-md transition">
                 <i class="fa-solid fa-bell text-yellow-400"></i> Test Live Notification
               </button>
-              <button onclick="saveModule('notifications')" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/25 transition">
+              <button onclick="saveModule('notifications')" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-xs shadow-lg shadow-brand/25 transition">
                 <i class="fa-solid fa-floppy-disk"></i> Save Notifications
               </button>
             </div>
@@ -2181,22 +2234,41 @@
       `;
     }
 
+    // Filter sidebar tabs in real-time
+    function filterSidebarTabs(query) {
+      const q = (query || '').toLowerCase().trim();
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        const text = btn.innerText.toLowerCase();
+        if (!q || text.includes(q)) {
+          btn.classList.remove('hidden');
+        } else {
+          btn.classList.add('hidden');
+        }
+      });
+    }
+
     // Switch between sidebar tabs
     function switchTab(tabName) {
       document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('bg-gradient-to-r', 'from-cyan-500/20', 'via-indigo-500/15', 'to-transparent', 'border-l-4', 'border-l-cyan-accent', 'text-white', 'shadow-md', 'shadow-cyan-500/10', 'bg-indigo-600');
-        btn.classList.add('text-slate-400', 'border-l-4', 'border-l-transparent');
+        btn.classList.remove('tab-active-pill', 'bg-brand/15', 'text-white', 'border-brand/40', 'shadow-sm', 'bg-indigo-600');
+        btn.classList.add('text-slate-400', 'hover:bg-dark-850', 'hover:text-white');
       });
       const activeBtn = document.getElementById(`btn-${tabName}`);
       if (activeBtn) {
-        activeBtn.classList.remove('text-slate-400', 'border-l-transparent');
-        activeBtn.classList.add('bg-gradient-to-r', 'from-cyan-500/20', 'via-indigo-500/15', 'to-transparent', 'border-l-4', 'border-l-cyan-accent', 'text-white', 'shadow-md', 'shadow-cyan-500/10');
+        activeBtn.classList.remove('text-slate-400', 'hover:bg-dark-850');
+        activeBtn.classList.add('tab-active-pill', 'bg-brand/15', 'text-white', 'border-brand/40', 'shadow-sm');
       }
 
       document.querySelectorAll('.module-panel').forEach(panel => panel.classList.add('hidden'));
       const activePanel = document.getElementById(`panel-${tabName}`);
       if (activePanel) {
         activePanel.classList.remove('hidden');
+      }
+
+      // Update document title with server name & module
+      if (currentGuild) {
+        const tabTitle = activeBtn ? activeBtn.querySelector('span')?.innerText : tabName;
+        document.title = `${tabTitle || 'Control Panel'} — ${currentGuild.name} — SRB NEXUS`;
       }
 
       if (tabName === 'overview') {
@@ -2781,7 +2853,10 @@
         const t = data.telemetry || data;
 
         const pingEl = document.getElementById('stat-ping');
-        if (pingEl) pingEl.innerText = `${t.ping ?? 38} ms`;
+        const pingVal = t.ping ?? 38;
+        if (pingEl) pingEl.innerText = `${pingVal} ms`;
+        const headerPingEl = document.getElementById('header-ping-val');
+        if (headerPingEl) headerPingEl.innerText = `${pingVal}ms`;
 
         const pingStatusEl = document.getElementById('stat-ping-status');
         if (pingStatusEl) {
