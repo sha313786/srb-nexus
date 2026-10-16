@@ -15,6 +15,7 @@ import { logger } from '../../core/logger';
 import { db } from '../../core/database';
 import { broadcastLiveNotification } from '../../services/liveNotifications';
 import { archiveAndSendTicketTranscript } from '../../services/transcriptService';
+import { handleVerificationButton, handleVerificationModal } from '../../services/verification';
 
 export async function handleInteractionCreate(interaction: Interaction): Promise<void> {
   // 1. HANDLE SLASH COMMANDS
@@ -361,6 +362,12 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
       await interaction.showModal(modal);
       return;
     }
+  }
+
+  // 3a. HANDLE VERIFICATION CAPTCHA MODAL SUBMISSION
+  if (interaction.isModalSubmit() && interaction.customId.startsWith('nexus_verify_modal_')) {
+    await handleVerificationModal(interaction);
+    return;
   }
 
   // 3b. HANDLE PROJECT INQUIRY MODAL SUBMISSION
@@ -1428,7 +1435,13 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
     }
   }
 
-  // 5.5. HANDLE MEMBER VERIFICATION BUTTON
+  // 5.4. HANDLE NEW DYNAMIC VERIFICATION GATE (BUTTON OR CAPTCHA)
+  if (interaction.isButton() && (interaction.customId.startsWith('nexus_verify_button') || interaction.customId.startsWith('nexus_verify_captcha'))) {
+    await handleVerificationButton(interaction);
+    return;
+  }
+
+  // 5.5. HANDLE MEMBER VERIFICATION BUTTON (Legacy SRB Studio)
   if (interaction.isButton() && interaction.customId === 'nexus_verify_member') {
     if (!interaction.guild || !interaction.member) return;
     try {

@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SRB NEXUS — Public Server Leaderboard</title>
+  <meta name="description" content="Live server leaderboards powered by SRB NEXUS. View top XP levels, active chatters, and top inviters in real-time.">
+  <link rel="icon" type="image/png" href="/favicon.png">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            heading: ['Outfit', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              DEFAULT: '#5865F2', // Discord Blurple
+              hover: '#4752c4',
+              cyan: '#00d2ff',
+              emerald: '#10b981',
+            },
+            dark: {
+              950: '#07090e',
+              900: '#0c0f17',
+              850: '#121724',
+              800: '#181f30',
+              750: '#202940',
+              700: '#2b3652',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #07090e;
+      color: #e2e8f0;
+      background-image: 
+        radial-gradient(ellipse 90% 50% at 50% -10%, rgba(88, 101, 242, 0.16), transparent),
+        radial-gradient(ellipse 60% 40% at 90% 40%, rgba(0, 210, 255, 0.05), transparent),
+        radial-gradient(ellipse 50% 30% at 10% 80%, rgba(16, 185, 129, 0.04), transparent);
+      background-attachment: fixed;
+    }
+    
+    .glass-surface {
+      background: rgba(14, 18, 28, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
+    }
+
+    .glass-surface-elevated {
+      background: rgba(18, 23, 36, 0.88);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.6);
+    }
+
+    .gold-glow {
+      box-shadow: 0 0 25px -5px rgba(234, 179, 8, 0.3);
+      border-color: rgba(234, 179, 8, 0.4);
+    }
+
+    .silver-glow {
+      box-shadow: 0 0 20px -5px rgba(148, 163, 184, 0.25);
+      border-color: rgba(148, 163, 184, 0.35);
+    }
+
+    .bronze-glow {
+      box-shadow: 0 0 20px -5px rgba(217, 119, 6, 0.25);
+      border-color: rgba(217, 119, 6, 0.35);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans antialiased text-slate-200">
+
+  <!-- Navigation -->
+  <header class="sticky top-0 z-50 glass-surface border-b border-white/5">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <a href="/" class="flex items-center space-x-3 group">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand to-brand-cyan flex items-center justify-center text-white shadow-lg shadow-brand/30 group-hover:scale-105 transition-transform">
+            <i class="fa-solid fa-bolt text-lg"></i>
+          </div>
+          <span class="font-heading font-black text-xl tracking-tight text-white">SRB <span class="text-brand">NEXUS</span></span>
+        </a>
+        <span class="text-xs font-mono uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand/10 border border-brand/30 text-brand">Public Leaderboard</span>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <!-- Server Select Dropdown -->
+        <div class="relative">
+          <select id="serverSelect" onchange="onServerChange()" class="bg-dark-800 border border-white/10 rounded-xl px-3 py-1.5 text-sm font-medium text-white focus:outline-none focus:border-brand cursor-pointer max-w-[200px] truncate">
+            <option value="">Loading servers...</option>
+          </select>
+        </div>
+
+        <a href="/dashboard" class="hidden sm:inline-flex items-center space-x-2 text-xs font-semibold px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-colors">
+          <i class="fa-solid fa-sliders text-brand"></i>
+          <span>Dashboard</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- Server Header Hero -->
+    <div id="heroCard" class="glass-surface-elevated rounded-3xl p-6 sm:p-8 mb-8 border border-white/10 relative overflow-hidden">
+      <div class="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-brand/10 blur-3xl pointer-events-none"></div>
+
+      <div class="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6 relative z-10 text-center sm:text-left">
+        <img id="serverIcon" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Server Icon" class="w-20 h-20 rounded-2xl border-2 border-white/10 shadow-xl object-cover bg-dark-900">
+        
+        <div class="flex-1">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:space-x-3 mb-1">
+            <h1 id="serverName" class="text-2xl sm:text-3xl font-heading font-black text-white">Loading Server...</h1>
+            <span id="memberCountBadge" class="inline-flex items-center justify-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-dark-800 text-xs font-mono text-emerald-400 border border-emerald-500/20 mt-1 sm:mt-0">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span id="memberCountText">0 members</span>
+            </span>
+          </div>
+          <p class="text-sm text-slate-400 max-w-xl">
+            Live rankings, member activity, and XP achievements updated directly from Discord.
+          </p>
+        </div>
+
+        <!-- Mode Toggle Tabs -->
+        <div class="flex items-center bg-dark-900/90 p-1.5 rounded-2xl border border-white/10 shrink-0">
+          <button id="tabXp" onclick="switchTab('xp')" class="px-4 py-2 rounded-xl text-xs font-bold transition-all bg-brand text-white shadow-lg shadow-brand/25">
+            <i class="fa-solid fa-trophy mr-1.5"></i>XP & Levels
+          </button>
+          <button id="tabInvites" onclick="switchTab('invites')" class="px-4 py-2 rounded-xl text-xs font-bold transition-all text-slate-400 hover:text-white">
+            <i class="fa-solid fa-user-plus mr-1.5"></i>Top Inviters
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search & Filter Bar -->
+    <div class="flex items-center justify-between mb-6 gap-4">
+      <div class="relative flex-1 max-w-sm">
+        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+        <input id="searchInput" type="text" oninput="filterLeaderboard()" placeholder="Search members by name..." class="w-full bg-dark-850/80 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand transition-colors">
+      </div>
+      <div id="rankCountLabel" class="text-xs text-slate-400 font-mono">
+        Showing top ranks
+      </div>
+    </div>
+
+    <!-- Podium Section (Top 3) -->
+    <div id="podiumSection" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <!-- 2nd Place -->
+      <div id="podium2" class="glass-surface rounded-2xl p-5 border border-white/10 flex flex-col items-center text-center order-2 md:order-1 silver-glow relative overflow-hidden transition-all hover:scale-[1.02]">
+        <div class="w-8 h-8 rounded-full bg-slate-300 text-slate-900 font-black text-sm flex items-center justify-center mb-3 shadow">2</div>
+        <img id="podium2Avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" class="w-16 h-16 rounded-full border-2 border-slate-400 shadow-lg mb-3 object-cover">
+        <h3 id="podium2Name" class="font-bold text-white text-sm truncate max-w-[180px]">---</h3>
+        <p id="podium2Sub" class="text-xs text-slate-400 font-mono mt-0.5">---</p>
+      </div>
+
+      <!-- 1st Place (Center, larger) -->
+      <div id="podium1" class="glass-surface-elevated rounded-2xl p-6 border border-yellow-500/40 flex flex-col items-center text-center order-1 md:order-2 gold-glow relative overflow-hidden scale-105 z-10 transition-all hover:scale-[1.07]">
+        <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-yellow-400 to-amber-500 text-yellow-950 font-black text-base flex items-center justify-center mb-3 shadow-lg shadow-yellow-500/30">👑 1</div>
+        <img id="podium1Avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" class="w-20 h-20 rounded-full border-2 border-yellow-400 shadow-xl mb-3 object-cover">
+        <h3 id="podium1Name" class="font-heading font-black text-white text-base truncate max-w-[200px]">---</h3>
+        <p id="podium1Sub" class="text-xs text-yellow-400/90 font-mono font-semibold mt-0.5">---</p>
+      </div>
+
+      <!-- 3rd Place -->
+      <div id="podium3" class="glass-surface rounded-2xl p-5 border border-white/10 flex flex-col items-center text-center order-3 bronze-glow relative overflow-hidden transition-all hover:scale-[1.02]">
+        <div class="w-8 h-8 rounded-full bg-amber-700 text-white font-black text-sm flex items-center justify-center mb-3 shadow">3</div>
+        <img id="podium3Avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" class="w-16 h-16 rounded-full border-2 border-amber-600 shadow-lg mb-3 object-cover">
+        <h3 id="podium3Name" class="font-bold text-white text-sm truncate max-w-[180px]">---</h3>
+        <p id="podium3Sub" class="text-xs text-slate-400 font-mono mt-0.5">---</p>
+      </div>
+    </div>
+
+    <!-- Leaderboard Table (Ranks 4+) -->
+    <div class="glass-surface rounded-2xl border border-white/10 overflow-hidden shadow-2xl">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-white/5 bg-dark-900/60 text-xs font-mono text-slate-400 uppercase tracking-wider">
+              <th class="py-3 px-4 w-16 text-center">Rank</th>
+              <th class="py-3 px-4">Member</th>
+              <th id="metricColHeader" class="py-3 px-4 text-right">Level & XP</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardBody" class="divide-y divide-white/5 text-sm">
+            <tr>
+              <td colspan="3" class="py-8 text-center text-slate-400">
+                <i class="fa-solid fa-circle-notch fa-spin text-brand text-lg mb-2"></i>
+                <p>Loading rankings...</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="glass-surface border-t border-white/5 mt-16 py-6 text-center text-xs text-slate-500">
+    <p>Powered by <span class="font-semibold text-slate-400">SRB NEXUS</span> • High-Performance Discord Bot & Automation</p>
+  </footer>
+
+  <script>
+    let currentGuildId = '';
+    let currentTab = 'xp';
+    let cachedXpData = [];
+    let cachedInviteData = [];
+
+    // Parse URL params for pre-selected server
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialGuildParam = urlParams.get('guild');
+
+    async function init() {
+      try {
+        const res = await fetch('/api/public/leaderboard-servers');
+        const data = await res.json();
+        const select = document.getElementById('serverSelect');
+        select.innerHTML = '';
+
+        if (!data.servers || data.servers.length === 0) {
+          select.innerHTML = '<option value="">No Servers Found</option>';
+          document.getElementById('serverName').innerText = 'No Active Servers';
+          return;
+        }
+
+        data.servers.forEach((s) => {
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          opt.textContent = s.name;
+          select.appendChild(opt);
+        });
+
+        // Pick initial guild
+        if (initialGuildParam && data.servers.some(s => s.id === initialGuildParam)) {
+          select.value = initialGuildParam;
+        } else {
+          select.value = data.servers[0].id;
+        }
+
+        currentGuildId = select.value;
+        loadGuildLeaderboard(currentGuildId);
+      } catch (err) {
+        console.error('Failed to init leaderboard', err);
+      }
+    }
+
+    async function onServerChange() {
+      const select = document.getElementById('serverSelect');
+      currentGuildId = select.value;
+      if (currentGuildId) {
+        window.history.replaceState(null, '', `?guild=${currentGuildId}`);
+        loadGuildLeaderboard(currentGuildId);
+      }
+    }
+
+    async function loadGuildLeaderboard(guildId) {
+      const tbody = document.getElementById('leaderboardBody');
+      tbody.innerHTML = `<tr><td colspan="3" class="py-12 text-center text-slate-400"><i class="fa-solid fa-circle-notch fa-spin text-brand text-2xl mb-2"></i><p>Fetching rankings...</p></td></tr>`;
+
+      try {
+        const res = await fetch(`/api/public/leaderboard/${guildId}`);
+        if (!res.ok) {
+          throw new Error('Server not found');
+        }
+        const data = await res.json();
+
+        // Render Hero
+        document.getElementById('serverName').innerText = data.guild.name;
+        document.getElementById('serverIcon').src = data.guild.icon || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        document.getElementById('memberCountText').innerText = `${Number(data.guild.memberCount || 0).toLocaleString()} members`;
+
+        cachedXpData = data.topXp || [];
+        cachedInviteData = data.topInviters || [];
+
+        renderLeaderboard();
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="3" class="py-8 text-center text-red-400">Failed to load server rankings. Ensure SRB NEXUS is in the server.</td></tr>`;
+      }
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      const tabXp = document.getElementById('tabXp');
+      const tabInvites = document.getElementById('tabInvites');
+      const metricCol = document.getElementById('metricColHeader');
+
+      if (tab === 'xp') {
+        tabXp.className = 'px-4 py-2 rounded-xl text-xs font-bold transition-all bg-brand text-white shadow-lg shadow-brand/25';
+        tabInvites.className = 'px-4 py-2 rounded-xl text-xs font-bold transition-all text-slate-400 hover:text-white';
+        metricCol.innerText = 'Level & XP';
+      } else {
+        tabInvites.className = 'px-4 py-2 rounded-xl text-xs font-bold transition-all bg-brand text-white shadow-lg shadow-brand/25';
+        tabXp.className = 'px-4 py-2 rounded-xl text-xs font-bold transition-all text-slate-400 hover:text-white';
+        metricCol.innerText = 'Total Joins (Uses)';
+      }
+
+      renderLeaderboard();
+    }
+
+    function renderLeaderboard() {
+      const query = document.getElementById('searchInput').value.toLowerCase().trim();
+      const rawList = currentTab === 'xp' ? cachedXpData : cachedInviteData;
+      const list = rawList.filter(u => !query || u.username.toLowerCase().includes(query));
+
+      const podiumSec = document.getElementById('podiumSection');
+      const tbody = document.getElementById('leaderboardBody');
+
+      if (list.length === 0) {
+        podiumSec.classList.add('hidden');
+        tbody.innerHTML = `<tr><td colspan="3" class="py-12 text-center text-slate-400"><i class="fa-solid fa-ghost text-2xl mb-2 text-slate-500"></i><p>No ranking data recorded yet.</p></td></tr>`;
+        return;
+      }
+
+      podiumSec.classList.remove('hidden');
+
+      // Populate Top 1
+      const top1 = list[0];
+      if (top1) {
+        document.getElementById('podium1Avatar').src = top1.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        document.getElementById('podium1Name').innerText = top1.username;
+        document.getElementById('podium1Sub').innerText = currentTab === 'xp' ? `Level ${top1.level} • ${Number(top1.xp).toLocaleString()} XP` : `${top1.uses} Invites`;
+      }
+
+      // Populate Top 2
+      const top2 = list[1];
+      if (top2) {
+        document.getElementById('podium2').style.opacity = '1';
+        document.getElementById('podium2Avatar').src = top2.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        document.getElementById('podium2Name').innerText = top2.username;
+        document.getElementById('podium2Sub').innerText = currentTab === 'xp' ? `Level ${top2.level} • ${Number(top2.xp).toLocaleString()} XP` : `${top2.uses} Invites`;
+      } else {
+        document.getElementById('podium2').style.opacity = '0.3';
+        document.getElementById('podium2Name').innerText = '---';
+        document.getElementById('podium2Sub').innerText = '---';
+      }
+
+      // Populate Top 3
+      const top3 = list[2];
+      if (top3) {
+        document.getElementById('podium3').style.opacity = '1';
+        document.getElementById('podium3Avatar').src = top3.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        document.getElementById('podium3Name').innerText = top3.username;
+        document.getElementById('podium3Sub').innerText = currentTab === 'xp' ? `Level ${top3.level} • ${Number(top3.xp).toLocaleString()} XP` : `${top3.uses} Invites`;
+      } else {
+        document.getElementById('podium3').style.opacity = '0.3';
+        document.getElementById('podium3Name').innerText = '---';
+        document.getElementById('podium3Sub').innerText = '---';
+      }
+
+      // Populate Remaining list (Rank 4+)
+      const remaining = list.slice(3);
+      if (remaining.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" class="py-4 text-center text-xs text-slate-500 font-mono">Showing all ${list.length} members</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = remaining.map((u, i) => {
+        const rank = u.rank || (i + 4);
+        const avatar = u.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        const metric = currentTab === 'xp'
+          ? `<span class="px-2 py-0.5 rounded bg-brand/10 text-brand font-mono text-xs font-bold mr-2">LVL ${u.level}</span><span class="font-mono text-slate-300 font-semibold">${Number(u.xp).toLocaleString()} XP</span>`
+          : `<span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono text-xs font-bold mr-2"><i class="fa-solid fa-user-check mr-1"></i>${u.uses}</span>`;
+
+        return `
+          <tr class="hover:bg-white/[0.02] transition-colors">
+            <td class="py-3 px-4 text-center font-mono font-bold text-slate-400">#${rank}</td>
+            <td class="py-3 px-4 flex items-center space-x-3">
+              <img src="${avatar}" class="w-8 h-8 rounded-full border border-white/10 object-cover">
+              <span class="font-semibold text-white">${escapeHtml(u.username)}</span>
+            </td>
+            <td class="py-3 px-4 text-right">${metric}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterLeaderboard() {
+      renderLeaderboard();
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

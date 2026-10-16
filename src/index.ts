@@ -16,6 +16,8 @@ import {
   EmbedBuilder,
   AttachmentBuilder,
   ActivityType,
+  Partials,
+  VoiceState,
 } from 'discord.js';
 
 // Register cross-platform fonts for Canvas rendering on Linux/Docker/Render
@@ -54,6 +56,8 @@ import {
   detectUsedInvite,
   handleInviteRoleAssignment,
 } from './services/inviteTracker';
+import { handleTempVoiceStateUpdate } from './services/tempVoice';
+import { updateGuildVoiceStats } from './services/voiceStats';
 
 dotenv.config();
 
@@ -74,7 +78,10 @@ export const bot = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildInvites,
     GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.DirectMessages,
   ],
+  partials: [Partials.Channel, Partials.Message],
 });
 
 let lastBotError: { message: string; code?: string | number; attempt: number; timestamp: string } | null = null;
@@ -415,6 +422,27 @@ bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
       app.log.error({ err: inviteErr }, `[INVITE] Failed during invite tracking for member ${member.user.tag}`);
     }
 
+    // 0.2. Verification Gate Check & Live Voice Stats
+    const verifRes = await db.query(
+      'SELECT verification_enabled, unverified_role_id FROM guild_settings WHERE guild_id = $1',
+      [member.guild.id]
+    ).catch(() => ({ rows: [] }));
+
+    const isVerificationEnabled = verifRes.rows[0]?.verification_enabled;
+    const unverifiedRoleId = verifRes.rows[0]?.unverified_role_id;
+
+    if (isVerificationEnabled && unverifiedRoleId) {
+      const cleanUnverifiedId = String(unverifiedRoleId).replace(/[<#@!&>]/g, '').trim();
+      const unverifiedRole = member.guild.roles.cache.get(cleanUnverifiedId);
+      if (unverifiedRole) {
+        await member.roles.add(unverifiedRole).catch(() => {});
+        app.log.info(`[VERIFY] Assigned quarantine role @${unverifiedRole.name} to new join ${member.user.tag}`);
+      }
+    }
+
+    // Update Live Voice Stats on join
+    updateGuildVoiceStats(member.guild).catch(() => {});
+
     const res = await db.query(
       'SELECT welcome_channel_id, welcome_message, autorole_id, welcome_bg_url FROM guild_settings WHERE guild_id = $1',
       [member.guild.id]
@@ -427,8 +455,8 @@ bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
 
     const { welcome_channel_id, welcome_message, autorole_id, welcome_bg_url } = res.rows[0];
 
-    // Auto-Role Assignment
-    if (autorole_id) {
+    // Auto-Role Assignment (Skip if verification gate is active to prevent bypassing verification)
+    if (autorole_id && !isVerificationEnabled) {
       const cleanRoleId = String(autorole_id).replace(/[<#@!&>]/g, '').trim();
       const role = member.guild.roles.cache.get(cleanRoleId);
       if (role) {
@@ -496,6 +524,11 @@ bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
 // 5. Member Leave / Farewell Listener
 bot.on(Events.GuildMemberRemove, async (member) => {
   try {
+    // Update Live Voice Stats on member leave
+    if (member.guild) {
+      updateGuildVoiceStats(member.guild).catch(() => {});
+    }
+
     const res = await db.query(
       'SELECT leave_channel_id FROM guild_settings WHERE guild_id = $1',
       [member.guild.id]
@@ -522,10 +555,16 @@ bot.on(Events.GuildMemberRemove, async (member) => {
   }
 });
 
-bot.on(Events.MessageCreate, async (message: Message) => {
-  if (message.author.bot || !message.guild) return;
+// 6. Voice State Update Listener (Temp Voice / Join to Create)
+bot.on(Events.VoiceStateUpdate, async (oldState: VoiceState, newState: VoiceState) => {
+  await handleTempVoiceStateUpdate(oldState, newState);
+});
 
-  // 1. Process Anti-Spam & Anti-Scam Security Pipeline
+// 7. Message Create Listener (Auto-Mod, Leveling XP, Tags, and Modmail)
+bot.on(Events.MessageCreate, async (message: Message) => {
+  if (message.author.bot) return;
+
+  // Process Anti-Spam, Modmail, and Tags Pipeline
   try {
     await processSecurityAndSpam(message);
   } catch (err) {
@@ -534,6 +573,8 @@ bot.on(Events.MessageCreate, async (message: Message) => {
 
   // 2. Custom Prefix Command Handling
   try {
+    if (!message.guild) return;
+
     const res = await db.query(
       'SELECT prefix FROM guild_settings WHERE guild_id = $1',
       [message.guild.id]
@@ -608,6 +649,93 @@ async function start() {
 
     app.get('/dashboard', async (request, reply) => {
       return reply.sendFile('dashboard.html');
+    });
+
+    app.get('/leaderboard', async (request, reply) => {
+      return reply.sendFile('leaderboard.html');
+    });
+
+    // Public API: List public servers available for leaderboards
+    app.get('/api/public/leaderboard-servers', async (request, reply) => {
+      const servers = Array.from(bot.guilds.cache.values()).map((g) => ({
+        id: g.id,
+        name: g.name,
+        icon: g.iconURL({ size: 128 }),
+        memberCount: g.memberCount,
+      }));
+      return reply.send({ servers });
+    });
+
+    // Public API: Fetch server top XP rankings and top inviters
+    app.get('/api/public/leaderboard/:guildId', async (request, reply) => {
+      const { guildId } = request.params as { guildId: string };
+      const guild = bot.guilds.cache.get(guildId) || (await bot.guilds.fetch(guildId).catch(() => null));
+      if (!guild) {
+        return reply.status(404).send({ error: 'Server not found or bot is not in this server' });
+      }
+
+      // Fetch top XP
+      const xpRes = await db.query(
+        `SELECT user_id, xp, level 
+         FROM user_economy 
+         WHERE guild_id = $1 
+         ORDER BY xp DESC LIMIT 25`,
+        [guildId]
+      ).catch(() => ({ rows: [] }));
+
+      const topXp = await Promise.all(
+        xpRes.rows.map(async (row: any, idx: number) => {
+          let member = guild.members.cache.get(row.user_id);
+          if (!member) {
+            member = await guild.members.fetch(row.user_id).catch(() => null as any);
+          }
+          return {
+            rank: idx + 1,
+            userId: row.user_id,
+            username: member ? (member.displayName || member.user.username) : `User ${row.user_id.slice(-4)}`,
+            avatar: member ? member.user.displayAvatarURL({ size: 64 }) : null,
+            level: Number(row.level) || 1,
+            xp: Number(row.xp) || 0,
+          };
+        })
+      );
+
+      // Fetch top inviters
+      let topInviters: any[] = [];
+      try {
+        const invites = await guild.invites.fetch().catch(() => null);
+        if (invites) {
+          const inviterMap = new Map<string, { user: any; uses: number }>();
+          for (const [, inv] of invites) {
+            if (!inv.inviter) continue;
+            const current = inviterMap.get(inv.inviter.id) || { user: inv.inviter, uses: 0 };
+            current.uses += inv.uses || 0;
+            inviterMap.set(inv.inviter.id, current);
+          }
+          topInviters = Array.from(inviterMap.values())
+            .filter((item) => item.uses > 0)
+            .sort((a, b) => b.uses - a.uses)
+            .slice(0, 10)
+            .map((item, idx) => ({
+              rank: idx + 1,
+              userId: item.user.id,
+              username: item.user.username,
+              avatar: item.user.displayAvatarURL({ size: 64 }),
+              uses: item.uses,
+            }));
+        }
+      } catch {}
+
+      return reply.send({
+        guild: {
+          id: guild.id,
+          name: guild.name,
+          icon: guild.iconURL({ size: 128 }),
+          memberCount: guild.memberCount,
+        },
+        topXp,
+        topInviters,
+      });
     });
 
     if (typeof (db as any).connect === 'function') {
@@ -890,6 +1018,45 @@ async function start() {
         joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
       CREATE INDEX IF NOT EXISTS idx_invite_logs_guild ON guild_invite_logs (guild_id);
+
+      -- Verification Gate Columns
+      ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS verification_enabled BOOLEAN DEFAULT FALSE;
+      ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS verification_channel_id VARCHAR(32);
+      ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS verification_role_id VARCHAR(32);
+      ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS unverified_role_id VARCHAR(32);
+      ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS verification_type VARCHAR(20) DEFAULT 'button';
+
+      -- Live Voice Stat Counters Columns
+      ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS stat_counters_enabled BOOLEAN DEFAULT FALSE;
+      ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS stat_category_id VARCHAR(32);
+      ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS stat_channel_members VARCHAR(32);
+      ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS stat_channel_online VARCHAR(32);
+      ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS stat_channel_bots VARCHAR(32);
+
+      -- Temp Voice Rooms Columns
+      ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS temp_voice_enabled BOOLEAN DEFAULT FALSE;
+      ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS temp_voice_master_id VARCHAR(32);
+      ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS temp_voice_category_id VARCHAR(32);
+      ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS temp_voice_name_template VARCHAR(64) DEFAULT '🔊 {username}''s Room';
+
+      -- Modmail Columns
+      ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS modmail_enabled BOOLEAN DEFAULT FALSE;
+      ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS modmail_channel_id VARCHAR(32);
+      ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS modmail_role_id VARCHAR(32);
+
+      -- Tags / Custom Auto-Responders Table
+      CREATE TABLE IF NOT EXISTS guild_tags (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(32) NOT NULL,
+        name VARCHAR(64) NOT NULL,
+        content TEXT NOT NULL,
+        embed_title VARCHAR(256),
+        embed_color VARCHAR(16) DEFAULT '#5865F2',
+        created_by VARCHAR(32),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (guild_id, name)
+      );
+      CREATE INDEX IF NOT EXISTS idx_tags_guild ON guild_tags (guild_id);
     `);
 
     app.log.info('Database connection established & all tables and security schemas initialized successfully');

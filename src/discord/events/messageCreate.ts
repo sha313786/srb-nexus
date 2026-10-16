@@ -4,15 +4,34 @@ import { isExempt } from '../../security/whitelist';
 import { processAntiSpam } from '../../security/antiSpam';
 import { processAntiScam } from '../../security/antiScam';
 import { logger } from '../../core/logger';
+import { handleModmailDM } from '../../services/modmail';
+import { getGuildTag, formatTagMessage } from '../../services/tagEngine';
 
 // In-memory XP cooldown tracker (1 minute per user)
 const xpCooldowns = new Map<string, number>();
 
 export async function handleMessageCreate(message: Message): Promise<void> {
+  // 0. Modmail inbound DM pipeline
+  if (message.channel.isDMBased() && !message.author.bot) {
+    await handleModmailDM(message.client, message);
+    return;
+  }
+
   if (message.author.bot || !message.guild) return;
 
   const guildId = message.guild.id;
   const userId = message.author.id;
+
+  // 0.5. Custom Tag & Auto-Responder Quick Trigger (e.g. !tagname)
+  if (message.content.startsWith('!') && message.content.length > 1) {
+    const tagName = message.content.slice(1).trim().split(/\s+/)[0].toLowerCase();
+    const tag = await getGuildTag(guildId, tagName);
+    if (tag) {
+      const formatted = formatTagMessage(tag);
+      await message.reply(formatted).catch(() => {});
+      return;
+    }
+  }
 
   // 1. AFK Status Checks
   try {

@@ -50,6 +50,11 @@ import { embedCommand } from './embed';
 import { streamCommand } from './stream';
 import { portfolioCommand } from './portfolio';
 import { inviteroleCommand } from './inviterole';
+import { verifySetupCommand } from './verifySetup';
+import { serverstatsCommand } from './serverstats';
+import { tempvoiceCommand } from './tempvoice';
+import { tagCommand } from './tag';
+import { modmailCommand } from './modmail';
 
 export const commandRegistry = new Map<string, any>();
 
@@ -64,8 +69,9 @@ const allCommands = [
   embedCommand,
   remindCommand,
   afkCommand,
+  tagCommand,
 
-  // Moderation
+  // Moderation & Security
   lockdownCommand,
   kickCommand,
   banCommand,
@@ -76,6 +82,7 @@ const allCommands = [
   warningsCommand,
   clearwarnCommand,
   modlogsCommand,
+  verifySetupCommand,
 
   // Leveling
   rankCommand,
@@ -100,6 +107,9 @@ const allCommands = [
   streamCommand,
   portfolioCommand,
   inviteroleCommand,
+  serverstatsCommand,
+  tempvoiceCommand,
+  modmailCommand,
 ];
 
 for (const cmd of allCommands) {

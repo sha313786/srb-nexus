@@ -16,6 +16,9 @@ import {
 import { getGuildLiveFeed, sendTestLiveNotification } from '../../services/liveNotifications';
 import { fetchStreamInfo, testStreamNotification, StreamTrackerRow } from '../../services/streamNotifications';
 import { registerSlashCommands } from '../../discord/commands';
+import { deployVerificationPanel } from '../../services/verification';
+import { setupDefaultStatCounters, updateGuildVoiceStats } from '../../services/voiceStats';
+import { listGuildTags, upsertGuildTag, deleteGuildTag, getGuildTag } from '../../services/tagEngine';
 
 interface AuthUserPayload {
   id: string;
@@ -188,8 +191,20 @@ export async function guildRoutes(fastify: FastifyInstance) {
 
     try {
       const fetchedChannels = (await guild.channels.fetch().catch(() => null)) || guild.channels.cache;
-      const channels = Array.from(fetchedChannels.values())
-        .filter((c): c is any => c !== null && (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement))
+      const allChannels = Array.from(fetchedChannels.values()).filter((c): c is any => c !== null);
+
+      const channels = allChannels
+        .filter((c) => c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement)
+        .map((c) => ({ id: c.id, name: c.name }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      const voiceChannels = allChannels
+        .filter((c) => c.type === ChannelType.GuildVoice)
+        .map((c) => ({ id: c.id, name: c.name }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      const categories = allChannels
+        .filter((c) => c.type === ChannelType.GuildCategory)
         .map((c) => ({ id: c.id, name: c.name }))
         .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -199,7 +214,7 @@ export async function guildRoutes(fastify: FastifyInstance) {
         .map((r) => ({ id: r.id, name: r.name, color: r.hexColor, position: r.position }))
         .sort((a, b) => a.name.localeCompare(b.name));
 
-      return reply.send({ channels, roles });
+      return reply.send({ channels, voiceChannels, categories, roles });
     } catch (err) {
       request.log.error({ err }, 'Failed to fetch channels and roles');
       return reply.status(500).send({ error: 'Failed to fetch server data' });
@@ -291,6 +306,25 @@ export async function guildRoutes(fastify: FastifyInstance) {
             notif_security_alerts: true,
             notif_ticket_alerts: true,
             notif_milestones: true,
+            verification_enabled: false,
+            verification_channel_id: null,
+            verification_role_id: null,
+            unverified_role_id: null,
+            verification_type: 'button',
+            verification_title: '🛡️ Server Verification Gate',
+            verification_desc: 'Welcome to our server! Click the button below to complete verification and unlock channels.',
+            stat_counters_enabled: false,
+            stat_category_id: null,
+            stat_channel_members: null,
+            stat_channel_online: null,
+            stat_channel_bots: null,
+            temp_voice_enabled: false,
+            temp_voice_master_id: null,
+            temp_voice_category_id: null,
+            temp_voice_name_template: "🔊 {username}'s Room",
+            modmail_enabled: false,
+            modmail_channel_id: null,
+            modmail_staff_role_id: null,
           },
         });
       }
@@ -605,6 +639,105 @@ export async function guildRoutes(fastify: FastifyInstance) {
                updated_at = NOW()
            WHERE guild_id = $8`,
           [antiRaid, threshold, windowSec, action, minAge, antiNuke, maxDel, id]
+        );
+      } else if (module === 'verification') {
+        const cleanChan = body.verification_channel_id ? String(body.verification_channel_id).replace(/[<#@!&>]/g, '').trim() : null;
+        const cleanRole = body.verification_role_id ? String(body.verification_role_id).replace(/[<#@!&>]/g, '').trim() : null;
+        const cleanUnverified = body.unverified_role_id ? String(body.unverified_role_id).replace(/[<#@!&>]/g, '').trim() : null;
+        const vType = body.verification_type === 'captcha' ? 'captcha' : 'button';
+        const vTitle = body.verification_title ? String(body.verification_title).trim() : '🛡️ Server Verification Gate';
+        const vDesc = body.verification_desc ? String(body.verification_desc).trim() : 'Welcome to our server! Click the button below to complete verification and unlock channels.';
+
+        await db.query(
+          `UPDATE guild_settings 
+           SET verification_enabled = $1,
+               verification_channel_id = $2,
+               verification_role_id = $3,
+               unverified_role_id = $4,
+               verification_type = $5,
+               verification_title = $6,
+               verification_desc = $7,
+               updated_at = NOW()
+           WHERE guild_id = $8`,
+          [
+            Boolean(body.verification_enabled),
+            cleanChan,
+            cleanRole,
+            cleanUnverified,
+            vType,
+            vTitle,
+            vDesc,
+            id,
+          ]
+        );
+      } else if (module === 'voicestats') {
+        const cleanCat = body.stat_category_id ? String(body.stat_category_id).replace(/[<#@!&>]/g, '').trim() : null;
+        const cleanMem = body.stat_channel_members ? String(body.stat_channel_members).replace(/[<#@!&>]/g, '').trim() : null;
+        const cleanOnl = body.stat_channel_online ? String(body.stat_channel_online).replace(/[<#@!&>]/g, '').trim() : null;
+        const cleanBot = body.stat_channel_bots ? String(body.stat_channel_bots).replace(/[<#@!&>]/g, '').trim() : null;
+
+        await db.query(
+          `UPDATE guild_settings 
+           SET stat_counters_enabled = $1,
+               stat_category_id = $2,
+               stat_channel_members = $3,
+               stat_channel_online = $4,
+               stat_channel_bots = $5,
+               updated_at = NOW()
+           WHERE guild_id = $6`,
+          [
+            Boolean(body.stat_counters_enabled),
+            cleanCat,
+            cleanMem,
+            cleanOnl,
+            cleanBot,
+            id,
+          ]
+        );
+
+        // If enabled and guild is cached, trigger a non-blocking voice stats update
+        if (Boolean(body.stat_counters_enabled)) {
+          const g = bot.guilds.cache.get(id);
+          if (g) updateGuildVoiceStats(g, true).catch(() => {});
+        }
+      } else if (module === 'tempvoice') {
+        const cleanMaster = body.temp_voice_master_id ? String(body.temp_voice_master_id).replace(/[<#@!&>]/g, '').trim() : null;
+        const cleanCat = body.temp_voice_category_id ? String(body.temp_voice_category_id).replace(/[<#@!&>]/g, '').trim() : null;
+        const template = body.temp_voice_name_template ? String(body.temp_voice_name_template).trim() : "🔊 {username}'s Room";
+
+        await db.query(
+          `UPDATE guild_settings 
+           SET temp_voice_enabled = $1,
+               temp_voice_master_id = $2,
+               temp_voice_category_id = $3,
+               temp_voice_name_template = $4,
+               updated_at = NOW()
+           WHERE guild_id = $5`,
+          [
+            Boolean(body.temp_voice_enabled),
+            cleanMaster,
+            cleanCat,
+            template,
+            id,
+          ]
+        );
+      } else if (module === 'modmail') {
+        const cleanChan = body.modmail_channel_id ? String(body.modmail_channel_id).replace(/[<#@!&>]/g, '').trim() : null;
+        const cleanRole = body.modmail_staff_role_id ? String(body.modmail_staff_role_id).replace(/[<#@!&>]/g, '').trim() : null;
+
+        await db.query(
+          `UPDATE guild_settings 
+           SET modmail_enabled = $1,
+               modmail_channel_id = $2,
+               modmail_staff_role_id = $3,
+               updated_at = NOW()
+           WHERE guild_id = $4`,
+          [
+            Boolean(body.modmail_enabled),
+            cleanChan,
+            cleanRole,
+            id,
+          ]
         );
       } else {
         return reply.status(400).send({ error: `Unknown configuration module: ${module}` });
@@ -1728,5 +1861,199 @@ export async function guildRoutes(fastify: FastifyInstance) {
       request.log.error({ err }, '[INVITE-API] Failed to delete invite role');
       return reply.status(500).send({ error: 'Database error: ' + err.message });
     }
+  });
+
+  // =========================================================================
+  // VERIFICATION GATE ENDPOINTS
+  // =========================================================================
+  fastify.post('/api/guilds/:id/verification/deploy', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) return reply.status(401).send({ error: 'Unauthorized' });
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) return reply.status(403).send({ error: 'Forbidden' });
+
+    const body = (request.body as Record<string, any>) || {};
+    const channelId = String(body.channelId || '').replace(/[<#@!&>]/g, '').trim();
+    const type = body.type === 'captcha' ? 'captcha' : 'button';
+    const title = body.title ? String(body.title).trim() : undefined;
+    const desc = body.description ? String(body.description).trim() : undefined;
+
+    if (!channelId) {
+      return reply.status(400).send({ error: 'Target verification channel is required' });
+    }
+
+    const deployRes = await deployVerificationPanel(bot, id, channelId, type, title, desc);
+    if (!deployRes.success) {
+      return reply.status(400).send({ error: deployRes.error || 'Failed to deploy verification panel' });
+    }
+
+    return reply.send({ success: true, message: 'Verification Gate deployed successfully!' });
+  });
+
+  // =========================================================================
+  // LIVE VOICE STAT COUNTERS ENDPOINTS
+  // =========================================================================
+  fastify.post('/api/guilds/:id/serverstats/setup', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) return reply.status(401).send({ error: 'Unauthorized' });
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) return reply.status(403).send({ error: 'Forbidden' });
+
+    const guild = bot.guilds.cache.get(id) || (await bot.guilds.fetch(id).catch(() => null));
+    if (!guild) return reply.status(404).send({ error: 'Bot is not in this guild' });
+
+    const setupRes = await setupDefaultStatCounters(guild);
+    if (!setupRes.success) {
+      return reply.status(400).send({ error: setupRes.error || 'Failed to setup stat counters' });
+    }
+
+    return reply.send({
+      success: true,
+      message: 'Dynamic Live Voice Stat Counters created in server sidebar!',
+      stats: setupRes,
+    });
+  });
+
+  // =========================================================================
+  // CUSTOM AUTO-RESPONDER & TAG ENGINE ENDPOINTS
+  // =========================================================================
+  fastify.get('/api/guilds/:id/tags', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) return reply.status(401).send({ error: 'Unauthorized' });
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) return reply.status(403).send({ error: 'Forbidden' });
+
+    const tags = await listGuildTags(id);
+    return reply.send({ tags });
+  });
+
+  fastify.post('/api/guilds/:id/tags', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) return reply.status(401).send({ error: 'Unauthorized' });
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) return reply.status(403).send({ error: 'Forbidden' });
+
+    const body = (request.body as Record<string, any>) || {};
+    const name = String(body.name || '').trim();
+    const content = String(body.content || '').trim();
+    const embedTitle = body.embed_title ? String(body.embed_title).trim() : undefined;
+    const embedColor = body.embed_color ? String(body.embed_color).trim() : '#5865F2';
+
+    if (!name || !content) {
+      return reply.status(400).send({ error: 'Tag trigger name and content are required' });
+    }
+
+    const res = await upsertGuildTag(id, name, content, embedTitle, embedColor, user.username);
+    if (!res.success) {
+      return reply.status(400).send({ error: res.error || 'Failed to save tag' });
+    }
+
+    return reply.send({ success: true, message: `Tag "!${name}" saved successfully!` });
+  });
+
+  fastify.delete('/api/guilds/:id/tags/:name', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id, name } = request.params as { id: string; name: string };
+
+    if (!user || !user.accessToken) return reply.status(401).send({ error: 'Unauthorized' });
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) return reply.status(403).send({ error: 'Forbidden' });
+
+    const deleted = await deleteGuildTag(id, name);
+    if (!deleted) {
+      return reply.status(404).send({ error: 'Tag not found' });
+    }
+
+    return reply.send({ success: true, message: `Tag "!${name}" deleted!` });
+  });
+
+  // =========================================================================
+  // VISUAL EMBED STUDIO DISPATCH ENDPOINT
+  // =========================================================================
+  fastify.post('/api/guilds/:id/embeds/send', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) return reply.status(401).send({ error: 'Unauthorized' });
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) return reply.status(403).send({ error: 'Forbidden' });
+
+    const body = (request.body as Record<string, any>) || {};
+    const channelId = String(body.channelId || '').replace(/[<#@!&>]/g, '').trim();
+    if (!channelId) {
+      return reply.status(400).send({ error: 'Target text channel is required' });
+    }
+
+    const guild = bot.guilds.cache.get(id) || (await bot.guilds.fetch(id).catch(() => null));
+    if (!guild) return reply.status(404).send({ error: 'Bot is not in this guild' });
+
+    const channel = (await guild.channels.fetch(channelId).catch(() => null)) as TextChannel;
+    if (!channel || !channel.isTextBased()) {
+      return reply.status(400).send({ error: 'Invalid or unreachable text channel' });
+    }
+
+    const embed = new EmbedBuilder();
+    if (body.color) {
+      try { embed.setColor(body.color); } catch { embed.setColor('#5865F2'); }
+    } else {
+      embed.setColor('#5865F2');
+    }
+
+    if (body.title && String(body.title).trim()) embed.setTitle(String(body.title).trim());
+    if (body.url && String(body.url).trim().startsWith('http')) embed.setURL(String(body.url).trim());
+    if (body.description && String(body.description).trim()) embed.setDescription(String(body.description).trim());
+
+    if (body.authorName && String(body.authorName).trim()) {
+      embed.setAuthor({
+        name: String(body.authorName).trim(),
+        iconURL: body.authorIcon && String(body.authorIcon).trim().startsWith('http') ? String(body.authorIcon).trim() : undefined,
+      });
+    }
+
+    if (body.thumbnail && String(body.thumbnail).trim().startsWith('http')) {
+      embed.setThumbnail(String(body.thumbnail).trim());
+    }
+
+    if (body.image && String(body.image).trim().startsWith('http')) {
+      embed.setImage(String(body.image).trim());
+    }
+
+    if (body.footerText && String(body.footerText).trim()) {
+      embed.setFooter({
+        text: String(body.footerText).trim(),
+        iconURL: body.footerIcon && String(body.footerIcon).trim().startsWith('http') ? String(body.footerIcon).trim() : undefined,
+      });
+    }
+
+    if (body.timestamp) {
+      embed.setTimestamp();
+    }
+
+    if (Array.isArray(body.fields)) {
+      for (const f of body.fields) {
+        if (f.name && f.value) {
+          embed.addFields({
+            name: String(f.name).slice(0, 256),
+            value: String(f.value).slice(0, 1024),
+            inline: Boolean(f.inline),
+          });
+        }
+      }
+    }
+
+    let content: string | undefined = undefined;
+    if (body.mention === 'everyone') content = '@everyone';
+    else if (body.mention === 'here') content = '@here';
+
+    await channel.send({ content, embeds: [embed] });
+    return reply.send({ success: true, message: `Embed successfully dispatched to #${channel.name}!` });
   });
 }

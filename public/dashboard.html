@@ -249,6 +249,13 @@
         <div>
           <p class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest px-3 mb-2">Security &amp; Shield</p>
           <div class="space-y-1">
+            <button onclick="switchTab('verification')" id="btn-verification" class="tab-btn w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
+              <div class="flex items-center gap-3">
+                <i class="fa-solid fa-user-shield w-5 text-center text-emerald-400"></i>
+                <span>Verification Gate</span>
+              </div>
+              <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-mono">GATE</span>
+            </button>
             <button onclick="switchTab('security')" id="btn-security" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
               <i class="fa-solid fa-shield-virus w-5 text-center text-red-400"></i>
               <span>Anti-Raid Defense</span>
@@ -268,6 +275,13 @@
               <i class="fa-solid fa-hand-wave w-5 text-center text-indigo-400"></i>
               <span>Welcome &amp; Leave</span>
             </button>
+            <button onclick="switchTab('voicestats')" id="btn-voicestats" class="tab-btn w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
+              <div class="flex items-center gap-3">
+                <i class="fa-solid fa-chart-simple w-5 text-center text-cyan-400"></i>
+                <span>Live Voice Stats</span>
+              </div>
+              <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 font-mono">LIVE</span>
+            </button>
             <button onclick="switchTab('invites')" id="btn-invites" class="tab-btn w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
               <div class="flex items-center gap-3">
                 <i class="fa-solid fa-ticket-simple w-5 text-center text-brand-cyan"></i>
@@ -279,6 +293,13 @@
               <i class="fa-solid fa-award w-5 text-center text-yellow-400"></i>
               <span>Leveling &amp; XP</span>
             </button>
+            <a id="btn-public-leaderboard" href="/leaderboard" target="_blank" class="w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white group">
+              <div class="flex items-center gap-3">
+                <i class="fa-solid fa-globe w-5 text-center text-amber-400 group-hover:text-amber-300"></i>
+                <span>Web Leaderboard</span>
+              </div>
+              <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-slate-500 group-hover:text-white"></i>
+            </a>
           </div>
         </div>
 
@@ -286,6 +307,25 @@
         <div>
           <p class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest px-3 mb-2">Engagement &amp; Utilities</p>
           <div class="space-y-1">
+            <button onclick="switchTab('tempvoice')" id="btn-tempvoice" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
+              <i class="fa-solid fa-microphone-lines w-5 text-center text-purple-400"></i>
+              <span>Temp Voice Rooms</span>
+            </button>
+            <button onclick="switchTab('tags')" id="btn-tags" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
+              <i class="fa-solid fa-tags w-5 text-center text-indigo-400"></i>
+              <span>Custom Tags</span>
+            </button>
+            <button onclick="switchTab('modmail')" id="btn-modmail" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
+              <i class="fa-solid fa-inbox text-blue-400 w-5 text-center"></i>
+              <span>Staff Modmail</span>
+            </button>
+            <button onclick="switchTab('embedstudio')" id="btn-embedstudio" class="tab-btn w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
+              <div class="flex items-center gap-3">
+                <i class="fa-solid fa-palette w-5 text-center text-pink-400"></i>
+                <span>Embed Studio</span>
+              </div>
+              <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-pink-500/15 text-pink-400 font-mono">VISUAL</span>
+            </button>
             <button onclick="switchTab('tickets')" id="btn-tickets" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
               <i class="fa-solid fa-ticket w-5 text-center text-emerald-400"></i>
               <span>Support &amp; Quotes</span>
@@ -2147,6 +2187,618 @@
         </div>
       </div>
 
+      <!-- ========================================================================= -->
+      <!-- PANEL: VERIFICATION GATE & CAPTCHA -->
+      <!-- ========================================================================= -->
+      <div id="panel-verification" class="module-panel space-y-6 hidden">
+        <!-- Panel Header -->
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-dark-700/80">
+          <div>
+            <div class="flex items-center gap-3 mb-1">
+              <div class="w-10 h-10 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-lg">
+                <i class="fa-solid fa-user-shield"></i>
+              </div>
+              <div>
+                <h2 class="font-heading font-black text-xl text-white">Verification Gate &amp; Anti-Bot Shield</h2>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-mono">GATEWAY</span>
+              </div>
+            </div>
+            <p class="text-xs text-slate-400">Lock your server from automated bots and raid accounts by requiring a button click or math captcha.</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <button onclick="deployVerificationPanel()" id="btn-deploy-verification" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition flex items-center gap-2 shadow-lg shadow-emerald-600/25">
+              <i class="fa-solid fa-rocket"></i>
+              <span>Deploy Gate Panel</span>
+            </button>
+            <button onclick="saveVerificationSettings()" id="btn-save-verification" class="px-4 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-xs transition flex items-center gap-2 shadow-lg shadow-brand/25">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span>Save Settings</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <!-- Left Column: Settings Configuration -->
+          <div class="lg:col-span-7 space-y-6">
+            <div class="glass-panel p-6 rounded-3xl border border-dark-700 space-y-5">
+              <div class="flex items-center justify-between pb-4 border-b border-dark-800">
+                <div>
+                  <h3 class="font-heading font-bold text-sm text-white">Enable Verification Gate</h3>
+                  <p class="text-[11px] text-slate-400">Quarantine new members until they complete verification.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="input-verification-enabled" class="sr-only peer">
+                  <div class="w-11 h-6 bg-dark-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+              </div>
+
+              <!-- Channel & Roles -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1.5">Verification Channel</label>
+                  <select id="select-verification-channel" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                    <option value="">Select channel...</option>
+                  </select>
+                  <span class="text-[10px] text-slate-500 mt-1 block">Where the verification card is deployed</span>
+                </div>
+
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1.5">Verified Role (Granted)</label>
+                  <select id="select-verification-role" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                    <option value="">Select role to grant...</option>
+                  </select>
+                  <span class="text-[10px] text-slate-500 mt-1 block">Given when user passes verification</span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1.5">Unverified Role (Optional Quarantine)</label>
+                  <select id="select-unverified-role" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                    <option value="">None (No quarantine role)</option>
+                  </select>
+                  <span class="text-[10px] text-slate-500 mt-1 block">Given on join, removed on verify</span>
+                </div>
+
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1.5">Verification Method</label>
+                  <select id="select-verification-type" onchange="renderVerificationPreview()" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                    <option value="button">🔘 Instant One-Click Button</option>
+                    <option value="captcha">🧩 Visual Math Captcha (Anti-Bot)</option>
+                  </select>
+                  <span class="text-[10px] text-slate-500 mt-1 block">Math captcha stops automated scripts</span>
+                </div>
+              </div>
+
+              <!-- Embed Content Customization -->
+              <div class="pt-2 border-t border-dark-800 space-y-3">
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Gate Title</label>
+                  <input type="text" id="input-verification-title" oninput="renderVerificationPreview()" value="🛡️ Server Verification Gate" placeholder="e.g. 🛡️ Server Verification Gate" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                </div>
+
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Gate Message / Instructions</label>
+                  <textarea id="input-verification-desc" oninput="renderVerificationPreview()" rows="3" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand" placeholder="Welcome! To access channels, click the button below to complete verification.">Welcome to our community! To ensure server security and block automated spam bots, all members must verify before accessing channels. Click the button below to unlock access.</textarea>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Right Column: Live Discord Gate Preview -->
+          <div class="lg:col-span-5 space-y-4">
+            <h3 class="font-heading font-bold text-xs uppercase tracking-wider text-slate-400">Live Discord Client Preview</h3>
+            
+            <div class="rounded-2xl bg-discord-bg p-4 border border-dark-700 shadow-xl space-y-3 font-sans">
+              <!-- Bot Header -->
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-full bg-brand flex items-center justify-center text-white text-xs font-bold">SN</div>
+                <div class="flex items-center gap-1.5">
+                  <span class="font-bold text-white text-xs">SRB NEXUS</span>
+                  <span class="px-1.5 py-0.2 rounded bg-brand text-white text-[9px] font-bold">BOT</span>
+                  <span class="text-[10px] text-discord-muted ml-1">Today at 12:00 PM</span>
+                </div>
+              </div>
+
+              <!-- Embed Box -->
+              <div class="rounded-lg bg-discord-embed border-l-4 border-brand p-3.5 space-y-2">
+                <div class="font-bold text-white text-sm" id="preview-verify-title">🛡️ Server Verification Gate</div>
+                <div class="text-xs text-discord-text leading-relaxed whitespace-pre-wrap" id="preview-verify-desc">Welcome to our community! Click the button below to complete verification.</div>
+
+                <div class="grid grid-cols-2 gap-2 pt-2 border-t border-white/5 text-[11px]">
+                  <div>
+                    <span class="text-discord-muted block text-[10px]">🔒 Security Status</span>
+                    <span class="font-bold text-white">Active Shield</span>
+                  </div>
+                  <div>
+                    <span class="text-discord-muted block text-[10px]">⚡ Method</span>
+                    <span id="preview-verify-method" class="font-bold text-white">Instant One-Click Gate</span>
+                  </div>
+                </div>
+
+                <div class="text-[10px] text-discord-muted pt-1 flex items-center gap-1">
+                  <i class="fa-solid fa-shield text-[9px]"></i>
+                  <span>Powered by SRB NEXUS</span>
+                </div>
+              </div>
+
+              <!-- Button Row -->
+              <div class="pt-1">
+                <button class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-bold text-xs flex items-center gap-2 cursor-default shadow">
+                  <span>🛡️</span>
+                  <span>Complete Verification</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- PANEL: LIVE VOICE STAT COUNTERS -->
+      <!-- ========================================================================= -->
+      <div id="panel-voicestats" class="module-panel space-y-6 hidden">
+        <!-- Panel Header -->
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-dark-700/80">
+          <div>
+            <div class="flex items-center gap-3 mb-1">
+              <div class="w-10 h-10 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center text-lg">
+                <i class="fa-solid fa-chart-simple"></i>
+              </div>
+              <div>
+                <h2 class="font-heading font-black text-xl text-white">Live Voice Stat Counters</h2>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 font-mono">AUTOMATED</span>
+              </div>
+            </div>
+            <p class="text-xs text-slate-400">Display locked sidebar voice channels that automatically update with live member counts, online users, and bots.</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <button onclick="autoSetupVoiceCounters()" id="btn-setup-stat-counters" class="px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs transition flex items-center gap-2 shadow-lg shadow-cyan-600/25">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+              <span>1-Click Auto Setup</span>
+            </button>
+            <button onclick="saveVoiceStatsSettings()" id="btn-save-voice-stats" class="px-4 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-xs transition flex items-center gap-2 shadow-lg shadow-brand/25">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span>Save Counters</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 1-Click Banner Callout -->
+        <div class="glass-panel p-5 rounded-2xl border border-cyan-500/30 bg-cyan-500/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div class="flex items-center gap-3 text-center sm:text-left">
+            <div class="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-base shrink-0">
+              <i class="fa-solid fa-bolt"></i>
+            </div>
+            <div>
+              <h4 class="font-bold text-white text-xs sm:text-sm">Instant Server Sidebar Integration</h4>
+              <p class="text-[11px] text-slate-400">Clicking "1-Click Auto Setup" will create a `📊 SERVER STATS` category and locked voice channels for Members, Online, and Bots with locked join permissions.</p>
+            </div>
+          </div>
+          <button onclick="autoSetupVoiceCounters()" class="px-3.5 py-2 rounded-xl bg-cyan-500 text-dark-950 font-black text-xs hover:bg-cyan-400 transition shrink-0">
+            Generate Now
+          </button>
+        </div>
+
+        <div class="glass-panel p-6 rounded-3xl border border-dark-700 space-y-6">
+          <div class="flex items-center justify-between pb-4 border-b border-dark-800">
+            <div>
+              <h3 class="font-heading font-bold text-sm text-white">Enable Stat Counters Synchronization</h3>
+              <p class="text-[11px] text-slate-400">Updates channels safely every 6 minutes to stay under Discord rate limits.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="input-stats-enabled" class="sr-only peer">
+              <div class="w-11 h-6 bg-dark-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500"></div>
+            </label>
+          </div>
+
+          <!-- Channel Selection Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1.5">Stats Category</label>
+              <select id="select-stat-category" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                <option value="">Select category...</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1.5">👥 Total Members Channel</label>
+              <select id="select-stat-channel-members" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                <option value="">Select voice channel...</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1.5">🟢 Online Members Channel</label>
+              <select id="select-stat-channel-online" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                <option value="">Select voice channel...</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1.5">🤖 Bots Channel</label>
+              <select id="select-stat-channel-bots" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                <option value="">Select voice channel...</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- PANEL: TEMP VOICE ROOMS (JOIN-TO-CREATE) -->
+      <!-- ========================================================================= -->
+      <div id="panel-tempvoice" class="module-panel space-y-6 hidden">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-dark-700/80">
+          <div>
+            <div class="flex items-center gap-3 mb-1">
+              <div class="w-10 h-10 rounded-2xl bg-purple-500/15 border border-purple-500/30 text-purple-400 flex items-center justify-center text-lg">
+                <i class="fa-solid fa-microphone-lines"></i>
+              </div>
+              <div>
+                <h2 class="font-heading font-black text-xl text-white">Join-to-Create Temporary Voice Rooms</h2>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30 font-mono">DYNAMIC VC</span>
+              </div>
+            </div>
+            <p class="text-xs text-slate-400">Members join a master lobby channel, and the bot immediately creates a private room for them and deletes it when empty.</p>
+          </div>
+          <button onclick="saveTempVoiceSettings()" id="btn-save-temp-voice" class="px-4 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-xs transition flex items-center gap-2 shadow-lg shadow-brand/25">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <span>Save Settings</span>
+          </button>
+        </div>
+
+        <div class="glass-panel p-6 rounded-3xl border border-dark-700 space-y-6">
+          <div class="flex items-center justify-between pb-4 border-b border-dark-800">
+            <div>
+              <h3 class="font-heading font-bold text-sm text-white">Enable Temporary Voice Rooms</h3>
+              <p class="text-[11px] text-slate-400">Spawn on connect, automatically clean up on disconnect.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="input-tempvoice-enabled" class="sr-only peer">
+              <div class="w-11 h-6 bg-dark-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500"></div>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1.5">Master Voice Lobby Channel</label>
+              <select id="select-tempvoice-master" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                <option value="">Select voice channel (e.g. ➕ Join to Create)...</option>
+              </select>
+              <span class="text-[10px] text-slate-500 mt-1 block">When a member clicks this voice channel, their private room spawns.</span>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1.5">Parent Category (Optional)</label>
+              <select id="select-tempvoice-category" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                <option value="">None (Same category as master)</option>
+              </select>
+              <span class="text-[10px] text-slate-500 mt-1 block">Where the spawned channels will be grouped.</span>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1.5">Dynamic Room Name Template</label>
+            <input type="text" id="input-tempvoice-template" value="🔊 {username}'s Room" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-brand">
+            <div class="flex items-center gap-2 mt-2 text-[10px] text-slate-400">
+              <span>Available Tokens:</span>
+              <code class="px-1.5 py-0.5 rounded bg-dark-800 text-purple-400 font-mono">{username}</code>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- PANEL: CUSTOM AUTO-RESPONDERS & TAG ENGINE -->
+      <!-- ========================================================================= -->
+      <div id="panel-tags" class="module-panel space-y-6 hidden">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-dark-700/80">
+          <div>
+            <div class="flex items-center gap-3 mb-1">
+              <div class="w-10 h-10 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center text-lg">
+                <i class="fa-solid fa-tags"></i>
+              </div>
+              <div>
+                <h2 class="font-heading font-black text-xl text-white">Custom Auto-Responders &amp; Tags</h2>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 font-mono">/TAG &amp; !TAG</span>
+              </div>
+            </div>
+            <p class="text-xs text-slate-400">Create instant tag responses for FAQ answers, rules, or helpful links.</p>
+          </div>
+          <button onclick="openCreateTagModal()" class="px-4 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-xs transition flex items-center gap-2 shadow-lg shadow-brand/25">
+            <i class="fa-solid fa-plus"></i>
+            <span>Create New Tag</span>
+          </button>
+        </div>
+
+        <!-- Tags Table Container -->
+        <div class="glass-panel rounded-3xl border border-dark-700 overflow-hidden">
+          <div class="p-4 border-b border-dark-800 flex items-center justify-between gap-4">
+            <div class="relative flex-1 max-w-xs">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+              <input type="text" id="input-search-tags" oninput="renderTagsList()" placeholder="Filter tags..." class="w-full bg-dark-900 border border-dark-700 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-brand">
+            </div>
+            <span id="badge-tags-count" class="text-xs font-mono text-slate-400">0 tags</span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="border-b border-dark-800 bg-dark-900/60 text-xs font-mono text-slate-400 uppercase tracking-wider">
+                  <th class="py-3 px-4">Trigger</th>
+                  <th class="py-3 px-4">Content Preview</th>
+                  <th class="py-3 px-4">Format</th>
+                  <th class="py-3 px-4">Created By</th>
+                  <th class="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="table-tags-body" class="divide-y divide-dark-800 text-xs">
+                <tr>
+                  <td colspan="5" class="py-8 text-center text-slate-500">Loading tags...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- PANEL: STAFF MODMAIL / HELPDESK -->
+      <!-- ========================================================================= -->
+      <div id="panel-modmail" class="module-panel space-y-6 hidden">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-dark-700/80">
+          <div>
+            <div class="flex items-center gap-3 mb-1">
+              <div class="w-10 h-10 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center text-lg">
+                <i class="fa-solid fa-inbox"></i>
+              </div>
+              <div>
+                <h2 class="font-heading font-black text-xl text-white">Staff Modmail &amp; Direct Member Helpdesk</h2>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30 font-mono">DM PROXY</span>
+              </div>
+            </div>
+            <p class="text-xs text-slate-400">Receive private direct messages from members into a staff channel, and reply back to their DMs anonymously.</p>
+          </div>
+          <button onclick="saveModmailSettings()" id="btn-save-modmail" class="px-4 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-xs transition flex items-center gap-2 shadow-lg shadow-brand/25">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <span>Save Settings</span>
+          </button>
+        </div>
+
+        <div class="glass-panel p-6 rounded-3xl border border-dark-700 space-y-6">
+          <div class="flex items-center justify-between pb-4 border-b border-dark-800">
+            <div>
+              <h3 class="font-heading font-bold text-sm text-white">Enable Modmail Inbound Proxy</h3>
+              <p class="text-[11px] text-slate-400">Forwards user DMs sent to SRB NEXUS directly into your designated staff channel.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="input-modmail-enabled" class="sr-only peer">
+              <div class="w-11 h-6 bg-dark-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1.5">Staff Inbound Channel</label>
+              <select id="select-modmail-channel" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                <option value="">Select text channel (e.g. #modmail-inbox)...</option>
+              </select>
+              <span class="text-[10px] text-slate-500 mt-1 block">Staff channel where inbound DMs arrive.</span>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1.5">Authorized Staff Role (Optional)</label>
+              <select id="select-modmail-role" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                <option value="">Everyone with Manage Messages permission</option>
+              </select>
+              <span class="text-[10px] text-slate-500 mt-1 block">Role allowed to execute <code>/modmail reply</code>.</span>
+            </div>
+          </div>
+
+          <!-- Modmail Workflow Guide -->
+          <div class="p-4 rounded-2xl bg-dark-900/60 border border-dark-800 space-y-2">
+            <h4 class="font-bold text-xs text-slate-300 flex items-center gap-1.5">
+              <i class="fa-solid fa-circle-info text-blue-400"></i> How Modmail Works:
+            </h4>
+            <ol class="list-decimal list-inside text-xs text-slate-400 space-y-1">
+              <li>A member sends a Direct Message to the <strong>SRB NEXUS</strong> bot.</li>
+              <li>The bot posts an inbound card with user details and message to your configured staff channel.</li>
+              <li>A staff member replies in Discord using <code class="px-1.5 py-0.5 rounded bg-dark-850 text-brand font-mono">/modmail reply user:&lt;id&gt; message:&lt;text&gt;</code>.</li>
+              <li>The bot sends the response straight into the user's DM anonymously on behalf of server staff!</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- PANEL: VISUAL EMBED STUDIO -->
+      <!-- ========================================================================= -->
+      <div id="panel-embedstudio" class="module-panel space-y-6 hidden">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-dark-700/80">
+          <div>
+            <div class="flex items-center gap-3 mb-1">
+              <div class="w-10 h-10 rounded-2xl bg-pink-500/15 border border-pink-500/30 text-pink-400 flex items-center justify-center text-lg">
+                <i class="fa-solid fa-palette"></i>
+              </div>
+              <div>
+                <h2 class="font-heading font-black text-xl text-white">Visual Embed Studio &amp; Dispatcher</h2>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-500/15 text-pink-400 border border-pink-500/30 font-mono">WYSIWYG</span>
+              </div>
+            </div>
+            <p class="text-xs text-slate-400">Design rich Discord embeds with author avatars, thumbnail, banner image, custom fields, and send directly to any channel.</p>
+          </div>
+          <button onclick="sendEmbedStudio()" id="btn-send-embed-studio" class="px-5 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-xs transition flex items-center gap-2 shadow-lg shadow-brand/30">
+            <i class="fa-solid fa-paper-plane"></i>
+            <span>Send Embed to Discord</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <!-- Left Column: Embed Controls -->
+          <div class="lg:col-span-7 space-y-5">
+            <div class="glass-panel p-6 rounded-3xl border border-dark-700 space-y-4">
+              
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Target Channel</label>
+                  <select id="embed-target-channel" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                    <option value="">Select target channel...</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Ping Mention</label>
+                  <select id="embed-mention-type" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                    <option value="none">None</option>
+                    <option value="everyone">@everyone</option>
+                    <option value="here">@here</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Color Picker & Swatches -->
+              <div>
+                <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1.5">Embed Accent Color</label>
+                <div class="flex items-center gap-2.5">
+                  <input type="color" id="embed-color" oninput="updateEmbedPreview()" value="#5865F2" class="w-9 h-9 rounded-xl bg-dark-900 border border-dark-700 cursor-pointer p-0.5">
+                  <div class="flex items-center gap-1.5">
+                    <button type="button" onclick="setEmbedColor('#5865F2')" class="w-6 h-6 rounded-lg bg-[#5865F2] hover:scale-110 transition"></button>
+                    <button type="button" onclick="setEmbedColor('#10B981')" class="w-6 h-6 rounded-lg bg-[#10B981] hover:scale-110 transition"></button>
+                    <button type="button" onclick="setEmbedColor('#EF4444')" class="w-6 h-6 rounded-lg bg-[#EF4444] hover:scale-110 transition"></button>
+                    <button type="button" onclick="setEmbedColor('#F59E0B')" class="w-6 h-6 rounded-lg bg-[#F59E0B] hover:scale-110 transition"></button>
+                    <button type="button" onclick="setEmbedColor('#8B5CF6')" class="w-6 h-6 rounded-lg bg-[#8B5CF6] hover:scale-110 transition"></button>
+                    <button type="button" onclick="setEmbedColor('#EC4899')" class="w-6 h-6 rounded-lg bg-[#EC4899] hover:scale-110 transition"></button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Author -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-dark-800">
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Author Name (Optional)</label>
+                  <input type="text" id="embed-author-name" oninput="updateEmbedPreview()" placeholder="e.g. Server Announcements" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Author Icon URL (Optional)</label>
+                  <input type="text" id="embed-author-icon" oninput="updateEmbedPreview()" placeholder="https://..." class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                </div>
+              </div>
+
+              <!-- Title & URL -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Embed Title</label>
+                  <input type="text" id="embed-title" oninput="updateEmbedPreview()" value="Community Announcement" placeholder="Title..." class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Title URL (Optional)</label>
+                  <input type="text" id="embed-url" oninput="updateEmbedPreview()" placeholder="https://..." class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                </div>
+              </div>
+
+              <!-- Description -->
+              <div>
+                <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Description (Markdown Supported)</label>
+                <textarea id="embed-description" oninput="updateEmbedPreview()" rows="4" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand" placeholder="Write your message here...">We are excited to introduce our new community features! Check out the channels below to get involved.</textarea>
+              </div>
+
+              <!-- Images: Thumbnail & Large Banner -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Thumbnail URL (Corner)</label>
+                  <input type="text" id="embed-thumbnail" oninput="updateEmbedPreview()" placeholder="https://..." class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Large Banner Image URL</label>
+                  <input type="text" id="embed-image" oninput="updateEmbedPreview()" placeholder="https://..." class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                </div>
+              </div>
+
+              <!-- Footer & Timestamp -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-dark-800">
+                <div class="sm:col-span-2">
+                  <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Footer Text</label>
+                  <input type="text" id="embed-footer-text" oninput="updateEmbedPreview()" value="SRB NEXUS • Official Notice" placeholder="Footer text..." class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Timestamp</label>
+                  <label class="inline-flex items-center gap-2 mt-2 cursor-pointer">
+                    <input type="checkbox" id="embed-timestamp" onchange="updateEmbedPreview()" checked class="rounded bg-dark-900 border-dark-700 text-brand">
+                    <span class="text-xs text-slate-300">Show Current Time</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Dynamic Fields -->
+              <div class="pt-3 border-t border-dark-800 space-y-3">
+                <div class="flex items-center justify-between">
+                  <label class="block text-[11px] font-bold uppercase text-slate-300">Custom Fields</label>
+                  <button type="button" onclick="addEmbedField()" class="text-xs font-bold text-brand hover:text-indigo-300 flex items-center gap-1">
+                    <i class="fa-solid fa-plus text-[10px]"></i> Add Field
+                  </button>
+                </div>
+                <div id="embed-fields-container" class="space-y-2">
+                  <!-- Dynamic fields inserted here -->
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Right Column: Live Discord Embed Preview -->
+          <div class="lg:col-span-5 space-y-4">
+            <h3 class="font-heading font-bold text-xs uppercase tracking-wider text-slate-400">Live Discord Client Preview</h3>
+            
+            <div class="rounded-2xl bg-discord-bg p-4 border border-dark-700 shadow-xl space-y-3 font-sans">
+              <!-- Bot Header -->
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-full bg-brand flex items-center justify-center text-white text-xs font-bold">SN</div>
+                <div class="flex items-center gap-1.5">
+                  <span class="font-bold text-white text-xs">SRB NEXUS</span>
+                  <span class="px-1.5 py-0.2 rounded bg-brand text-white text-[9px] font-bold">BOT</span>
+                  <span class="text-[10px] text-discord-muted ml-1">Today at 12:00 PM</span>
+                </div>
+              </div>
+
+              <!-- Embed Card -->
+              <div id="preview-embed-card" class="rounded-lg bg-discord-embed border-l-4 border-brand p-4 space-y-2.5 relative">
+                <!-- Author Row -->
+                <div id="preview-embed-author" class="flex items-center gap-2 hidden">
+                  <img id="preview-embed-author-icon" src="" class="w-5 h-5 rounded-full object-cover hidden">
+                  <span id="preview-embed-author-name" class="font-bold text-white text-xs"></span>
+                </div>
+
+                <!-- Title & Thumbnail -->
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex-1">
+                    <h4 id="preview-embed-title" class="font-bold text-white text-sm">Community Announcement</h4>
+                    <p id="preview-embed-desc" class="text-xs text-discord-text whitespace-pre-wrap leading-relaxed mt-1">We are excited to introduce our new community features! Check out the channels below to get involved.</p>
+                  </div>
+                  <img id="preview-embed-thumb" src="" class="w-16 h-16 rounded-lg object-cover hidden shrink-0">
+                </div>
+
+                <!-- Fields Grid -->
+                <div id="preview-embed-fields" class="grid grid-cols-2 gap-2 pt-1 hidden">
+                  <!-- Dynamically populated -->
+                </div>
+
+                <!-- Large Banner Image -->
+                <img id="preview-embed-banner" src="" class="w-full rounded-lg max-h-48 object-cover hidden pt-1">
+
+                <!-- Footer & Timestamp -->
+                <div id="preview-embed-footer-row" class="flex items-center gap-1.5 text-[10px] text-discord-muted pt-1">
+                  <span id="preview-embed-footer-text">SRB NEXUS • Official Notice</span>
+                  <span id="preview-embed-footer-bullet" class="text-slate-600">•</span>
+                  <span id="preview-embed-footer-time">Today at 12:00 PM</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
     </section>
 
   </main>
@@ -2157,7 +2809,11 @@
 
     let currentGuild = null;
     let serverChannels = [];
+    let serverVoiceChannels = [];
+    let serverCategories = [];
     let serverRoles = [];
+    let currentTagsList = [];
+    let embedFields = [];
 
     // Toast Notification System
     function showToast(message, type = 'success') {
@@ -2293,6 +2949,18 @@
         loadStreamTrackers();
       } else if (tabName === 'invites') {
         loadInviteTracker();
+      } else if (tabName === 'verification') {
+        loadVerificationSettings();
+      } else if (tabName === 'voicestats') {
+        loadVoiceStatsSettings();
+      } else if (tabName === 'tempvoice') {
+        loadTempVoiceSettings();
+      } else if (tabName === 'tags') {
+        loadTags();
+      } else if (tabName === 'modmail') {
+        loadModmailSettings();
+      } else if (tabName === 'embedstudio') {
+        initEmbedStudio();
       }
     }
 
@@ -2338,6 +3006,8 @@
         if (dataRes.ok) {
           const guildData = await dataRes.json();
           serverChannels = guildData.channels || [];
+          serverVoiceChannels = guildData.voiceChannels || [];
+          serverCategories = guildData.categories || [];
           serverRoles = guildData.roles || [];
 
           document.getElementById('stat-channels').innerText = serverChannels.length;
@@ -2479,6 +3149,74 @@
         });
         if (currentVal) select.value = currentVal;
       });
+
+      // Populate text channel selects for new modules
+      const textChannelSelectIds = [
+        'select-verification-channel',
+        'select-modmail-channel',
+        'embed-target-channel'
+      ];
+      textChannelSelectIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const currentVal = el.value;
+        el.innerHTML = '<option value="">Select text channel...</option>' +
+          serverChannels.map(c => `<option value="${c.id}"># ${c.name}</option>`).join('');
+        if (currentVal) el.value = currentVal;
+      });
+
+      // Populate voice channel selects
+      const voiceChannelSelectIds = [
+        'select-stat-channel-members',
+        'select-stat-channel-online',
+        'select-stat-channel-bots',
+        'select-tempvoice-master'
+      ];
+      voiceChannelSelectIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const currentVal = el.value;
+        el.innerHTML = '<option value="">Select voice channel...</option>' +
+          serverVoiceChannels.map(c => `<option value="${c.id}">🔊 ${c.name}</option>`).join('');
+        if (currentVal) el.value = currentVal;
+      });
+
+      // Populate category selects
+      const categorySelectIds = [
+        'select-stat-category',
+        'select-tempvoice-category'
+      ];
+      categorySelectIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const currentVal = el.value;
+        const defaultText = id === 'select-tempvoice-category' ? 'None (Same category as master)' : 'Select category...';
+        el.innerHTML = `<option value="">${defaultText}</option>` +
+          serverCategories.map(c => `<option value="${c.id}">📁 ${c.name}</option>`).join('');
+        if (currentVal) el.value = currentVal;
+      });
+
+      // Populate role selects
+      const roleSelectIds = [
+        'select-verification-role',
+        'select-unverified-role',
+        'select-modmail-role'
+      ];
+      roleSelectIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const currentVal = el.value;
+        const defaultText = id === 'select-unverified-role' ? 'None (No quarantine role)' : (id === 'select-modmail-role' ? 'Everyone with Manage Messages permission' : 'Select role to grant...');
+        el.innerHTML = `<option value="">${defaultText}</option>` +
+          serverRoles.map(r => `<option value="${r.id}">@ ${r.name}</option>`).join('');
+        if (currentVal) el.value = currentVal;
+      });
+
+      // Update Public Leaderboard link
+      const lbBtn = document.getElementById('btn-public-leaderboard');
+      if (lbBtn && guildId) {
+        lbBtn.href = `/leaderboard?guild=${guildId}`;
+      }
     }
 
     let currentAllowedDomains = ['discord.gg', 'youtube.com', 'twitch.tv', 'github.com', 'twitter.com', 'x.com'];
@@ -5068,6 +5806,742 @@
         }
       } catch (e) {
         showToast('Connection error deleting mapping', 'error');
+      }
+    }
+
+    // =========================================================================
+    // VERIFICATION GATE CLIENT LOGIC
+    // =========================================================================
+    async function loadVerificationSettings() {
+      if (!guildId) return;
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/settings`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const s = data.settings || {};
+
+        const enabledEl = document.getElementById('input-verification-enabled');
+        if (enabledEl) enabledEl.checked = Boolean(s.verification_enabled);
+
+        const chanEl = document.getElementById('select-verification-channel');
+        if (chanEl && s.verification_channel_id) chanEl.value = s.verification_channel_id;
+
+        const roleEl = document.getElementById('select-verification-role');
+        if (roleEl && s.verification_role_id) roleEl.value = s.verification_role_id;
+
+        const unverifiedEl = document.getElementById('select-unverified-role');
+        if (unverifiedEl && s.unverified_role_id) unverifiedEl.value = s.unverified_role_id;
+
+        const typeEl = document.getElementById('select-verification-type');
+        if (typeEl && s.verification_type) typeEl.value = s.verification_type;
+
+        const titleEl = document.getElementById('input-verification-title');
+        if (titleEl && s.verification_title) titleEl.value = s.verification_title;
+
+        const descEl = document.getElementById('input-verification-desc');
+        if (descEl && s.verification_desc) descEl.value = s.verification_desc;
+
+        renderVerificationPreview();
+      } catch (err) {
+        console.error('Failed to load verification settings', err);
+      }
+    }
+
+    function renderVerificationPreview() {
+      const titleEl = document.getElementById('input-verification-title');
+      const descEl = document.getElementById('input-verification-desc');
+      const typeEl = document.getElementById('select-verification-type');
+
+      const previewTitle = document.getElementById('preview-verify-title');
+      const previewDesc = document.getElementById('preview-verify-desc');
+      const previewMethod = document.getElementById('preview-verify-method');
+
+      if (previewTitle && titleEl) previewTitle.innerText = titleEl.value || '🛡️ Server Verification Gate';
+      if (previewDesc && descEl) previewDesc.innerText = descEl.value || 'Welcome to our server! Click the button below to verify.';
+      if (previewMethod && typeEl) {
+        previewMethod.innerText = typeEl.value === 'captcha' ? 'Visual Math Captcha' : 'Instant One-Click Gate';
+      }
+    }
+
+    async function saveVerificationSettings() {
+      if (!guildId) return;
+      const btn = document.getElementById('btn-save-verification');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+      try {
+        const payload = {
+          verification_enabled: document.getElementById('input-verification-enabled')?.checked,
+          verification_channel_id: document.getElementById('select-verification-channel')?.value,
+          verification_role_id: document.getElementById('select-verification-role')?.value,
+          unverified_role_id: document.getElementById('select-unverified-role')?.value,
+          verification_type: document.getElementById('select-verification-type')?.value,
+          verification_title: document.getElementById('input-verification-title')?.value,
+          verification_desc: document.getElementById('input-verification-desc')?.value,
+        };
+
+        const res = await fetch(`/api/guilds/${guildId}/modules/verification`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          showToast(data.message || 'Verification settings saved!', 'success');
+        } else {
+          showToast(data.error || 'Failed to save settings', 'error');
+        }
+      } catch (err) {
+        showToast('Connection error saving verification settings', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> <span>Save Settings</span>';
+      }
+    }
+
+    async function deployVerificationPanel() {
+      if (!guildId) return;
+      const channelId = document.getElementById('select-verification-channel')?.value;
+      if (!channelId) {
+        showToast('Please select a Verification Channel first.', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('btn-deploy-verification');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deploying...';
+
+      try {
+        const payload = {
+          channelId,
+          type: document.getElementById('select-verification-type')?.value || 'button',
+          title: document.getElementById('input-verification-title')?.value,
+          description: document.getElementById('input-verification-desc')?.value,
+        };
+
+        const res = await fetch(`/api/guilds/${guildId}/verification/deploy`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          showToast(data.message || 'Verification Gate successfully deployed to Discord!', 'success');
+        } else {
+          showToast(data.error || 'Failed to deploy verification panel', 'error');
+        }
+      } catch (err) {
+        showToast('Connection error deploying verification gate', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-rocket"></i> <span>Deploy Gate Panel</span>';
+      }
+    }
+
+    // =========================================================================
+    // LIVE VOICE STAT COUNTERS CLIENT LOGIC
+    // =========================================================================
+    async function loadVoiceStatsSettings() {
+      if (!guildId) return;
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/settings`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const s = data.settings || {};
+
+        const enabledEl = document.getElementById('input-stats-enabled');
+        if (enabledEl) enabledEl.checked = Boolean(s.stat_counters_enabled);
+
+        const catEl = document.getElementById('select-stat-category');
+        if (catEl && s.stat_category_id) catEl.value = s.stat_category_id;
+
+        const memEl = document.getElementById('select-stat-channel-members');
+        if (memEl && s.stat_channel_members) memEl.value = s.stat_channel_members;
+
+        const onlEl = document.getElementById('select-stat-channel-online');
+        if (onlEl && s.stat_channel_online) onlEl.value = s.stat_channel_online;
+
+        const botEl = document.getElementById('select-stat-channel-bots');
+        if (botEl && s.stat_channel_bots) botEl.value = s.stat_channel_bots;
+      } catch (err) {
+        console.error('Failed to load voice stats settings', err);
+      }
+    }
+
+    async function saveVoiceStatsSettings() {
+      if (!guildId) return;
+      const btn = document.getElementById('btn-save-voice-stats');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+      try {
+        const payload = {
+          stat_counters_enabled: document.getElementById('input-stats-enabled')?.checked,
+          stat_category_id: document.getElementById('select-stat-category')?.value,
+          stat_channel_members: document.getElementById('select-stat-channel-members')?.value,
+          stat_channel_online: document.getElementById('select-stat-channel-online')?.value,
+          stat_channel_bots: document.getElementById('select-stat-channel-bots')?.value,
+        };
+
+        const res = await fetch(`/api/guilds/${guildId}/modules/voicestats`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          showToast(data.message || 'Voice stat counters settings saved!', 'success');
+        } else {
+          showToast(data.error || 'Failed to save settings', 'error');
+        }
+      } catch (err) {
+        showToast('Connection error saving stat counter settings', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> <span>Save Counters</span>';
+      }
+    }
+
+    async function autoSetupVoiceCounters() {
+      if (!guildId) return;
+      const btn = document.getElementById('btn-setup-stat-counters');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating Channels...';
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/serverstats/setup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          showToast(data.message || 'Live Voice Stat channels generated in Discord sidebar!', 'success');
+          // Reload channels and settings
+          await loadServerData(guildId);
+          await loadVoiceStatsSettings();
+        } else {
+          showToast(data.error || 'Failed to auto-generate stat counters', 'error');
+        }
+      } catch (err) {
+        showToast('Connection error setting up voice counters', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> <span>1-Click Auto Setup</span>';
+      }
+    }
+
+    // =========================================================================
+    // TEMP VOICE ROOMS CLIENT LOGIC
+    // =========================================================================
+    async function loadTempVoiceSettings() {
+      if (!guildId) return;
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/settings`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const s = data.settings || {};
+
+        const enabledEl = document.getElementById('input-tempvoice-enabled');
+        if (enabledEl) enabledEl.checked = Boolean(s.temp_voice_enabled);
+
+        const masterEl = document.getElementById('select-tempvoice-master');
+        if (masterEl && s.temp_voice_master_id) masterEl.value = s.temp_voice_master_id;
+
+        const catEl = document.getElementById('select-tempvoice-category');
+        if (catEl && s.temp_voice_category_id) catEl.value = s.temp_voice_category_id;
+
+        const tplEl = document.getElementById('input-tempvoice-template');
+        if (tplEl && s.temp_voice_name_template) tplEl.value = s.temp_voice_name_template;
+      } catch (err) {
+        console.error('Failed to load temp voice settings', err);
+      }
+    }
+
+    async function saveTempVoiceSettings() {
+      if (!guildId) return;
+      const btn = document.getElementById('btn-save-temp-voice');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+      try {
+        const payload = {
+          temp_voice_enabled: document.getElementById('input-tempvoice-enabled')?.checked,
+          temp_voice_master_id: document.getElementById('select-tempvoice-master')?.value,
+          temp_voice_category_id: document.getElementById('select-tempvoice-category')?.value,
+          temp_voice_name_template: document.getElementById('input-tempvoice-template')?.value,
+        };
+
+        const res = await fetch(`/api/guilds/${guildId}/modules/tempvoice`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          showToast(data.message || 'Temporary voice settings saved!', 'success');
+        } else {
+          showToast(data.error || 'Failed to save settings', 'error');
+        }
+      } catch (err) {
+        showToast('Connection error saving temp voice settings', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> <span>Save Settings</span>';
+      }
+    }
+
+    // =========================================================================
+    // CUSTOM AUTO-RESPONDERS & TAG ENGINE CLIENT LOGIC
+    // =========================================================================
+    async function loadTags() {
+      if (!guildId) return;
+      const tbody = document.getElementById('table-tags-body');
+      tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading tags...</td></tr>';
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/tags`);
+        if (!res.ok) throw new Error('Failed to load tags');
+        const data = await res.json();
+        currentTagsList = data.tags || [];
+        renderTagsList();
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-red-400">Failed to load server tags.</td></tr>';
+      }
+    }
+
+    function renderTagsList() {
+      const tbody = document.getElementById('table-tags-body');
+      const countBadge = document.getElementById('badge-tags-count');
+      const query = (document.getElementById('input-search-tags')?.value || '').toLowerCase().trim();
+
+      const filtered = currentTagsList.filter(t => !query || t.name.toLowerCase().includes(query) || (t.content && t.content.toLowerCase().includes(query)));
+      if (countBadge) countBadge.innerText = `${currentTagsList.length} tags`;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="py-10 text-center text-slate-500">
+              <i class="fa-solid fa-tags text-2xl text-slate-600 mb-2 block"></i>
+              No tags found. Click <strong>Create New Tag</strong> to add one!
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(t => {
+        const isEmbed = Boolean(t.embed_title || t.embed_color);
+        const formatBadge = isEmbed
+          ? `<span class="px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold">Rich Embed</span>`
+          : `<span class="px-2 py-0.5 rounded-full bg-slate-500/15 text-slate-300 border border-slate-500/30 text-[10px] font-bold">Plain Text</span>`;
+
+        return `
+          <tr class="hover:bg-dark-850/50 transition">
+            <td class="py-3 px-4">
+              <span class="font-mono font-bold text-white bg-dark-800 px-2 py-0.5 rounded-md border border-dark-700">!${escapeHtml(t.name)}</span>
+            </td>
+            <td class="py-3 px-4 max-w-xs truncate text-slate-300">${escapeHtml(t.content)}</td>
+            <td class="py-3 px-4">${formatBadge}</td>
+            <td class="py-3 px-4 text-slate-400">${escapeHtml(t.created_by || 'Admin')}</td>
+            <td class="py-3 px-4 text-right">
+              <div class="inline-flex items-center gap-1.5">
+                <button onclick="openCreateTagModal('${escapeHtml(t.name)}', '${escapeHtml(t.content).replace(/'/g, "\\'")}', '${escapeHtml(t.embed_title || '').replace(/'/g, "\\'")}', '${t.embed_color || '#5865F2'}')" class="p-1.5 rounded-lg bg-dark-800 hover:bg-dark-700 text-slate-300 hover:text-white transition" title="Edit tag">
+                  <i class="fa-solid fa-pen-to-square text-xs"></i>
+                </button>
+                <button onclick="deleteTag('${escapeHtml(t.name)}')" class="p-1.5 rounded-lg bg-dark-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition" title="Delete tag">
+                  <i class="fa-solid fa-trash text-xs"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function openCreateTagModal(name = '', content = '', embedTitle = '', embedColor = '#5865F2') {
+      const modal = document.getElementById('auth-modal-container');
+      modal.innerHTML = `
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+          <div class="glass-panel max-w-lg w-full p-6 rounded-3xl border border-dark-700 space-y-5 shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between pb-4 border-b border-dark-700">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center text-lg">
+                  <i class="fa-solid fa-tags"></i>
+                </div>
+                <div>
+                  <h3 class="font-heading font-black text-base text-white">${name ? 'Edit Tag' : 'Create Custom Tag'}</h3>
+                  <p class="text-[11px] text-slate-400">Triggered via !name or /tag get</p>
+                </div>
+              </div>
+              <button onclick="document.getElementById('auth-modal-container').innerHTML = ''" class="text-slate-400 hover:text-white transition">
+                <i class="fa-solid fa-xmark text-lg"></i>
+              </button>
+            </div>
+
+            <div class="space-y-4">
+              <div>
+                <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Tag Trigger Keyword</label>
+                <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-slate-500 font-bold">!</span>
+                  <input type="text" id="modal-tag-name" value="${name}" placeholder="rules" class="w-full bg-dark-900 border border-dark-700 rounded-xl pl-7 pr-3 py-2 text-xs text-white focus:outline-none focus:border-brand">
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Tag Content / Response Message</label>
+                <textarea id="modal-tag-content" rows="4" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand" placeholder="Check out our official server rules here...">${content}</textarea>
+              </div>
+
+              <div class="p-3.5 rounded-2xl bg-dark-900/60 border border-dark-800 space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold text-white">Embed Card Mode (Optional)</span>
+                  <input type="color" id="modal-tag-color" value="${embedColor}" class="w-7 h-7 rounded-lg bg-dark-900 border border-dark-700 cursor-pointer p-0.5">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Embed Title</label>
+                  <input type="text" id="modal-tag-title" value="${embedTitle}" placeholder="Optional card title..." class="w-full bg-dark-850 border border-dark-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-brand">
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-4 border-t border-dark-700">
+              <button onclick="document.getElementById('auth-modal-container').innerHTML = ''" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition">Cancel</button>
+              <button onclick="saveTagFromModal()" id="btn-save-tag-modal" class="px-5 py-2 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-xs transition shadow-md shadow-brand/30">
+                <i class="fa-solid fa-floppy-disk mr-1.5"></i> Save Tag
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function saveTagFromModal() {
+      const name = document.getElementById('modal-tag-name')?.value.trim();
+      const content = document.getElementById('modal-tag-content')?.value.trim();
+      const embed_title = document.getElementById('modal-tag-title')?.value.trim();
+      const embed_color = document.getElementById('modal-tag-color')?.value;
+
+      if (!name) return showToast('Please enter a tag trigger keyword.', 'error');
+      if (!content) return showToast('Please enter response content.', 'error');
+
+      const btn = document.getElementById('btn-save-tag-modal');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/tags`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, content, embed_title, embed_color }),
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          showToast(data.message || 'Tag saved!', 'success');
+          document.getElementById('auth-modal-container').innerHTML = '';
+          loadTags();
+        } else {
+          showToast(data.error || 'Failed to save tag', 'error');
+        }
+      } catch (err) {
+        showToast('Connection error saving tag', 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-floppy-disk mr-1.5"></i> Save Tag';
+        }
+      }
+    }
+
+    async function deleteTag(tagName) {
+      if (!confirm(`Are you sure you want to delete tag "!${tagName}"?`)) return;
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/tags/${encodeURIComponent(tagName)}`, {
+          method: 'DELETE',
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(data.message || 'Tag deleted', 'success');
+          loadTags();
+        } else {
+          showToast(data.error || 'Failed to delete tag', 'error');
+        }
+      } catch (err) {
+        showToast('Connection error deleting tag', 'error');
+      }
+    }
+
+    // =========================================================================
+    // STAFF MODMAIL CLIENT LOGIC
+    // =========================================================================
+    async function loadModmailSettings() {
+      if (!guildId) return;
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/settings`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const s = data.settings || {};
+
+        const enabledEl = document.getElementById('input-modmail-enabled');
+        if (enabledEl) enabledEl.checked = Boolean(s.modmail_enabled);
+
+        const chanEl = document.getElementById('select-modmail-channel');
+        if (chanEl && s.modmail_channel_id) chanEl.value = s.modmail_channel_id;
+
+        const roleEl = document.getElementById('select-modmail-role');
+        if (roleEl && s.modmail_staff_role_id) roleEl.value = s.modmail_staff_role_id;
+      } catch (err) {
+        console.error('Failed to load modmail settings', err);
+      }
+    }
+
+    async function saveModmailSettings() {
+      if (!guildId) return;
+      const btn = document.getElementById('btn-save-modmail');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+      try {
+        const payload = {
+          modmail_enabled: document.getElementById('input-modmail-enabled')?.checked,
+          modmail_channel_id: document.getElementById('select-modmail-channel')?.value,
+          modmail_staff_role_id: document.getElementById('select-modmail-role')?.value,
+        };
+
+        const res = await fetch(`/api/guilds/${guildId}/modules/modmail`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          showToast(data.message || 'Modmail settings saved!', 'success');
+        } else {
+          showToast(data.error || 'Failed to save settings', 'error');
+        }
+      } catch (err) {
+        showToast('Connection error saving modmail settings', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> <span>Save Settings</span>';
+      }
+    }
+
+    // =========================================================================
+    // VISUAL EMBED STUDIO CLIENT LOGIC
+    // =========================================================================
+    function initEmbedStudio() {
+      if (embedFields.length === 0) {
+        embedFields = [];
+      }
+      renderEmbedFieldsUI();
+      updateEmbedPreview();
+    }
+
+    function setEmbedColor(hex) {
+      const colorInput = document.getElementById('embed-color');
+      if (colorInput) {
+        colorInput.value = hex;
+        updateEmbedPreview();
+      }
+    }
+
+    function addEmbedField() {
+      if (embedFields.length >= 25) {
+        return showToast('Discord limits embeds to a maximum of 25 fields.', 'error');
+      }
+      embedFields.push({ name: 'Field Name', value: 'Field Value', inline: true });
+      renderEmbedFieldsUI();
+      updateEmbedPreview();
+    }
+
+    function removeEmbedField(idx) {
+      embedFields.splice(idx, 1);
+      renderEmbedFieldsUI();
+      updateEmbedPreview();
+    }
+
+    function renderEmbedFieldsUI() {
+      const container = document.getElementById('embed-fields-container');
+      if (!container) return;
+
+      if (embedFields.length === 0) {
+        container.innerHTML = '<p class="text-[11px] text-slate-500 italic">No custom fields added yet.</p>';
+        return;
+      }
+
+      container.innerHTML = embedFields.map((f, i) => `
+        <div class="flex items-center gap-2 p-2.5 rounded-xl bg-dark-850 border border-dark-700">
+          <input type="text" value="${escapeHtml(f.name)}" oninput="embedFields[${i}].name = this.value; updateEmbedPreview();" placeholder="Name..." class="flex-1 bg-dark-900 border border-dark-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-brand">
+          <input type="text" value="${escapeHtml(f.value)}" oninput="embedFields[${i}].value = this.value; updateEmbedPreview();" placeholder="Value..." class="flex-1 bg-dark-900 border border-dark-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-brand">
+          <label class="inline-flex items-center gap-1 cursor-pointer shrink-0">
+            <input type="checkbox" ${f.inline ? 'checked' : ''} onchange="embedFields[${i}].inline = this.checked; updateEmbedPreview();" class="rounded bg-dark-900 border-dark-700 text-brand text-xs">
+            <span class="text-[10px] text-slate-400">Inline</span>
+          </label>
+          <button type="button" onclick="removeEmbedField(${i})" class="text-slate-400 hover:text-red-400 p-1 transition">
+            <i class="fa-solid fa-trash-can text-xs"></i>
+          </button>
+        </div>
+      `).join('');
+    }
+
+    function updateEmbedPreview() {
+      const card = document.getElementById('preview-embed-card');
+      if (!card) return;
+
+      const color = document.getElementById('embed-color')?.value || '#5865F2';
+      card.style.borderColor = color;
+
+      // Author
+      const authorName = document.getElementById('embed-author-name')?.value.trim();
+      const authorIcon = document.getElementById('embed-author-icon')?.value.trim();
+      const authorBox = document.getElementById('preview-embed-author');
+      const authorNameEl = document.getElementById('preview-embed-author-name');
+      const authorIconEl = document.getElementById('preview-embed-author-icon');
+
+      if (authorName) {
+        authorBox.classList.remove('hidden');
+        authorNameEl.innerText = authorName;
+        if (authorIcon) {
+          authorIconEl.src = authorIcon;
+          authorIconEl.classList.remove('hidden');
+        } else {
+          authorIconEl.classList.add('hidden');
+        }
+      } else {
+        authorBox.classList.add('hidden');
+      }
+
+      // Title & URL
+      const title = document.getElementById('embed-title')?.value.trim();
+      const titleEl = document.getElementById('preview-embed-title');
+      if (titleEl) {
+        titleEl.innerText = title || 'Announcement';
+      }
+
+      // Description
+      const desc = document.getElementById('embed-description')?.value;
+      const descEl = document.getElementById('preview-embed-desc');
+      if (descEl) {
+        descEl.innerText = desc || '';
+      }
+
+      // Thumbnail
+      const thumbUrl = document.getElementById('embed-thumbnail')?.value.trim();
+      const thumbEl = document.getElementById('preview-embed-thumb');
+      if (thumbUrl && thumbUrl.startsWith('http')) {
+        thumbEl.src = thumbUrl;
+        thumbEl.classList.remove('hidden');
+      } else {
+        thumbEl.classList.add('hidden');
+      }
+
+      // Banner
+      const bannerUrl = document.getElementById('embed-image')?.value.trim();
+      const bannerEl = document.getElementById('preview-embed-banner');
+      if (bannerUrl && bannerUrl.startsWith('http')) {
+        bannerEl.src = bannerUrl;
+        bannerEl.classList.remove('hidden');
+      } else {
+        bannerEl.classList.add('hidden');
+      }
+
+      // Fields
+      const fieldsBox = document.getElementById('preview-embed-fields');
+      if (embedFields.length > 0) {
+        fieldsBox.classList.remove('hidden');
+        fieldsBox.innerHTML = embedFields.map(f => `
+          <div class="${f.inline ? 'col-span-1' : 'col-span-2'} bg-white/[0.02] p-1.5 rounded">
+            <span class="block text-[10px] font-bold text-slate-300">${escapeHtml(f.name)}</span>
+            <span class="block text-xs text-discord-text">${escapeHtml(f.value)}</span>
+          </div>
+        `).join('');
+      } else {
+        fieldsBox.classList.add('hidden');
+      }
+
+      // Footer & Timestamp
+      const footerText = document.getElementById('embed-footer-text')?.value.trim();
+      const showTimestamp = document.getElementById('embed-timestamp')?.checked;
+      const footerTextEl = document.getElementById('preview-embed-footer-text');
+      const footerBullet = document.getElementById('preview-embed-footer-bullet');
+      const footerTime = document.getElementById('preview-embed-footer-time');
+
+      if (footerText) {
+        footerTextEl.innerText = footerText;
+        footerTextEl.classList.remove('hidden');
+      } else {
+        footerTextEl.classList.add('hidden');
+      }
+
+      if (showTimestamp) {
+        footerTime.classList.remove('hidden');
+        if (footerText) footerBullet.classList.remove('hidden');
+        else footerBullet.classList.add('hidden');
+      } else {
+        footerTime.classList.add('hidden');
+        footerBullet.classList.add('hidden');
+      }
+    }
+
+    async function sendEmbedStudio() {
+      if (!guildId) return;
+      const channelId = document.getElementById('embed-target-channel')?.value;
+      if (!channelId) {
+        return showToast('Please select a Target Text Channel to dispatch the embed.', 'error');
+      }
+
+      const title = document.getElementById('embed-title')?.value.trim();
+      const description = document.getElementById('embed-description')?.value.trim();
+      if (!title && !description) {
+        return showToast('Please enter an embed title or description.', 'error');
+      }
+
+      const btn = document.getElementById('btn-send-embed-studio');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Dispatching...';
+
+      try {
+        const payload = {
+          channelId,
+          mention: document.getElementById('embed-mention-type')?.value || 'none',
+          color: document.getElementById('embed-color')?.value || '#5865F2',
+          authorName: document.getElementById('embed-author-name')?.value.trim(),
+          authorIcon: document.getElementById('embed-author-icon')?.value.trim(),
+          title,
+          url: document.getElementById('embed-url')?.value.trim(),
+          description,
+          thumbnail: document.getElementById('embed-thumbnail')?.value.trim(),
+          image: document.getElementById('embed-image')?.value.trim(),
+          footerText: document.getElementById('embed-footer-text')?.value.trim(),
+          timestamp: document.getElementById('embed-timestamp')?.checked,
+          fields: embedFields,
+        };
+
+        const res = await fetch(`/api/guilds/${guildId}/embeds/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          showToast(data.message || 'Embed dispatched to Discord!', 'success');
+        } else {
+          showToast(data.error || 'Failed to dispatch embed', 'error');
+        }
+      } catch (err) {
+        showToast('Connection error dispatching embed', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Send Embed to Discord</span>';
       }
     }
 
