@@ -1580,7 +1580,7 @@
 
               <div>
                 <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Panel Title</label>
-                <input type="text" id="input-ticket-title" value="SRB NEXUS Support Desk" oninput="updateTicketPreview()" class="w-full bg-dark-850 border border-dark-700 rounded-xl px-3.5 py-2 text-xs text-white">
+                <input type="text" id="input-ticket-title" value="Support Desk" oninput="updateTicketPreview()" class="w-full bg-dark-850 border border-dark-700 rounded-xl px-3.5 py-2 text-xs text-white" placeholder="Support Desk">
               </div>
 
               <div>
@@ -1591,7 +1591,7 @@
               <div class="grid grid-cols-2 gap-3">
                 <div>
                   <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Button Label</label>
-                  <input type="text" id="input-ticket-button-label" value="📩 Open Ticket" oninput="updateTicketPreview()" class="w-full bg-dark-850 border border-dark-700 rounded-xl px-3 py-1.5 text-xs text-white">
+                  <input type="text" id="input-ticket-button-label" value="Open Ticket" oninput="updateTicketPreview()" class="w-full bg-dark-850 border border-dark-700 rounded-xl px-3 py-1.5 text-xs text-white" placeholder="Open Ticket">
                 </div>
                 <div>
                   <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Button Emoji</label>
@@ -1603,7 +1603,7 @@
               <div class="pt-2">
                 <span class="text-[11px] font-bold text-slate-400 block mb-2">Live Discord Message Preview:</span>
                 <div class="p-4 rounded-2xl bg-dark-950/90 border-l-4 border-cyan-500 border border-dark-700 space-y-3">
-                  <h4 id="preview-ticket-title" class="font-bold text-white text-sm">🎫 SRB NEXUS Support Desk</h4>
+                  <h4 id="preview-ticket-title" class="font-bold text-white text-sm">🎫 Support Desk</h4>
                   <p id="preview-ticket-desc" class="text-xs text-slate-300">Need assistance or have questions? Click the button below to open a private ticket with our staff.</p>
                   <div class="pt-1">
                     <button id="preview-ticket-btn" class="px-4 py-2 rounded-xl bg-blurple text-white font-bold text-xs flex items-center gap-1.5 cursor-default">
@@ -4451,19 +4451,28 @@
 
     // Support Ticket Desk Preview & Panel Deploy
     function updateTicketPreview() {
-      const title = document.getElementById('input-ticket-title')?.value || 'SRB NEXUS Support Desk';
+      const rawTitle = document.getElementById('input-ticket-title')?.value || 'Support Desk';
+      const cleanTitle = rawTitle.replace(/^[🎫📩]\s*/, '').trim() || 'Support Desk';
       const desc = document.getElementById('textarea-ticket-desc')?.value || 'Need assistance or have questions? Click the button below to open a private ticket with our staff.';
-      const label = document.getElementById('input-ticket-button-label')?.value || '📩 Open Ticket';
+      const rawLabel = document.getElementById('input-ticket-button-label')?.value || 'Open Ticket';
       const emoji = document.getElementById('input-ticket-button-emoji')?.value || '📩';
 
+      let cleanLabel = rawLabel.trim();
+      if (emoji) {
+        while (cleanLabel.startsWith(emoji)) {
+          cleanLabel = cleanLabel.slice(emoji.length).trim();
+        }
+      }
+      cleanLabel = cleanLabel.replace(/^[\p{Emoji}\u200d]+\s*/u, '').trim() || 'Open Ticket';
+
       const pTitle = document.getElementById('preview-ticket-title');
-      if (pTitle) pTitle.innerText = `🎫 ${title}`;
+      if (pTitle) pTitle.innerText = `🎫 ${cleanTitle}`;
 
       const pDesc = document.getElementById('preview-ticket-desc');
       if (pDesc) pDesc.innerText = desc;
 
       const pBtn = document.getElementById('preview-ticket-btn');
-      if (pBtn) pBtn.innerHTML = `<span>${emoji}</span> <span>${label}</span>`;
+      if (pBtn) pBtn.innerHTML = `<span>${emoji}</span> <span>${cleanLabel}</span>`;
     }
 
     function onTicketModeChange() {
@@ -4481,31 +4490,31 @@
 
       if (preset === 'quote' || preset === 'website') {
         if (modeEl) modeEl.value = 'quote';
-        if (titleEl) titleEl.value = 'Website Creation & Development Quotation';
+        if (titleEl) titleEl.value = 'Website & Project Quotation';
         if (descEl) descEl.value = 'Need a custom website, web app, or freelance commission? Click below to submit your project requirements and receive a formal itemized quotation.';
-        if (labelEl) labelEl.value = '💼 Request Quotation';
+        if (labelEl) labelEl.value = 'Request Quotation';
         if (emojiEl) emojiEl.value = '💼';
         if (welcomeEl) welcomeEl.value = 'Welcome! Our development and consulting team has received your project request and will review your specifications shortly.';
       } else if (preset === 'report') {
         if (modeEl) modeEl.value = 'report';
         if (titleEl) titleEl.value = 'Member & Incident Reporting';
         if (descEl) descEl.value = 'Encountered harassment, scamming, rule violations, or suspicious activity? Click below to submit a confidential report directly to our moderators.';
-        if (labelEl) labelEl.value = '🛡️ File Incident Report';
+        if (labelEl) labelEl.value = 'File Report';
         if (emojiEl) emojiEl.value = '🛡️';
         if (welcomeEl) welcomeEl.value = 'Thank you for reporting this incident. Your report is private and only visible to senior moderation staff. Please provide screenshots or evidence.';
       } else if (preset === 'instant') {
         if (modeEl) modeEl.value = 'instant';
         if (titleEl) titleEl.value = '1-Click Instant Ticket';
         if (descEl) descEl.value = 'Click the button below to immediately open a private support room with staff. No forms or questionnaires required!';
-        if (labelEl) labelEl.value = '⚡ Instant Ticket';
+        if (labelEl) labelEl.value = 'Instant Ticket';
         if (emojiEl) emojiEl.value = '⚡';
         if (welcomeEl) welcomeEl.value = 'Welcome to your private support room! A staff member has been alerted and will assist you shortly.';
       } else {
         // general / support
         if (modeEl) modeEl.value = 'general';
-        if (titleEl) titleEl.value = 'SRB NEXUS Support Desk';
+        if (titleEl) titleEl.value = 'Support Desk';
         if (descEl) descEl.value = 'Need assistance or have questions? Click the button below to open a private ticket with our staff.';
-        if (labelEl) labelEl.value = '📩 Open Support Ticket';
+        if (labelEl) labelEl.value = 'Open Ticket';
         if (emojiEl) emojiEl.value = '📩';
         if (welcomeEl) welcomeEl.value = 'Welcome to your private support channel! Our staff team has been notified. Please describe your question or issue in detail below.';
       }
@@ -4546,10 +4555,23 @@
 
     async function submitDeployTicketPanel() {
       const channelId = document.getElementById('modal-deploy-ticket-channel').value;
-      const title = document.getElementById('input-ticket-title')?.value.trim() || 'SRB NEXUS Support Desk';
-      const description = document.getElementById('textarea-ticket-desc')?.value.trim() || 'Click to open a ticket';
-      const buttonLabel = document.getElementById('input-ticket-button-label')?.value.trim() || '📩 Open Ticket';
+      const rawTitle = document.getElementById('input-ticket-title')?.value.trim() || 'Support Desk';
+      const title = rawTitle.replace(/^[🎫📩]\s*/, '').trim() || 'Support Desk';
+      const description = document.getElementById('textarea-ticket-desc')?.value.trim() || 'Need assistance or have questions? Click the button below to open a private ticket with our staff.';
+      const rawLabel = document.getElementById('input-ticket-button-label')?.value.trim() || 'Open Ticket';
       const buttonEmoji = document.getElementById('input-ticket-button-emoji')?.value.trim() || '📩';
+
+      let buttonLabel = rawLabel.trim();
+      if (buttonEmoji) {
+        while (buttonLabel.startsWith(buttonEmoji)) {
+          buttonLabel = buttonLabel.slice(buttonEmoji.length).trim();
+        }
+      }
+      buttonLabel = buttonLabel.replace(/^[\p{Emoji}\u200d]+\s*/u, '').trim() || 'Open Ticket';
+
+      const category_id = document.getElementById('select-ticket-category')?.value || '';
+      const ticket_mode = document.getElementById('select-ticket-mode')?.value || 'general';
+      const ticket_welcome_msg = document.getElementById('textarea-ticket-welcome-msg')?.value.trim() || '';
 
       if (!channelId) {
         showToast('Please select a target channel', 'error');
@@ -4560,7 +4582,16 @@
         const res = await fetch(`/api/guilds/${guildId}/tickets/deploy`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ channelId, title, description, buttonLabel, buttonEmoji })
+          body: JSON.stringify({
+            channelId,
+            title,
+            description,
+            buttonLabel,
+            buttonEmoji,
+            category_id,
+            ticket_mode,
+            ticket_welcome_msg
+          })
         });
         const data = await res.json();
         if (res.ok) {

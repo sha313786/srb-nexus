@@ -1475,10 +1475,6 @@ export async function guildRoutes(fastify: FastifyInstance) {
 
     const body = (request.body as Record<string, any>) || {};
     const channelId = String(body.channelId || '').replace(/[<#@!&>]/g, '').trim();
-    const title = body.title || 'SRB NEXUS Support Desk';
-    const description = body.description || 'Need help or have questions? Click the button below to open a ticket.';
-    const label = body.label || '📩 Open Ticket';
-    const emoji = body.emoji || '📩';
 
     if (!channelId) return reply.status(400).send({ error: 'Target channel is required' });
 
@@ -1488,16 +1484,31 @@ export async function guildRoutes(fastify: FastifyInstance) {
     const channel = (await guild.channels.fetch(channelId).catch(() => null)) as TextChannel;
     if (!channel || !channel.isTextBased()) return reply.status(400).send({ error: 'Invalid channel' });
 
+    const rawTitle = body.title || `${guild.name} Support Desk`;
+    const cleanTitle = rawTitle.replace(/^[🎫📩]\s*/, '').trim() || `${guild.name} Support Desk`;
+    const description = body.description || 'Need assistance or have questions? Click the button below to open a private ticket with our staff.';
+    const rawLabel = body.buttonLabel || body.label || 'Open Ticket';
+    const emoji = body.buttonEmoji || body.emoji || '📩';
+
+    // Strip duplicate emoji from button label so it never renders double emoji e.g. [ 📩 📩 Open Ticket ]
+    let cleanLabel = rawLabel.trim();
+    if (emoji) {
+      while (cleanLabel.startsWith(emoji)) {
+        cleanLabel = cleanLabel.slice(emoji.length).trim();
+      }
+    }
+    cleanLabel = cleanLabel.replace(/^[\p{Emoji}\u200d]+\s*/u, '').trim() || 'Open Ticket';
+
     const embed = new EmbedBuilder()
       .setColor('#06B6D4')
-      .setTitle(`🎫 ${title}`)
+      .setTitle(`🎫 ${cleanTitle}`)
       .setDescription(description)
-      .setFooter({ text: 'SRB NEXUS Automated Ticket System' })
+      .setFooter({ text: `${guild.name} • Automated Support System`, iconURL: guild.iconURL() || undefined })
       .setTimestamp();
 
     const button = new ButtonBuilder()
       .setCustomId('nexus_ticket_create')
-      .setLabel(label)
+      .setLabel(cleanLabel)
       .setStyle(ButtonStyle.Primary);
 
     if (emoji) {
@@ -1507,6 +1518,27 @@ export async function guildRoutes(fastify: FastifyInstance) {
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
 
     await channel.send({ embeds: [embed], components: [row] });
+
+    // Persist deploy settings into guild_settings
+    const cleanCat = body.category_id ? String(body.category_id).replace(/[<#@!&>]/g, '').trim() : null;
+    const ticketMode = body.ticket_mode || undefined;
+    const welcomeMsg = body.ticket_welcome_msg ? String(body.ticket_welcome_msg).trim() : undefined;
+
+    await db.query(
+      `UPDATE guild_settings 
+       SET ticket_panel_title = $1,
+           ticket_panel_description = $2,
+           ticket_button_label = $3,
+           ticket_button_emoji = $4,
+           tickets_enabled = TRUE,
+           category_id = COALESCE($5, category_id),
+           ticket_mode = COALESCE($6, ticket_mode),
+           ticket_welcome_msg = COALESCE($7, ticket_welcome_msg),
+           updated_at = NOW()
+       WHERE guild_id = $8`,
+      [cleanTitle, description, cleanLabel, emoji, cleanCat, ticketMode, welcomeMsg, id]
+    ).catch(() => {});
+
     return reply.send({ success: true, message: `Ticket panel deployed to #${channel.name}!` });
   });
 
