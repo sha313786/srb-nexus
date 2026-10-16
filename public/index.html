@@ -3,13 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SRB NEXUS — Central Infrastructure & Security Shield</title>
+  <title>SRB NEXUS — All-in-One Discord Moderation, Invites & Automation</title>
+  <meta name="description" content="The complete Discord toolkit. Track invites with auto-assigned roles, block raids in sub-seconds, render HD canvas welcome banners, and manage support tickets from a high-speed dashboard.">
   <link rel="icon" type="image/png" href="/favicon.png">
+
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   
   <script>
     tailwind.config = {
@@ -17,38 +20,32 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
             heading: ['Outfit', 'sans-serif'],
             mono: ['"JetBrains Mono"', 'monospace'],
           },
           colors: {
-            cyan: {
-              400: '#38bdf8',
-              500: '#0ea5e9',
-              accent: '#00f0ff',
+            brand: {
+              DEFAULT: '#5865F2', // Discord Blurple
+              hover: '#4752c4',
+              cyan: '#00d2ff',
+              emerald: '#10b981',
             },
             dark: {
-              950: '#05070c',
-              900: '#090d16',
-              850: '#0f1422',
-              800: '#161c30',
-              750: '#1d243d',
-              700: '#262f4e',
+              950: '#07090e',
+              900: '#0c0f17',
+              850: '#121724',
+              800: '#181f30',
+              750: '#202940',
+              700: '#2b3652',
             },
-            blurple: {
-              DEFAULT: '#5865F2',
-              hover: '#4752c4',
-            }
-          },
-          animation: {
-            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-            'float': 'float 6s ease-in-out infinite',
-            'spin-slow': 'spin 20s linear infinite',
-          },
-          keyframes: {
-            float: {
-              '0%, 100%': { transform: 'translateY(0px)' },
-              '50%': { transform: 'translateY(-12px)' },
+            discord: {
+              bg: '#313338',
+              sidebar: '#2b2d31',
+              channel: '#1e1f22',
+              embed: '#2b2d31',
+              text: '#dbdee1',
+              muted: '#949ba4',
             }
           }
         }
@@ -58,95 +55,106 @@
 
   <style>
     body {
-      background-color: #05070c;
-      color: #f1f5f9;
+      background-color: #07090e;
+      color: #e2e8f0;
       background-image: 
-        radial-gradient(at 15% 15%, rgba(0, 240, 255, 0.08) 0px, transparent 45%),
-        radial-gradient(at 85% 20%, rgba(88, 101, 242, 0.12) 0px, transparent 45%),
-        radial-gradient(at 50% 85%, rgba(14, 165, 233, 0.06) 0px, transparent 50%);
+        radial-gradient(ellipse 90% 50% at 50% -10%, rgba(88, 101, 242, 0.14), transparent),
+        radial-gradient(ellipse 60% 40% at 90% 40%, rgba(0, 210, 255, 0.05), transparent),
+        radial-gradient(ellipse 50% 30% at 10% 80%, rgba(16, 185, 129, 0.04), transparent);
       background-attachment: fixed;
     }
     
-    .cyber-grid {
-      background-size: 40px 40px;
+    .subtle-grid {
+      background-size: 32px 32px;
       background-image: 
-        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+        linear-gradient(to right, rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
     }
 
-    .glass-card {
-      background: rgba(15, 20, 34, 0.72);
+    .glass-surface {
+      background: rgba(14, 18, 28, 0.72);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
+    }
+
+    .glass-surface-elevated {
+      background: rgba(18, 23, 36, 0.85);
       backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.07);
-      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .glass-card:hover {
-      border-color: rgba(0, 240, 255, 0.35);
-      box-shadow: 0 12px 40px -10px rgba(0, 240, 255, 0.18);
-      transform: translateY(-2px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.6);
     }
 
-    .cyber-card-active {
-      border-color: rgba(0, 240, 255, 0.4);
-      box-shadow: 0 0 25px -5px rgba(0, 240, 255, 0.25);
+    .tab-active {
+      background: rgba(88, 101, 242, 0.15) !important;
+      color: #ffffff !important;
+      border-color: rgba(88, 101, 242, 0.5) !important;
+      box-shadow: 0 0 15px -3px rgba(88, 101, 242, 0.3);
     }
 
-    .neon-text-cyan {
-      text-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
     }
-
-    .neon-border-cyan {
-      box-shadow: 0 0 20px -3px rgba(0, 240, 255, 0.35);
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
     }
-
-    .logo-glow {
-      filter: drop-shadow(0 0 24px rgba(0, 240, 255, 0.45));
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #202940;
+      border-radius: 9999px;
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col font-sans selection:bg-cyan-500 selection:text-black cyber-grid">
+<body class="min-h-screen flex flex-col font-sans selection:bg-brand selection:text-white subtle-grid antialiased">
 
   <!-- Top Announcement Bar -->
-  <div class="border-b border-cyan-500/15 bg-gradient-to-r from-dark-950 via-cyan-950/30 to-dark-950 px-4 py-2 text-center text-xs">
-    <div class="max-w-7xl mx-auto flex items-center justify-center gap-2">
-      <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-accent border border-cyan-500/30 text-[10px] font-bold uppercase tracking-wider">
-        <i class="fa-solid fa-bolt-lightning text-yellow-400"></i> SYSTEM UPGRADE
-      </span>
-      <span class="text-slate-300 font-medium">SRB NEXUS v2.5 Online — Advanced Invite Tracker, Anti-Raid Shield & 37 Command Suite Deployed</span>
+  <aside aria-label="Announcement" class="border-b border-dark-750/70 bg-dark-900/90 text-xs py-2 px-4 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-3 text-slate-300">
+      <div class="flex items-center gap-2.5 overflow-hidden">
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold shrink-0">
+          <i class="fa-solid fa-circle-check text-[9px]"></i> v2.5 RELEASED
+        </span>
+        <span class="truncate text-slate-300">
+          Invite Tracker with Auto-Roles, Native Canvas Welcomer & Sub-Second Anti-Raid Shield are now live.
+        </span>
+      </div>
+      <div class="hidden sm:flex items-center gap-3 shrink-0 text-[11px] text-slate-400">
+        <span class="flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> 99.9% Cloud Uptime
+        </span>
+        <span class="text-slate-600">|</span>
+        <a href="https://discord.com/oauth2/authorize?client_id=1526885301736177705&permissions=8&scope=bot%20applications.commands" target="_blank" class="hover:text-white transition font-medium">Add to Discord &rarr;</a>
+      </div>
     </div>
-  </div>
+  </aside>
 
   <!-- Navigation Bar -->
-  <header class="sticky top-0 z-50 border-b border-dark-700/60 bg-dark-950/80 backdrop-blur-xl">
+  <header class="sticky top-0 z-50 border-b border-dark-750/60 bg-dark-950/80 backdrop-blur-xl">
     <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
       
-      <!-- Brand & Official Logo -->
+      <!-- Brand & Clean Logo -->
       <a href="/" class="flex items-center gap-3.5 group">
-        <div class="relative flex items-center justify-center">
-          <div class="absolute -inset-1 rounded-full bg-cyan-accent/20 blur-md opacity-70 group-hover:opacity-100 transition duration-300"></div>
-          <img src="/nexus-logo.png" alt="SRB NEXUS Logo" class="relative w-11 h-11 object-contain logo-glow group-hover:scale-105 transition-transform duration-300">
-        </div>
+        <img src="/nexus-logo.png" alt="SRB NEXUS Logo" class="w-10 h-10 object-contain drop-shadow-[0_2px_8px_rgba(88,101,242,0.35)] group-hover:scale-105 transition-transform duration-300">
         <div>
           <div class="flex items-center gap-2">
-            <span class="font-heading font-black text-xl tracking-tight text-white flex items-center gap-2">
-              SRB <span class="bg-gradient-to-r from-cyan-accent via-cyan-400 to-indigo-400 bg-clip-text text-transparent">NEXUS</span>
+            <span class="font-heading font-extrabold text-xl tracking-tight text-white">
+              SRB <span class="bg-gradient-to-r from-white via-indigo-200 to-brand bg-clip-text text-transparent">NEXUS</span>
             </span>
-            <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-accent border border-cyan-500/30 font-mono">
+            <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-brand/10 text-brand border border-brand/20 font-mono">
               v2.5
             </span>
           </div>
-          <p class="text-[11px] text-slate-400 font-medium">Central Infrastructure & Defense</p>
+          <p class="text-[11px] text-slate-400 font-medium">Community Infrastructure by SRB Studio</p>
         </div>
       </a>
 
       <!-- Quick Nav Links -->
       <nav class="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-300">
-        <a href="#features" class="hover:text-cyan-accent transition">Capabilities</a>
-        <a href="#modules" class="hover:text-cyan-accent transition">Control Modules</a>
-        <a href="#security" class="hover:text-cyan-accent transition">Security Shield</a>
-        <a href="#metrics" class="hover:text-cyan-accent transition">Live Gateway</a>
+        <a href="#demo" class="hover:text-white transition">Live Preview</a>
+        <a href="#features" class="hover:text-white transition">Features</a>
+        <a href="#commands" class="hover:text-white transition">Commands</a>
+        <a href="#why-nexus" class="hover:text-white transition">Why Nexus</a>
         <div id="live-bot-status-pill" class="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
           <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
           <span id="header-status-text">Core Operational</span>
@@ -155,7 +163,7 @@
 
       <!-- User Auth Section -->
       <div id="auth-header-slot" class="flex items-center gap-3">
-        <a href="/api/auth/login" class="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blurple to-indigo-600 hover:from-blurple-hover hover:to-indigo-500 text-white text-sm font-bold tracking-wide transition-all shadow-lg shadow-blurple/25 hover:shadow-blurple/40">
+        <a href="/api/auth/login" class="inline-flex items-center gap-2.5 px-4 sm:px-5 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white text-sm font-bold tracking-wide transition-all shadow-lg shadow-brand/25 hover:shadow-brand/40">
           <i class="fa-brands fa-discord text-lg"></i>
           <span>Login with Discord</span>
         </a>
@@ -167,128 +175,414 @@
   <!-- Main Container -->
   <main class="flex-1 max-w-7xl mx-auto w-full px-6 py-10">
 
-    <!-- 1. HERO SECTION (Unauthenticated View) -->
-    <section id="hero-section" class="py-8 md:py-16 text-center relative">
+    <!-- ========================================== -->
+    <!-- 1. HERO SECTION (Unauthenticated View)     -->
+    <!-- ========================================== -->
+    <section id="hero-section" class="py-6 sm:py-12">
       
-      <!-- Ambient Glow Behind Hero -->
-      <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[350px] bg-cyan-accent/10 blur-[130px] rounded-full pointer-events-none"></div>
-
-      <!-- Hero Cyber Badge -->
-      <div class="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-dark-850/90 border border-cyan-500/30 text-cyan-300 text-xs font-bold tracking-wide mb-8 shadow-inner shadow-cyan-500/10">
-        <span class="flex h-2 w-2 relative">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-accent opacity-75"></span>
-          <span class="relative inline-flex rounded-full h-2 w-2 bg-cyan-accent"></span>
-        </span>
-        <span class="font-mono text-cyan-accent">GATEWAY ONLINE</span>
-        <span class="text-slate-500">|</span>
-        <span class="text-slate-300">DISCORD CLOUD INFRASTRUCTURE & AUTOMATION</span>
-      </div>
-
-      <!-- Centerpiece 3D Hologram Logo Showcase -->
-      <div class="mb-8 flex justify-center items-center relative animate-float">
-        <div class="relative w-40 h-40 sm:w-48 sm:h-48 flex items-center justify-center">
-          <div class="absolute inset-0 rounded-full bg-gradient-to-tr from-cyan-accent/20 via-transparent to-blurple/20 blur-2xl animate-pulse-slow"></div>
-          <div class="absolute -inset-4 border border-cyan-500/20 rounded-full border-dashed animate-spin-slow"></div>
-          <img src="/nexus-logo.png" alt="Nexus Emblem" class="w-36 h-36 sm:w-44 sm:h-44 object-contain logo-glow relative z-10 transition-transform duration-500 hover:scale-105">
+      <!-- Value Proposition Header -->
+      <div class="text-center max-w-3xl mx-auto mb-10 sm:mb-14">
+        
+        <!-- Category Pill Badge -->
+        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-dark-850 border border-dark-700/80 text-slate-300 text-xs font-semibold mb-6 shadow-sm">
+          <span class="w-2 h-2 rounded-full bg-brand animate-pulse"></span>
+          <span>Discord Bot &amp; Web Control Panel</span>
+          <span class="text-dark-700">|</span>
+          <span class="text-slate-400">Zero Configuration Overhead</span>
         </div>
+
+        <!-- Main Headline -->
+        <h1 class="font-heading font-black text-4xl sm:text-6xl text-white tracking-tight leading-[1.1] mb-6">
+          Everything your Discord server needs. <br class="hidden sm:inline">
+          <span class="bg-gradient-to-r from-brand via-indigo-300 to-brand-cyan bg-clip-text text-transparent">In one clean system.</span>
+        </h1>
+
+        <!-- Human Subheadline -->
+        <p class="text-slate-300 text-base sm:text-lg leading-relaxed max-w-2xl mx-auto font-normal mb-8">
+          Stop stitching together five different bots for invites, verification, welcome cards, and support. 
+          SRB NEXUS delivers auto-role invite tracking, sub-second raid defense, dynamic canvas graphics, and tickets from a high-speed dashboard.
+        </p>
+
+        <!-- Primary Call to Actions -->
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
+          <a href="https://discord.com/oauth2/authorize?client_id=1526885301736177705&permissions=8&scope=bot%20applications.commands" target="_blank" class="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-7 py-3.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-sm shadow-xl shadow-brand/25 transition-all hover:scale-[1.01]">
+            <i class="fa-brands fa-discord text-lg"></i>
+            <span>Add to Discord</span>
+            <span class="text-[11px] font-normal px-2 py-0.5 rounded bg-white/20 text-white ml-1">Free</span>
+          </a>
+          <a href="/api/auth/login" class="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-xl bg-dark-850 hover:bg-dark-800 text-slate-200 border border-dark-700 hover:border-slate-500 font-bold text-sm transition-all">
+            <i class="fa-solid fa-sliders text-brand"></i>
+            <span>Open Dashboard</span>
+          </a>
+        </div>
+
+        <!-- Trust Badges -->
+        <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-400 font-medium">
+          <span class="flex items-center gap-1.5"><i class="fa-solid fa-check text-emerald-400"></i> 37 Slash Commands</span>
+          <span class="flex items-center gap-1.5"><i class="fa-solid fa-check text-emerald-400"></i> No Premium Paywalls</span>
+          <span class="flex items-center gap-1.5"><i class="fa-solid fa-check text-emerald-400"></i> Sub-Second Auto-Mod</span>
+          <span class="flex items-center gap-1.5"><i class="fa-solid fa-check text-emerald-400"></i> PostgreSQL Cloud Storage</span>
+        </div>
+
       </div>
 
-      <!-- Main Headline -->
-      <h1 class="font-heading font-black text-4xl sm:text-6xl lg:text-7xl tracking-tight text-white max-w-4xl mx-auto leading-[1.08] mb-6">
-        The Autonomous Engine Behind Elite <span class="bg-gradient-to-r from-cyan-accent via-cyan-400 to-indigo-400 bg-clip-text text-transparent neon-text-cyan">Discord Communities</span>
-      </h1>
+      <!-- ========================================== -->
+      <!-- CENTERPIECE: REAL DISCORD PRODUCT MOCKUP   -->
+      <!-- ========================================== -->
+      <div id="demo" class="max-w-5xl mx-auto mb-20 scroll-mt-24">
+        
+        <!-- Interactive Feature Tab Switcher -->
+        <div class="flex items-center justify-center mb-4">
+          <div class="p-1.5 rounded-2xl bg-dark-900 border border-dark-750 flex flex-wrap items-center justify-center gap-1.5 shadow-lg">
+            <button onclick="switchDemoTab('invites')" id="tab-btn-invites" class="tab-active px-4 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition flex items-center gap-2">
+              <i class="fa-solid fa-link text-brand-cyan"></i>
+              <span>Invite Tracker &amp; Roles</span>
+            </button>
+            <button onclick="switchDemoTab('welcomer')" id="tab-btn-welcomer" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition flex items-center gap-2">
+              <i class="fa-solid fa-paintbrush text-indigo-400"></i>
+              <span>Canvas Welcomer</span>
+            </button>
+            <button onclick="switchDemoTab('antiraid')" id="tab-btn-antiraid" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition flex items-center gap-2">
+              <i class="fa-solid fa-shield-virus text-red-400"></i>
+              <span>Anti-Raid Velocity</span>
+            </button>
+            <button onclick="switchDemoTab('tickets')" id="tab-btn-tickets" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition flex items-center gap-2">
+              <i class="fa-solid fa-ticket text-emerald-400"></i>
+              <span>Tickets &amp; Quotes</span>
+            </button>
+          </div>
+        </div>
 
-      <p class="text-slate-300 text-base sm:text-xl max-w-2xl mx-auto leading-relaxed mb-10 font-normal">
-        Real-time velocity Anti-Raid defense, intelligent invite tracking with role assignment, canvas cards, and unified cloud governance in a cyber control panel.
-      </p>
+        <!-- Realistic Discord App Window -->
+        <div class="rounded-2xl overflow-hidden border border-dark-700/80 bg-discord-bg shadow-2xl shadow-black/80 font-sans">
+          
+          <!-- Discord Title Bar -->
+          <div class="bg-discord-channel px-4 py-3 flex items-center justify-between border-b border-dark-700/60 select-none">
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-[#ed6a5e] inline-block"></span>
+              <span class="w-3 h-3 rounded-full bg-[#f4bf4f] inline-block"></span>
+              <span class="w-3 h-3 rounded-full bg-[#61c554] inline-block"></span>
+              <span class="text-xs text-slate-400 font-semibold ml-2 font-mono flex items-center gap-1.5">
+                <i class="fa-brands fa-discord text-brand"></i>
+                <span id="demo-channel-name"># 💬・welcome-and-joins</span>
+              </span>
+            </div>
+            <div class="flex items-center gap-3 text-slate-400 text-xs">
+              <span class="hidden sm:inline text-[11px] text-slate-400 font-medium">SRB Community Server</span>
+              <i class="fa-solid fa-bell text-slate-500 hover:text-white cursor-pointer transition"></i>
+              <i class="fa-solid fa-thumbtack text-slate-500 hover:text-white cursor-pointer transition"></i>
+              <i class="fa-solid fa-users text-slate-500 hover:text-white cursor-pointer transition"></i>
+            </div>
+          </div>
 
-      <!-- Action Buttons -->
-      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 relative z-10">
-        <a href="/api/auth/login" class="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-cyan-500 via-blurple to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-base shadow-xl shadow-cyan-500/20 hover:shadow-cyan-500/35 hover:scale-[1.02] transition-all">
-          <i class="fa-brands fa-discord text-xl"></i>
-          <span>Open Control Panel</span>
-        </a>
-        <a href="https://discord.com/oauth2/authorize?client_id=1526885301736177705&permissions=8&scope=bot%20applications.commands" target="_blank" class="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-dark-850 hover:bg-dark-800 text-slate-200 border border-dark-700 hover:border-cyan-500/50 font-bold text-base transition-all">
-          <i class="fa-solid fa-plus text-cyan-accent"></i>
-          <span>Invite Bot to Server</span>
-        </a>
+          <!-- Discord Chat Body -->
+          <div class="p-4 sm:p-6 space-y-5 bg-[#313338] text-discord-text min-h-[380px] flex flex-col justify-center">
+
+            <!-- DEMO VIEW 1: INVITE TRACKER -->
+            <div id="demo-view-invites" class="space-y-4">
+              <div class="flex items-start gap-4">
+                <img src="/nexus-logo.png" alt="Nexus" class="w-10 h-10 rounded-full bg-dark-900 shrink-0">
+                <div class="flex-1">
+                  <div class="flex items-baseline gap-2 mb-1">
+                    <span class="font-bold text-white text-sm">SRB NEXUS</span>
+                    <span class="bg-brand text-white text-[10px] font-extrabold px-1.5 py-0.2 rounded font-mono">APP</span>
+                    <span class="text-xs text-discord-muted">Today at 12:42 PM</span>
+                  </div>
+                  
+                  <!-- Real Discord Embed -->
+                  <div class="max-w-xl rounded-lg bg-discord-sidebar border-l-4 border-l-brand p-4 space-y-3 shadow-md">
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-user-plus text-brand"></i> Member Joined via Invite
+                      </span>
+                      <span class="text-[11px] text-emerald-400 font-mono font-semibold">Join #1,402</span>
+                    </div>
+
+                    <p class="text-sm text-slate-200">
+                      Welcome <span class="bg-brand/20 text-brand px-1.5 py-0.5 rounded font-medium">@alex_developer</span> to the server!
+                    </p>
+
+                    <div class="grid grid-cols-2 gap-3 text-xs pt-2 border-t border-dark-700/60">
+                      <div>
+                        <span class="text-discord-muted block text-[11px]">Invite Link</span>
+                        <span class="font-mono text-white font-semibold">discord.gg/builds</span>
+                      </div>
+                      <div>
+                        <span class="text-discord-muted block text-[11px]">Invited By</span>
+                        <span class="text-white font-semibold">@sarah (42 invites)</span>
+                      </div>
+                      <div>
+                        <span class="text-discord-muted block text-[11px]">Auto-Assigned Role</span>
+                        <span class="inline-flex items-center gap-1 text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                          <i class="fa-solid fa-shield text-[9px]"></i> @Developer
+                        </span>
+                      </div>
+                      <div>
+                        <span class="text-discord-muted block text-[11px]">Account Age</span>
+                        <span class="text-slate-300">2 years ago (Verified)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Discord Button Row -->
+                  <div class="flex items-center gap-2 mt-2">
+                    <button class="px-3 py-1.5 rounded bg-[#4e5058] hover:bg-[#6d6f78] text-white text-xs font-medium transition cursor-default">
+                      <i class="fa-solid fa-chart-simple mr-1 text-xs"></i> View Sarah's Invites
+                    </button>
+                    <button class="px-3 py-1.5 rounded bg-[#4e5058] hover:bg-[#6d6f78] text-white text-xs font-medium transition cursor-default">
+                      <i class="fa-solid fa-user-gear mr-1 text-xs"></i> Role Rules
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- DEMO VIEW 2: CANVAS WELCOMER -->
+            <div id="demo-view-welcomer" class="hidden space-y-4">
+              <div class="flex items-start gap-4">
+                <img src="/nexus-logo.png" alt="Nexus" class="w-10 h-10 rounded-full bg-dark-900 shrink-0">
+                <div class="flex-1">
+                  <div class="flex items-baseline gap-2 mb-1">
+                    <span class="font-bold text-white text-sm">SRB NEXUS</span>
+                    <span class="bg-brand text-white text-[10px] font-extrabold px-1.5 py-0.2 rounded font-mono">APP</span>
+                    <span class="text-xs text-discord-muted">Today at 12:45 PM</span>
+                  </div>
+                  
+                  <p class="text-sm text-slate-200 mb-3">
+                    A warm welcome to <span class="bg-brand/20 text-brand px-1.5 py-0.5 rounded font-medium">@jessica_art</span>! Please check out <span class="text-brand hover:underline cursor-pointer">#rules</span> and enjoy your stay.
+                  </p>
+
+                  <!-- Photorealistic Rendered Canvas Mockup -->
+                  <div class="max-w-xl rounded-xl overflow-hidden border border-dark-700 shadow-xl bg-gradient-to-r from-[#0b0e17] via-[#141b2d] to-[#0b0e17] p-6 relative">
+                    <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-brand/10 rounded-full blur-2xl pointer-events-none"></div>
+                    <div class="flex items-center gap-5 relative z-10">
+                      <!-- Circular Avatar with ring -->
+                      <div class="relative">
+                        <div class="w-20 h-20 rounded-full bg-gradient-to-tr from-brand to-brand-cyan p-1 shadow-lg shadow-brand/30">
+                          <div class="w-full h-full rounded-full bg-dark-900 flex items-center justify-center font-heading font-extrabold text-2xl text-white">
+                            JA
+                          </div>
+                        </div>
+                        <span class="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-emerald-500 border-2 border-dark-900"></span>
+                      </div>
+
+                      <div>
+                        <span class="text-[11px] font-mono uppercase tracking-widest text-brand-cyan font-bold block mb-1">
+                          WELCOME TO SRB STUDIO
+                        </span>
+                        <h4 class="font-heading font-extrabold text-2xl text-white tracking-tight leading-none mb-1.5">
+                          JESSICA_ART
+                        </h4>
+                        <div class="flex items-center gap-2 text-xs text-slate-300">
+                          <span class="px-2 py-0.5 rounded bg-brand/20 text-brand font-semibold text-[11px]">Member #1,403</span>
+                          <span>•</span>
+                          <span class="text-slate-400">1024×450 Canvas Card</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p class="text-xs text-discord-muted mt-2">
+                    <i class="fa-solid fa-paintbrush mr-1 text-slate-400"></i> Rendered natively in sub-milliseconds with @napi-rs/canvas.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- DEMO VIEW 3: ANTI-RAID VELOCITY -->
+            <div id="demo-view-antiraid" class="hidden space-y-4">
+              <div class="flex items-start gap-4">
+                <img src="/nexus-logo.png" alt="Nexus" class="w-10 h-10 rounded-full bg-dark-900 shrink-0">
+                <div class="flex-1">
+                  <div class="flex items-baseline gap-2 mb-1">
+                    <span class="font-bold text-white text-sm">SRB NEXUS</span>
+                    <span class="bg-red-500 text-white text-[10px] font-extrabold px-1.5 py-0.2 rounded font-mono">SHIELD</span>
+                    <span class="text-xs text-discord-muted">Today at 1:15 PM</span>
+                  </div>
+                  
+                  <!-- Real Red Alert Embed -->
+                  <div class="max-w-xl rounded-lg bg-discord-sidebar border-l-4 border-l-red-500 p-4 space-y-3 shadow-md">
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Raid Velocity Threshold Exceeded
+                      </span>
+                      <span class="text-[10px] uppercase font-mono font-bold px-2 py-0.5 rounded bg-red-500/20 text-red-300">Auto-Mitigated</span>
+                    </div>
+
+                    <p class="text-sm text-slate-200">
+                      Detected <strong class="text-white">16 member joins in 2.3 seconds</strong>. Sliding-window velocity limits triggered automated lockdown.
+                    </p>
+
+                    <div class="bg-dark-900/80 rounded-lg p-3 text-xs space-y-1.5 font-mono">
+                      <div class="flex items-center gap-2 text-emerald-400">
+                        <i class="fa-solid fa-check text-[10px]"></i> Verification level heightened to HIGHEST
+                      </div>
+                      <div class="flex items-center gap-2 text-emerald-400">
+                        <i class="fa-solid fa-check text-[10px]"></i> 16 suspicious token accounts quarantined
+                      </div>
+                      <div class="flex items-center gap-2 text-emerald-400">
+                        <i class="fa-solid fa-check text-[10px]"></i> Server staff alert dispatched to #mod-logs
+                      </div>
+                    </div>
+
+                    <div class="flex items-center justify-between text-[11px] text-discord-muted pt-1">
+                      <span>Threshold: 5 joins / 10s</span>
+                      <span class="text-red-400 font-semibold">Server Intact • 0 Spam Messages</span>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-2 mt-2">
+                    <button class="px-3 py-1.5 rounded bg-red-600 hover:bg-red-500 text-white text-xs font-medium transition cursor-default">
+                      <i class="fa-solid fa-lock-open mr-1 text-xs"></i> Release Lockdown
+                    </button>
+                    <button class="px-3 py-1.5 rounded bg-[#4e5058] hover:bg-[#6d6f78] text-white text-xs font-medium transition cursor-default">
+                      <i class="fa-solid fa-list-check mr-1 text-xs"></i> Inspect Quarantine
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- DEMO VIEW 4: TICKETS & QUOTES -->
+            <div id="demo-view-tickets" class="hidden space-y-4">
+              <div class="flex items-start gap-4">
+                <img src="/nexus-logo.png" alt="Nexus" class="w-10 h-10 rounded-full bg-dark-900 shrink-0">
+                <div class="flex-1">
+                  <div class="flex items-baseline gap-2 mb-1">
+                    <span class="font-bold text-white text-sm">SRB NEXUS</span>
+                    <span class="bg-brand text-white text-[10px] font-extrabold px-1.5 py-0.2 rounded font-mono">APP</span>
+                    <span class="text-xs text-discord-muted">Today at 2:00 PM</span>
+                  </div>
+                  
+                  <!-- Support Embed -->
+                  <div class="max-w-xl rounded-lg bg-discord-sidebar border-l-4 border-l-emerald-500 p-4 space-y-3 shadow-md">
+                    <span class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <i class="fa-solid fa-headset text-emerald-400"></i> SRB Studio Support &amp; Quotations Desk
+                    </span>
+
+                    <p class="text-sm text-slate-200">
+                      Need client support, project development pricing, or a technical consultation? Select an option below to open a private room with our team.
+                    </p>
+
+                    <div class="grid grid-cols-2 gap-2 text-xs pt-2">
+                      <div class="p-2.5 rounded bg-dark-900/60 border border-dark-700">
+                        <span class="font-semibold text-white block mb-0.5">💼 Project Quotation</span>
+                        <span class="text-[11px] text-discord-muted">Automated budget &amp; timeline calculator</span>
+                      </div>
+                      <div class="p-2.5 rounded bg-dark-900/60 border border-dark-700">
+                        <span class="font-semibold text-white block mb-0.5">🎫 Member Support</span>
+                        <span class="text-[11px] text-discord-muted">Private channel with staff transcript export</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Discord Interactive Button Bar -->
+                  <div class="flex flex-wrap items-center gap-2 mt-2">
+                    <button class="px-3.5 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition cursor-default flex items-center gap-1.5">
+                      <i class="fa-solid fa-calculator"></i> Request Instant Quote
+                    </button>
+                    <button class="px-3.5 py-2 rounded bg-brand hover:bg-brand-hover text-white text-xs font-semibold transition cursor-default flex items-center gap-1.5">
+                      <i class="fa-solid fa-ticket"></i> Open Support Ticket
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Discord Input Bar Mockup -->
+          <div class="bg-discord-bg px-4 pb-4">
+            <div class="bg-discord-sidebar rounded-lg px-4 py-2.5 flex items-center justify-between text-xs text-discord-muted">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-circle-plus text-slate-400 hover:text-white cursor-pointer"></i>
+                <span class="text-slate-400">Message #welcome-and-joins</span>
+              </div>
+              <div class="flex items-center gap-3 text-slate-400">
+                <i class="fa-solid fa-gift hover:text-white cursor-pointer"></i>
+                <i class="fa-solid fa-note-sticky hover:text-white cursor-pointer"></i>
+                <i class="fa-solid fa-face-smile hover:text-white cursor-pointer"></i>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
       </div>
 
-      <!-- Live Feature Metric Strip -->
-      <div id="metrics" class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto text-left">
-        <div class="glass-card rounded-2xl p-5 border-l-4 border-l-cyan-accent">
+      <!-- Live Gateway Performance Strip -->
+      <div id="metrics" class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mb-20">
+        
+        <div class="glass-surface rounded-2xl p-5 border-l-4 border-l-brand">
           <div class="flex items-center justify-between mb-1">
             <span class="font-heading font-black text-3xl text-white font-mono" id="stat-cmd-count">37</span>
-            <i class="fa-solid fa-terminal text-cyan-accent/60 text-lg"></i>
+            <i class="fa-solid fa-terminal text-brand/60 text-lg"></i>
           </div>
-          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Slash Commands</p>
-          <span class="text-[10px] text-cyan-300/80 font-mono">Globally Deployed</span>
+          <p class="text-xs font-bold text-slate-300">Slash Commands</p>
+          <span class="text-[11px] text-slate-400">Globally registered suite</span>
         </div>
 
-        <div class="glass-card rounded-2xl p-5 border-l-4 border-l-emerald-400">
+        <div class="glass-surface rounded-2xl p-5 border-l-4 border-l-emerald-400">
           <div class="flex items-center justify-between mb-1">
             <span class="font-heading font-black text-3xl text-white font-mono" id="stat-latency-val">~240ms</span>
-            <i class="fa-solid fa-wave-square text-emerald-400/60 text-lg"></i>
+            <i class="fa-solid fa-bolt text-emerald-400/60 text-lg"></i>
           </div>
-          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Gateway Latency</p>
-          <span class="text-[10px] text-emerald-300/80 font-mono">Discord Shard Heartbeat</span>
+          <p class="text-xs font-bold text-slate-300">Gateway Latency</p>
+          <span class="text-[11px] text-slate-400">Real-time Discord shard ping</span>
         </div>
 
-        <div class="glass-card rounded-2xl p-5 border-l-4 border-l-blurple">
+        <div class="glass-surface rounded-2xl p-5 border-l-4 border-l-brand-cyan">
           <div class="flex items-center justify-between mb-1">
             <span class="font-heading font-black text-3xl text-white font-mono" id="stat-guild-count">5</span>
-            <i class="fa-solid fa-server text-blurple/60 text-lg"></i>
+            <i class="fa-solid fa-server text-brand-cyan/60 text-lg"></i>
           </div>
-          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Connected Guilds</p>
-          <span class="text-[10px] text-blurple font-mono">Guarded by Nexus</span>
+          <p class="text-xs font-bold text-slate-300">Active Guilds</p>
+          <span class="text-[11px] text-slate-400">Protected &amp; managed</span>
         </div>
 
-        <div class="glass-card rounded-2xl p-5 border-l-4 border-l-purple-400">
+        <div class="glass-surface rounded-2xl p-5 border-l-4 border-l-indigo-400">
           <div class="flex items-center justify-between mb-1">
-            <span class="font-heading font-black text-3xl text-white font-mono">1024×450</span>
-            <i class="fa-solid fa-paintbrush text-purple-400/60 text-lg"></i>
+            <span class="font-heading font-black text-3xl text-white font-mono">100%</span>
+            <i class="fa-solid fa-shield-halved text-indigo-400/60 text-lg"></i>
           </div>
-          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Canvas Engine</p>
-          <span class="text-[10px] text-purple-300 font-mono">Dynamic Welcomer</span>
+          <p class="text-xs font-bold text-slate-300">Core Features</p>
+          <span class="text-[11px] text-slate-400">Free &amp; fully configurable</span>
         </div>
+
       </div>
+
     </section>
 
-    <!-- 2. SERVER SELECTION VIEW (Authenticated View) -->
+    <!-- ========================================== -->
+    <!-- 2. SERVER SELECTION VIEW (Authenticated)  -->
+    <!-- ========================================== -->
     <section id="servers-section" class="hidden py-4">
       
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-6 border-b border-dark-750">
         <div>
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-dark-800 border border-cyan-500/30 flex items-center justify-center text-cyan-accent shadow-sm">
+            <div class="w-10 h-10 rounded-xl bg-dark-800 border border-brand/30 flex items-center justify-center text-brand shadow-sm">
               <i class="fa-solid fa-server text-lg"></i>
             </div>
             <div>
               <h2 class="font-heading font-extrabold text-2xl sm:text-3xl text-white">Your Discord Servers</h2>
-              <p class="text-sm text-slate-400 mt-0.5">Select a server to manage permissions, anti-raid shield, invites, and automation.</p>
+              <p class="text-sm text-slate-400 mt-0.5">Select a server to configure moderation, anti-raid, welcome cards, and invites.</p>
             </div>
           </div>
         </div>
         
         <!-- Search Filter -->
         <div class="relative w-full md:w-80">
-          <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
-          <input type="text" id="guild-search-input" oninput="filterGuilds()" placeholder="Search servers by name..." class="w-full bg-dark-900 border border-dark-700 rounded-xl pl-11 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-accent transition shadow-inner">
+          <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+          <input type="text" id="guild-search-input" oninput="filterGuilds()" placeholder="Search servers by name..." class="w-full bg-dark-900 border border-dark-700 rounded-xl pl-11 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand transition shadow-inner">
         </div>
       </div>
 
       <!-- Guild Grid -->
       <div id="guild-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <!-- Skeleton Loaders -->
-        <div class="glass-card rounded-2xl p-6 animate-pulse flex items-center gap-4">
-          <div class="w-16 h-16 rounded-2xl bg-dark-800"></div>
-          <div class="flex-1 space-y-2">
-            <div class="h-4 bg-dark-800 rounded w-3/4"></div>
-            <div class="h-3 bg-dark-800 rounded w-1/2"></div>
-          </div>
-        </div>
-        <div class="glass-card rounded-2xl p-6 animate-pulse flex items-center gap-4">
-          <div class="w-16 h-16 rounded-2xl bg-dark-800"></div>
+        <!-- Skeletons rendered by JS -->
+        <div class="glass-surface rounded-2xl p-6 animate-pulse flex items-center gap-4">
+          <div class="w-14 h-14 rounded-2xl bg-dark-800"></div>
           <div class="flex-1 space-y-2">
             <div class="h-4 bg-dark-800 rounded w-3/4"></div>
             <div class="h-3 bg-dark-800 rounded w-1/2"></div>
@@ -298,140 +592,390 @@
 
     </section>
 
-    <!-- 3. FEATURE SHOWCASE GRID -->
-    <section id="features" class="py-16">
+    <!-- ========================================== -->
+    <!-- 3. FEATURE BENTO GRID (Human-Crafted)      -->
+    <!-- ========================================== -->
+    <section id="features" class="py-16 scroll-mt-20">
+      
       <div class="text-center max-w-2xl mx-auto mb-14">
-        <span class="text-xs uppercase font-mono tracking-widest font-bold text-cyan-accent px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 inline-block mb-3">CYBERNETIC ARSENAL</span>
-        <h2 class="font-heading font-extrabold text-3xl sm:text-4xl text-white mb-4">Complete Server Sovereignty</h2>
-        <p class="text-slate-400 text-sm sm:text-base">Built on Node.js, Fastify, Discord.js REST Proxy, and Cloud PostgreSQL for sub-millisecond reaction speeds.</p>
+        <span class="text-xs font-bold text-brand uppercase tracking-wider px-3 py-1 rounded-full bg-brand/10 border border-brand/20 inline-block mb-3">
+          BUILT FOR MODERN COMMUNITIES
+        </span>
+        <h2 class="font-heading font-extrabold text-3xl sm:text-4xl text-white mb-4">
+          Engineered for safety, speed, and real community growth.
+        </h2>
+        <p class="text-slate-400 text-sm sm:text-base leading-relaxed">
+          Every feature is built directly into our central Node.js architecture with PostgreSQL persistence and sub-second reaction times.
+        </p>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="modules">
+      <!-- Bento Grid Layout -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        <!-- Invite Tracking & Auto-Role -->
-        <div class="glass-card rounded-3xl p-7 relative overflow-hidden group border-t-2 border-t-cyan-accent">
-          <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-accent flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-cyan-500/10">
-            <i class="fa-solid fa-link"></i>
+        <!-- Bento 1: Invite Tracker (Spans 2 cols on tablet/desktop) -->
+        <div class="md:col-span-2 glass-surface rounded-3xl p-7 flex flex-col justify-between hover:border-brand/40 transition group">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-cyan/10 text-brand-cyan border border-brand-cyan/20 text-xs font-bold">
+                <i class="fa-solid fa-link"></i> Smart Invite Tracker
+              </span>
+              <span class="text-xs text-slate-400 font-mono">Instant Role Grants</span>
+            </div>
+            <h3 class="font-heading font-bold text-2xl text-white mb-3">
+              Know where every member comes from and auto-assign roles.
+            </h3>
+            <p class="text-slate-300 text-sm leading-relaxed max-w-xl mb-6">
+              NEXUS caches all active invite links and performs real-time diffs when users join. Assign VIP roles to partner link joins, link staff invites to recruitment trackers, and maintain an accurate inviter leaderboard.
+            </p>
           </div>
-          <h3 class="font-heading font-bold text-xl text-white mb-2 flex items-center gap-2">
-            Invite Tracker & Auto-Role
-            <span class="text-[9px] uppercase font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-accent border border-cyan-500/30">NEW</span>
-          </h3>
-          <p class="text-slate-400 text-sm leading-relaxed mb-5">
-            Auto-caches server invite codes and diffs join counts in real time. Assign designated member roles automatically based on which invite link was used.
-          </p>
-          <div class="flex items-center justify-between pt-4 border-t border-dark-750 text-xs">
-            <span class="text-cyan-accent font-semibold flex items-center gap-1.5">
-              <i class="fa-solid fa-check"></i> Vanity & Single-use Detection
-            </span>
+
+          <!-- Feature snippet preview -->
+          <div class="bg-dark-900/90 rounded-2xl p-4 border border-dark-750 text-xs space-y-2">
+            <div class="flex items-center justify-between text-slate-400 pb-2 border-b border-dark-750">
+              <span class="font-mono">INVITE CODE</span>
+              <span class="font-mono">DESTINATION ROLE</span>
+              <span class="font-mono">USAGE</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-white font-semibold">discord.gg/developers</span>
+              <span class="px-2 py-0.5 rounded bg-brand/20 text-brand font-semibold">@Developer</span>
+              <span class="text-emerald-400 font-mono font-bold">142 uses</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-white font-semibold">discord.gg/vip-pass</span>
+              <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-semibold">@VIP Supporter</span>
+              <span class="text-emerald-400 font-mono font-bold">38 uses</span>
+            </div>
           </div>
         </div>
 
-        <!-- Anti-Raid Shield -->
-        <div class="glass-card rounded-3xl p-7 relative overflow-hidden group border-t-2 border-t-red-500">
-          <div class="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-red-500/10">
-            <i class="fa-solid fa-shield-virus"></i>
-          </div>
-          <h3 class="font-heading font-bold text-xl text-white mb-2">Anti-Raid Velocity Shield</h3>
-          <p class="text-slate-400 text-sm leading-relaxed mb-5">
-            Sliding-window velocity algorithms detect influxes of mass bot accounts. Automatically locks down channels and neutralizes rogue raids instantly.
-          </p>
-          <div class="flex items-center justify-between pt-4 border-t border-dark-750 text-xs">
-            <span class="text-red-400 font-semibold flex items-center gap-1.5">
-              <i class="fa-solid fa-check"></i> Sub-Second Auto Lockdown
+        <!-- Bento 2: Anti-Raid Shield -->
+        <div class="glass-surface rounded-3xl p-7 flex flex-col justify-between hover:border-red-500/40 transition group">
+          <div>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-bold mb-4">
+              <i class="fa-solid fa-shield-virus"></i> Velocity Shield
             </span>
+            <h3 class="font-heading font-bold text-2xl text-white mb-3">
+              Sub-second anti-raid velocity mitigation.
+            </h3>
+            <p class="text-slate-300 text-sm leading-relaxed mb-6">
+              When bot raids strike, sliding-window algorithms detect the surge in milliseconds. NEXUS heightens guild verification, locks down active channels, and isolates suspicious accounts.
+            </p>
+          </div>
+
+          <div class="bg-dark-900/90 rounded-2xl p-4 border border-dark-750 text-xs space-y-2 font-mono">
+            <div class="flex justify-between items-center text-slate-300">
+              <span>Reaction Window:</span>
+              <span class="text-emerald-400 font-bold">&lt; 150ms</span>
+            </div>
+            <div class="flex justify-between items-center text-slate-300">
+              <span>Raid Velocity Limit:</span>
+              <span class="text-white">5 joins / 10s</span>
+            </div>
+            <div class="flex justify-between items-center text-slate-300">
+              <span>Auto-Quarantine:</span>
+              <span class="text-brand-cyan">Active</span>
+            </div>
           </div>
         </div>
 
-        <!-- Anti-Scam & Phishing -->
-        <div class="glass-card rounded-3xl p-7 relative overflow-hidden group border-t-2 border-t-purple-500">
-          <div class="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-purple-500/10">
-            <i class="fa-solid fa-lock"></i>
-          </div>
-          <h3 class="font-heading font-bold text-xl text-white mb-2">Anti-Scam Phishing Guard</h3>
-          <p class="text-slate-400 text-sm leading-relaxed mb-5">
-            Continuously blocks malicious URLs, fake Discord Nitro phishing scams, and suspicious links with zero tolerance and staff alert dispatches.
-          </p>
-          <div class="flex items-center justify-between pt-4 border-t border-dark-750 text-xs">
-            <span class="text-purple-400 font-semibold flex items-center gap-1.5">
-              <i class="fa-solid fa-check"></i> Zero-Day Threat Shield
+        <!-- Bento 3: Native Canvas Welcomer -->
+        <div class="glass-surface rounded-3xl p-7 flex flex-col justify-between hover:border-indigo-500/40 transition group">
+          <div>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-bold mb-4">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Canvas Graphics
             </span>
+            <h3 class="font-heading font-bold text-xl text-white mb-2">
+              1024×450 Dynamic Welcome Cards
+            </h3>
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              High-resolution welcome cards rendered server-side with user avatar circular clipping, server member counters, and custom backgrounds.
+            </p>
+          </div>
+
+          <div class="h-24 rounded-2xl bg-gradient-to-tr from-dark-900 to-indigo-950/60 border border-dark-750 flex items-center justify-center p-3 text-center">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-brand/30 border border-brand flex items-center justify-center text-white font-bold text-sm">
+                SN
+              </div>
+              <div class="text-left">
+                <span class="text-xs font-bold text-white block">WELCOME TO THE SERVER</span>
+                <span class="text-[10px] text-brand-cyan font-mono">MEMBER #1,402 • CUSTOM BACKDROPS</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- Canvas Card Welcomer -->
-        <div class="glass-card rounded-3xl p-7 relative overflow-hidden group border-t-2 border-t-indigo-500">
-          <div class="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-indigo-500/10">
-            <i class="fa-solid fa-wand-magic-sparkles"></i>
-          </div>
-          <h3 class="font-heading font-bold text-xl text-white mb-2">Canvas Visual Welcomer</h3>
-          <p class="text-slate-400 text-sm leading-relaxed mb-5">
-            High-definition 1024x450 dynamic graphics rendered directly via @napi-rs/canvas with user avatar circular clipping, server statistics, and customizable backdrops.
-          </p>
-          <div class="flex items-center justify-between pt-4 border-t border-dark-750 text-xs">
-            <span class="text-indigo-400 font-semibold flex items-center gap-1.5">
-              <i class="fa-solid fa-check"></i> HD Graphic Rendering
+        <!-- Bento 4: Support & Quotations -->
+        <div class="glass-surface rounded-3xl p-7 flex flex-col justify-between hover:border-emerald-500/40 transition group">
+          <div>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold mb-4">
+              <i class="fa-solid fa-calculator"></i> Support &amp; Quotations
             </span>
+            <h3 class="font-heading font-bold text-xl text-white mb-2">
+              Modal Quotations &amp; Support Tickets
+            </h3>
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Collect client specifications, estimated budgets, and delivery timelines directly through native Discord modal dialogs with HTML transcript archiving.
+            </p>
+          </div>
+
+          <div class="bg-dark-900/90 rounded-2xl p-4 border border-dark-750 text-xs space-y-2">
+            <div class="flex items-center justify-between text-slate-300">
+              <span>Project Formats:</span>
+              <span class="text-white font-medium">Web Dev, Discord Bots</span>
+            </div>
+            <div class="flex items-center justify-between text-slate-300">
+              <span>Transcript Logs:</span>
+              <span class="text-emerald-400 font-medium">HTML Cloud Export</span>
+            </div>
           </div>
         </div>
 
-        <!-- Interactive Support & Quotations -->
-        <div class="glass-card rounded-3xl p-7 relative overflow-hidden group border-t-2 border-t-emerald-500">
-          <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-emerald-500/10">
-            <i class="fa-solid fa-ticket"></i>
-          </div>
-          <h3 class="font-heading font-bold text-xl text-white mb-2">Tickets & Quotation Desk</h3>
-          <p class="text-slate-400 text-sm leading-relaxed mb-5">
-            Interactive modal forms for project quotations, web dev pricing requests, and private member support with HTML transcript archiving.
-          </p>
-          <div class="flex items-center justify-between pt-4 border-t border-dark-750 text-xs">
-            <span class="text-emerald-400 font-semibold flex items-center gap-1.5">
-              <i class="fa-solid fa-check"></i> Private Channel Transcripts
+        <!-- Bento 5: Livestreams & Game Drops -->
+        <div class="glass-surface rounded-3xl p-7 flex flex-col justify-between hover:border-amber-500/40 transition group">
+          <div>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold mb-4">
+              <i class="fa-solid fa-gamepad"></i> Stream &amp; Game Radar
             </span>
+            <h3 class="font-heading font-bold text-xl text-white mb-2">
+              Twitch, YouTube &amp; Free Games
+            </h3>
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Instant alerts when your favorite creators go live on Twitch or YouTube, plus automated notifications whenever Epic Games releases 100% free games.
+            </p>
+          </div>
+
+          <div class="bg-dark-900/90 rounded-2xl p-4 border border-dark-750 text-xs flex items-center justify-between">
+            <span class="flex items-center gap-2 text-slate-300">
+              <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> Free Game Alert
+            </span>
+            <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-mono font-bold">$39.99 &rarr; $0.00</span>
           </div>
         </div>
 
-        <!-- Live Streams & Free Games Notifications -->
-        <div class="glass-card rounded-3xl p-7 relative overflow-hidden group border-t-2 border-t-amber-500">
-          <div class="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-amber-500/10">
-            <i class="fa-solid fa-gamepad"></i>
-          </div>
-          <h3 class="font-heading font-bold text-xl text-white mb-2">Streams & Free Games Radar</h3>
-          <p class="text-slate-400 text-sm leading-relaxed mb-5">
-            Automated Epic Games 100% OFF alerts and YouTube/Twitch broadcast tracker. Instantly notifies your server with rich embeds and role pings.
+      </div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- 4. INTERACTIVE COMMAND EXPLORER            -->
+    <!-- ========================================== -->
+    <section id="commands" class="py-16 scroll-mt-20">
+      
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+        <div>
+          <span class="text-xs font-bold text-brand uppercase tracking-wider px-3 py-1 rounded-full bg-brand/10 border border-brand/20 inline-block mb-3">
+            COMMAND CHEAT SHEET
+          </span>
+          <h2 class="font-heading font-extrabold text-3xl sm:text-4xl text-white">
+            37 Slash Commands. Zero friction.
+          </h2>
+          <p class="text-slate-400 text-sm mt-2 max-w-xl">
+            Click any command to copy its syntax directly to your clipboard.
           </p>
-          <div class="flex items-center justify-between pt-4 border-t border-dark-750 text-xs">
-            <span class="text-amber-400 font-semibold flex items-center gap-1.5">
-              <i class="fa-solid fa-check"></i> Live Stream Notifications
-            </span>
-          </div>
         </div>
 
+        <!-- Filter Buttons -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="filterCommands('all')" class="cmd-filter-btn px-3.5 py-1.5 rounded-xl bg-brand text-white text-xs font-bold transition">All</button>
+          <button onclick="filterCommands('invites')" class="cmd-filter-btn px-3.5 py-1.5 rounded-xl bg-dark-850 hover:bg-dark-800 text-slate-400 hover:text-white text-xs font-bold border border-dark-700 transition">Invites</button>
+          <button onclick="filterCommands('security')" class="cmd-filter-btn px-3.5 py-1.5 rounded-xl bg-dark-850 hover:bg-dark-800 text-slate-400 hover:text-white text-xs font-bold border border-dark-700 transition">Security</button>
+          <button onclick="filterCommands('tickets')" class="cmd-filter-btn px-3.5 py-1.5 rounded-xl bg-dark-850 hover:bg-dark-800 text-slate-400 hover:text-white text-xs font-bold border border-dark-700 transition">Tickets</button>
+          <button onclick="filterCommands('utility')" class="cmd-filter-btn px-3.5 py-1.5 rounded-xl bg-dark-850 hover:bg-dark-800 text-slate-400 hover:text-white text-xs font-bold border border-dark-700 transition">Utility</button>
+        </div>
+      </div>
+
+      <!-- Commands Grid -->
+      <div id="commands-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        
+        <!-- Command 1 -->
+        <div class="cmd-item glass-surface rounded-2xl p-5 border border-dark-700/60 hover:border-brand/40 transition cursor-pointer group" onclick="copyCommand(this, '/inviterole add role:@Member code:xyz')" data-category="invites">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-mono text-sm font-bold text-white group-hover:text-brand transition flex items-center gap-1.5">
+              <span class="text-brand">/</span>inviterole add
+            </span>
+            <i class="fa-regular fa-copy text-slate-500 group-hover:text-white text-xs transition"></i>
+          </div>
+          <p class="text-xs text-slate-400">Map an invite code to an automatic role assignment upon member join.</p>
+          <span class="text-[10px] font-mono text-brand-cyan/80 mt-2 block">Requires Manage Guild</span>
+        </div>
+
+        <!-- Command 2 -->
+        <div class="cmd-item glass-surface rounded-2xl p-5 border border-dark-700/60 hover:border-brand/40 transition cursor-pointer group" onclick="copyCommand(this, '/ticket setup channel:#tickets')" data-category="tickets">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-mono text-sm font-bold text-white group-hover:text-brand transition flex items-center gap-1.5">
+              <span class="text-brand">/</span>ticket setup
+            </span>
+            <i class="fa-regular fa-copy text-slate-500 group-hover:text-white text-xs transition"></i>
+          </div>
+          <p class="text-xs text-slate-400">Deploy an interactive ticket or quotation desk in a chosen channel.</p>
+          <span class="text-[10px] font-mono text-emerald-400/80 mt-2 block">Requires Manage Channels</span>
+        </div>
+
+        <!-- Command 3 -->
+        <div class="cmd-item glass-surface rounded-2xl p-5 border border-dark-700/60 hover:border-brand/40 transition cursor-pointer group" onclick="copyCommand(this, '/nexus-timeout user:@member duration:1h reason:Spam')" data-category="security">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-mono text-sm font-bold text-white group-hover:text-brand transition flex items-center gap-1.5">
+              <span class="text-brand">/</span>nexus-timeout
+            </span>
+            <i class="fa-regular fa-copy text-slate-500 group-hover:text-white text-xs transition"></i>
+          </div>
+          <p class="text-xs text-slate-400">Timeout a disruptive user with reason logging to moderation records.</p>
+          <span class="text-[10px] font-mono text-amber-400/80 mt-2 block">Requires Moderate Members</span>
+        </div>
+
+        <!-- Command 4 -->
+        <div class="cmd-item glass-surface rounded-2xl p-5 border border-dark-700/60 hover:border-brand/40 transition cursor-pointer group" onclick="copyCommand(this, '/invites user:@member')" data-category="invites">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-mono text-sm font-bold text-white group-hover:text-brand transition flex items-center gap-1.5">
+              <span class="text-brand">/</span>invites
+            </span>
+            <i class="fa-regular fa-copy text-slate-500 group-hover:text-white text-xs transition"></i>
+          </div>
+          <p class="text-xs text-slate-400">View total joins, active invite codes, and fake/left counts for any user.</p>
+          <span class="text-[10px] font-mono text-slate-500 mt-2 block">Available to all members</span>
+        </div>
+
+        <!-- Command 5 -->
+        <div class="cmd-item glass-surface rounded-2xl p-5 border border-dark-700/60 hover:border-brand/40 transition cursor-pointer group" onclick="copyCommand(this, '/backup create name:weekly-snapshot')" data-category="utility">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-mono text-sm font-bold text-white group-hover:text-brand transition flex items-center gap-1.5">
+              <span class="text-brand">/</span>backup create
+            </span>
+            <i class="fa-regular fa-copy text-slate-500 group-hover:text-white text-xs transition"></i>
+          </div>
+          <p class="text-xs text-slate-400">Create a secure snapshot of server roles, channels, and permissions.</p>
+          <span class="text-[10px] font-mono text-red-400/80 mt-2 block">Requires Administrator</span>
+        </div>
+
+        <!-- Command 6 -->
+        <div class="cmd-item glass-surface rounded-2xl p-5 border border-dark-700/60 hover:border-brand/40 transition cursor-pointer group" onclick="copyCommand(this, '/streamer add platform:Twitch channel:srb')" data-category="utility">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-mono text-sm font-bold text-white group-hover:text-brand transition flex items-center gap-1.5">
+              <span class="text-brand">/</span>streamer add
+            </span>
+            <i class="fa-regular fa-copy text-slate-500 group-hover:text-white text-xs transition"></i>
+          </div>
+          <p class="text-xs text-slate-400">Configure instant live stream notifications with custom message pings.</p>
+          <span class="text-[10px] font-mono text-purple-400/80 mt-2 block">Requires Manage Guild</span>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- 5. WHY NEXUS (Straightforward Value)       -->
+    <!-- ========================================== -->
+    <section id="why-nexus" class="py-16 scroll-mt-20 border-t border-dark-750/60">
+      
+      <div class="max-w-4xl mx-auto">
+        <div class="text-center mb-12">
+          <h2 class="font-heading font-extrabold text-3xl sm:text-4xl text-white mb-3">
+            Built differently than legacy Discord bots.
+          </h2>
+          <p class="text-slate-400 text-sm sm:text-base">
+            Why server administrators switch to SRB NEXUS.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          <div class="glass-surface rounded-2xl p-6">
+            <div class="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 text-brand flex items-center justify-center text-lg mb-4">
+              <i class="fa-solid fa-layer-group"></i>
+            </div>
+            <h4 class="font-heading font-bold text-lg text-white mb-2">No Fragmented Bot Clutter</h4>
+            <p class="text-slate-300 text-sm leading-relaxed">
+              Instead of having Carl-bot for roles, Dyno for moderation, MEE6 for levels, and Ticket Tool for tickets, manage your entire server through one cohesive bot and dashboard.
+            </p>
+          </div>
+
+          <div class="glass-surface rounded-2xl p-6">
+            <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg mb-4">
+              <i class="fa-solid fa-lock-open"></i>
+            </div>
+            <h4 class="font-heading font-bold text-lg text-white mb-2">Zero Artificial Paywalls</h4>
+            <p class="text-slate-300 text-sm leading-relaxed">
+              We don't lock essential features like anti-raid sensitivity, invite auto-roles, or custom welcome graphics behind premium subscriptions.
+            </p>
+          </div>
+
+          <div class="glass-surface rounded-2xl p-6">
+            <div class="w-10 h-10 rounded-xl bg-brand-cyan/10 border border-brand-cyan/20 text-brand-cyan flex items-center justify-center text-lg mb-4">
+              <i class="fa-solid fa-bolt-lightning"></i>
+            </div>
+            <h4 class="font-heading font-bold text-lg text-white mb-2">Fastify &amp; PostgreSQL Speed</h4>
+            <p class="text-slate-300 text-sm leading-relaxed">
+              Engineered with a high-speed Fastify REST layer and indexed PostgreSQL tables. Changes saved in your dashboard apply to Discord in real time.
+            </p>
+          </div>
+
+          <div class="glass-surface rounded-2xl p-6">
+            <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center text-lg mb-4">
+              <i class="fa-solid fa-code"></i>
+            </div>
+            <h4 class="font-heading font-bold text-lg text-white mb-2">Clean Discord v14 Standards</h4>
+            <p class="text-slate-300 text-sm leading-relaxed">
+              100% compliant with modern Discord slash commands, interactive buttons, modal forms, and REST proxying.
+            </p>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- 6. FINAL CALL TO ACTION STRIP              -->
+    <!-- ========================================== -->
+    <section class="py-16 text-center">
+      <div class="glass-surface-elevated rounded-3xl p-8 sm:p-12 max-w-4xl mx-auto relative overflow-hidden">
+        <div class="relative z-10">
+          <h2 class="font-heading font-black text-3xl sm:text-4xl text-white mb-4">
+            Ready to upgrade your Discord community?
+          </h2>
+          <p class="text-slate-300 text-sm sm:text-base max-w-xl mx-auto mb-8">
+            Add SRB NEXUS in 30 seconds. No complex YAML files, no complicated bot hosting.
+          </p>
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <a href="https://discord.com/oauth2/authorize?client_id=1526885301736177705&permissions=8&scope=bot%20applications.commands" target="_blank" class="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-3.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-sm shadow-xl shadow-brand/30 transition-all hover:scale-[1.01]">
+              <i class="fa-brands fa-discord text-lg"></i>
+              <span>Add to Your Server</span>
+            </a>
+            <a href="/api/auth/login" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-dark-850 hover:bg-dark-800 text-slate-200 border border-dark-700 font-bold text-sm transition">
+              <span>Open Dashboard</span>
+            </a>
+          </div>
+        </div>
       </div>
     </section>
 
   </main>
 
-  <!-- Cyber Footer -->
-  <footer class="border-t border-dark-750 bg-dark-950/90 py-10 text-xs text-slate-500">
+  <!-- Clean, Professional Footer -->
+  <footer class="border-t border-dark-750/70 bg-dark-950 py-10 text-xs text-slate-400">
     <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
       
       <div class="flex items-center gap-3">
-        <img src="/nexus-logo.png" alt="Logo" class="w-8 h-8 object-contain logo-glow">
+        <img src="/nexus-logo.png" alt="SRB NEXUS" class="w-8 h-8 object-contain">
         <div>
-          <span class="text-white font-heading font-bold text-sm tracking-wide">SRB NEXUS CLOUD</span>
-          <p class="text-[11px] text-slate-400">&copy; 2026 SRB Studio. Built for high-concurrency Discord architectures.</p>
+          <span class="text-white font-heading font-bold text-sm tracking-wide">SRB NEXUS</span>
+          <p class="text-[11px] text-slate-400">&copy; 2026 SRB Studio. Built for creators and Discord communities.</p>
         </div>
       </div>
 
       <div class="flex flex-wrap items-center gap-6 font-medium">
-        <a href="#hero-section" class="hover:text-cyan-accent transition">Overview</a>
-        <a href="#features" class="hover:text-cyan-accent transition">Capabilities</a>
-        <a href="/health" target="_blank" class="hover:text-cyan-accent transition flex items-center gap-1.5">
+        <a href="#demo" class="hover:text-white transition">Live Preview</a>
+        <a href="#features" class="hover:text-white transition">Features</a>
+        <a href="#commands" class="hover:text-white transition">Commands</a>
+        <a href="/health" target="_blank" class="hover:text-white transition flex items-center gap-1.5">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
           <span>System Status</span>
         </a>
-        <a href="https://discord.com/oauth2/authorize?client_id=1526885301736177705&permissions=8&scope=bot%20applications.commands" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blurple/20 hover:bg-blurple/30 text-indigo-300 border border-blurple/30 hover:border-blurple/50 transition">
+        <a href="https://discord.com/oauth2/authorize?client_id=1526885301736177705&permissions=8&scope=bot%20applications.commands" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-brand/20 hover:bg-brand/30 text-indigo-300 border border-brand/30 transition">
           <i class="fa-brands fa-discord"></i> Invite Bot
         </a>
       </div>
@@ -439,10 +983,83 @@
     </div>
   </footer>
 
+  <!-- Toast Notification Container -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+    <div class="bg-dark-850 border border-brand text-white px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 text-xs font-semibold">
+      <i class="fa-solid fa-check text-brand-cyan"></i>
+      <span id="toast-msg">Copied command!</span>
+    </div>
+  </div>
+
+  <!-- Client-side Logic (Auth, Guilds, Interactive Tabs, Health) -->
   <script>
     let allGuilds = [];
     const urlParams = new URLSearchParams(window.location.search);
     const isExplicitServerList = urlParams.has('servers') || window.location.pathname.includes('/servers');
+
+    // Interactive Demo Tab Switcher
+    function switchDemoTab(tab) {
+      const views = ['invites', 'welcomer', 'antiraid', 'tickets'];
+      const channelNames = {
+        invites: '# 💬・welcome-and-joins',
+        welcomer: '# 💬・welcome-and-joins',
+        antiraid: '# 🚨・security-audit-logs',
+        tickets: '# 🎫・open-a-ticket'
+      };
+
+      views.forEach(v => {
+        const viewEl = document.getElementById(`demo-view-${v}`);
+        const btnEl = document.getElementById(`tab-btn-${v}`);
+        if (viewEl && btnEl) {
+          if (v === tab) {
+            viewEl.classList.remove('hidden');
+            btnEl.classList.add('tab-active');
+          } else {
+            viewEl.classList.add('hidden');
+            btnEl.classList.remove('tab-active');
+          }
+        }
+      });
+
+      const chanEl = document.getElementById('demo-channel-name');
+      if (chanEl && channelNames[tab]) {
+        chanEl.innerText = channelNames[tab];
+      }
+    }
+
+    // Filter Command List
+    function filterCommands(cat) {
+      // Update buttons
+      document.querySelectorAll('.cmd-filter-btn').forEach(btn => {
+        btn.classList.remove('bg-brand', 'text-white');
+        btn.classList.add('bg-dark-850', 'text-slate-400');
+      });
+      event.target.classList.add('bg-brand', 'text-white');
+      event.target.classList.remove('bg-dark-850', 'text-slate-400');
+
+      // Filter items
+      document.querySelectorAll('.cmd-item').forEach(item => {
+        if (cat === 'all' || item.getAttribute('data-category') === cat) {
+          item.classList.remove('hidden');
+        } else {
+          item.classList.add('hidden');
+        }
+      });
+    }
+
+    // Copy Command to Clipboard
+    function copyCommand(el, cmd) {
+      navigator.clipboard.writeText(cmd);
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-msg');
+      if (toast && toastMsg) {
+        toastMsg.innerText = `Copied: ${cmd}`;
+        toast.classList.remove('translate-y-20', 'opacity-0');
+        setTimeout(() => {
+          toast.classList.add('translate-y-20', 'opacity-0');
+        }, 2200);
+      }
+    }
 
     // Fetch live bot stats from /health
     async function fetchGatewayHealth() {
@@ -453,8 +1070,10 @@
         
         if (data.bot) {
           if (data.bot.online) {
-            document.getElementById('header-status-text').innerText = 'Nexus Core Online';
-            document.getElementById('live-bot-status-pill').className = 'flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold';
+            const statusEl = document.getElementById('header-status-text');
+            if (statusEl) statusEl.innerText = 'Nexus Core Online';
+            const pillEl = document.getElementById('live-bot-status-pill');
+            if (pillEl) pillEl.className = 'flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold';
           }
           if (data.bot.ping && data.bot.ping > 0) {
             const latEl = document.getElementById('stat-latency-val');
@@ -470,13 +1089,14 @@
       }
     }
 
+    // Auth verification
     async function checkAuth() {
       fetchGatewayHealth();
 
       try {
         const res = await fetch('/api/auth/me');
         if (!res.ok) {
-          // Unauthenticated state
+          // Unauthenticated view
           document.getElementById('hero-section').classList.remove('hidden');
           document.getElementById('servers-section').classList.add('hidden');
           return;
@@ -498,7 +1118,7 @@
 
         document.getElementById('auth-header-slot').innerHTML = `
           <div class="flex items-center gap-3 bg-dark-850 border border-dark-700 py-1.5 px-3 rounded-2xl">
-            <img src="${avatarUrl}" class="w-8 h-8 rounded-full border border-cyan-500/50 object-cover" />
+            <img src="${avatarUrl}" class="w-8 h-8 rounded-full border border-brand/50 object-cover" />
             <span class="text-sm font-bold text-white">${user.username}</span>
             <button onclick="logout()" title="Logout" class="text-slate-400 hover:text-red-400 transition ml-2 text-sm">
               <i class="fa-solid fa-arrow-right-from-bracket"></i>
@@ -539,7 +1159,7 @@
       const container = document.getElementById('guild-cards-grid');
       if (guilds.length === 0) {
         container.innerHTML = `
-          <div class="col-span-full text-center py-16 text-slate-400 glass-card rounded-3xl">
+          <div class="col-span-full text-center py-16 text-slate-400 glass-surface rounded-3xl">
             <i class="fa-solid fa-server text-4xl text-slate-600 mb-3"></i>
             <p class="font-semibold text-lg text-white">No servers found</p>
             <p class="text-sm text-slate-400">You must have Administrator or Manage Server permissions in a server to configure Nexus.</p>
@@ -550,15 +1170,15 @@
 
       container.innerHTML = guilds.map(guild => {
         const iconHtml = guild.icon
-          ? `<img src="${guild.icon}" class="w-14 h-14 rounded-2xl object-cover border border-cyan-500/20 shadow-md">`
-          : `<div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-900 to-indigo-900 font-extrabold text-cyan-accent text-lg flex items-center justify-center border border-cyan-500/30 shadow-md">${guild.name.substring(0, 2).toUpperCase()}</div>`;
+          ? `<img src="${guild.icon}" class="w-14 h-14 rounded-2xl object-cover border border-brand/20 shadow-md">`
+          : `<div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-dark-850 to-brand/30 font-extrabold text-brand text-lg flex items-center justify-center border border-brand/30 shadow-md">${guild.name.substring(0, 2).toUpperCase()}</div>`;
 
         const actionButton = guild.hasBot
-          ? `<a href="/dashboard?guild=${guild.id}" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blurple hover:from-cyan-500 hover:to-blurple text-white text-xs font-bold transition w-full shadow-md shadow-cyan-600/20">
+          ? `<a href="/dashboard?guild=${guild.id}" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white text-xs font-bold transition w-full shadow-md shadow-brand/20">
                <i class="fa-solid fa-sliders"></i> Open Control Panel
              </a>`
-          : `<a href="https://discord.com/oauth2/authorize?client_id=1526885301736177705&guild_id=${guild.id}&permissions=8&scope=bot%20applications.commands" target="_blank" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-dark-800 hover:bg-dark-750 text-slate-200 text-xs font-bold transition w-full border border-dark-700 hover:border-cyan-500/40">
-               <i class="fa-solid fa-plus text-cyan-accent"></i> Add Bot to Server
+          : `<a href="https://discord.com/oauth2/authorize?client_id=1526885301736177705&guild_id=${guild.id}&permissions=8&scope=bot%20applications.commands" target="_blank" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-dark-800 hover:bg-dark-750 text-slate-200 text-xs font-bold transition w-full border border-dark-700 hover:border-brand/40">
+               <i class="fa-solid fa-plus text-brand"></i> Add Bot to Server
              </a>`;
 
         const badgeHtml = guild.hasBot
@@ -570,7 +1190,7 @@
              </span>`;
 
         return `
-          <div class="glass-card rounded-3xl p-6 flex flex-col justify-between transition-all group">
+          <div class="glass-surface rounded-3xl p-6 flex flex-col justify-between transition-all group">
             <div class="flex items-start gap-4 mb-6">
               ${iconHtml}
               <div class="flex-1 min-w-0">
