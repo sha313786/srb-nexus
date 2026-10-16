@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import axios from 'axios';
 import { getDiscordApiBase } from './auth';
 import { db } from '../../core/database';
+import { logger } from '../../core/logger';
 import { bot, createWelcomeCard } from '../../index';
 import {
   ChannelType,
@@ -1889,6 +1890,9 @@ export async function guildRoutes(fastify: FastifyInstance) {
     const title = body.title ? String(body.title).trim() : undefined;
     const desc = body.description ? String(body.description).trim() : undefined;
 
+    const verifiedRole = body.verification_role_id ? String(body.verification_role_id).replace(/[<#@!&>]/g, '').trim() : null;
+    const unverifiedRole = body.unverified_role_id ? String(body.unverified_role_id).replace(/[<#@!&>]/g, '').trim() : null;
+
     if (!channelId) {
       return reply.status(400).send({ error: 'Target verification channel is required' });
     }
@@ -1898,7 +1902,22 @@ export async function guildRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: deployRes.error || 'Failed to deploy verification panel' });
     }
 
-    return reply.send({ success: true, message: 'Verification Gate deployed successfully!' });
+    // Automatically activate verification and save channel/roles to guild_settings
+    await db.query(
+      `UPDATE guild_settings 
+       SET verification_enabled = TRUE,
+           verification_channel_id = $1,
+           verification_type = $2,
+           verification_title = COALESCE($3, verification_title),
+           verification_desc = COALESCE($4, verification_desc),
+           verification_role_id = COALESCE($5, verification_role_id),
+           unverified_role_id = COALESCE($6, unverified_role_id),
+           updated_at = NOW()
+       WHERE guild_id = $7`,
+      [channelId, type, title || null, desc || null, verifiedRole, unverifiedRole, id]
+    ).catch((e) => logger.error({ e }, 'Failed to auto-enable verification in db on deploy'));
+
+    return reply.send({ success: true, message: 'Verification Gate deployed and activated successfully!' });
   });
 
   // =========================================================================

@@ -2265,7 +2265,7 @@
                   <p class="text-[11px] text-slate-400">Quarantine new members until they complete verification.</p>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" id="input-verification-enabled" class="sr-only peer">
+                  <input type="checkbox" id="input-verification-enabled" checked class="sr-only peer">
                   <div class="w-11 h-6 bg-dark-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                 </label>
               </div>
@@ -5992,6 +5992,8 @@
           type: document.getElementById('select-verification-type')?.value || 'button',
           title: document.getElementById('input-verification-title')?.value,
           description: document.getElementById('input-verification-desc')?.value,
+          verification_role_id: document.getElementById('select-verification-role')?.value,
+          unverified_role_id: document.getElementById('select-unverified-role')?.value,
         };
 
         const res = await fetch(`/api/guilds/${guildId}/verification/deploy`, {
@@ -6002,7 +6004,9 @@
 
         const data = await res.json();
         if (res.ok) {
-          showToast(data.message || 'Verification Gate successfully deployed to Discord!', 'success');
+          const enabledEl = document.getElementById('input-verification-enabled');
+          if (enabledEl) enabledEl.checked = true;
+          showToast(data.message || 'Verification Gate successfully deployed and activated!', 'success');
         } else {
           showToast(data.error || 'Failed to deploy verification panel', 'error');
         }

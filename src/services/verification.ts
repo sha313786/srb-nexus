@@ -79,15 +79,25 @@ export async function handleVerificationButton(interaction: ButtonInteraction): 
       [guildId]
     );
 
-    if (res.rows.length === 0 || !res.rows[0].verification_enabled) {
-      await interaction.reply({
-        content: '⚠️ Verification is currently disabled on this server.',
-        ephemeral: true,
-      });
-      return;
+    // If verification was not explicitly marked enabled in DB, but the user is clicking the deployed gate button,
+    // auto-enable it in the database so members are never locked out!
+    if (res.rows.length === 0) {
+      await db.query(
+        `INSERT INTO guild_settings (guild_id, verification_enabled, verification_type)
+         VALUES ($1, TRUE, $2)
+         ON CONFLICT (guild_id) DO UPDATE SET verification_enabled = TRUE`,
+        [guildId, customId.includes('captcha') ? 'captcha' : 'button']
+      ).catch(() => {});
+    } else if (!res.rows[0].verification_enabled) {
+      await db.query(
+        `UPDATE guild_settings SET verification_enabled = TRUE WHERE guild_id = $1`,
+        [guildId]
+      ).catch(() => {});
     }
 
-    const { verification_role_id, unverified_role_id, verification_type } = res.rows[0];
+    const verification_role_id = res.rows[0]?.verification_role_id;
+    const unverified_role_id = res.rows[0]?.unverified_role_id;
+    const verification_type = res.rows[0]?.verification_type || (customId.includes('captcha') ? 'captcha' : 'button');
 
     // If Captcha mode, prompt modal challenge
     if (customId === 'nexus_verify_captcha' || verification_type === 'captcha') {
@@ -173,12 +183,28 @@ async function completeVerification(
   unverifiedRoleId?: string
 ): Promise<void> {
   const guild = member.guild;
+  let targetRoleId = verifiedRoleId ? verifiedRoleId.replace(/[<#@!&>]/g, '').trim() : undefined;
 
-  if (verifiedRoleId) {
-    const cleanRole = verifiedRoleId.replace(/[<#@!&>]/g, '').trim();
-    const role = guild.roles.cache.get(cleanRole);
+  // Auto-detect Member or Verified role if none was configured
+  if (!targetRoleId || !guild.roles.cache.has(targetRoleId)) {
+    const autoRole = guild.roles.cache.find(
+      (r) => /^(member|verified|members|community)$/i.test(r.name) && !r.managed && r.id !== guild.id
+    );
+    if (autoRole) {
+      targetRoleId = autoRole.id;
+      db.query(`UPDATE guild_settings SET verification_role_id = $1 WHERE guild_id = $2`, [autoRole.id, guild.id]).catch(() => {});
+    }
+  }
+
+  let assignedRoleName: string | null = null;
+  if (targetRoleId) {
+    const role = guild.roles.cache.get(targetRoleId);
     if (role) {
-      await member.roles.add(role).catch(() => {});
+      const added = await member.roles.add(role).catch((e) => {
+        logger.warn({ e }, `[VERIFY] Could not add role ${role.name} to ${member.user.tag}`);
+        return null;
+      });
+      if (added) assignedRoleName = role.name;
     }
   }
 
@@ -190,8 +216,12 @@ async function completeVerification(
     }
   }
 
+  const roleNote = assignedRoleName 
+    ? `You have been assigned the **@${assignedRoleName}** role and now have full access to the server.`
+    : `You have successfully passed verification and now have access to the server.`;
+
   await interaction.reply({
-    content: '🎉 **Verification Successful!** You now have full access to the server. Welcome!',
+    content: `🎉 **Verification Complete!** ${roleNote} Welcome to **${guild.name}**!`,
     ephemeral: true,
   });
 
