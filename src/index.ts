@@ -329,16 +329,50 @@ export async function createWelcomeCard(
 bot.once(Events.ClientReady, async () => {
   app.log.info(`[BOT] Discord bot online and logged in as ${bot.user?.tag}`);
 
-  // Set Discord presence with website domain
-  bot.user?.setPresence({
-    status: 'online',
-    activities: [
-      {
-        name: 'srb-nexus-eyaj.onrender.com',
-        type: ActivityType.Watching,
-      },
-    ],
-  });
+  // Set Discord presence (load saved custom presence or use clean public default)
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS bot_config (
+        key VARCHAR(64) PRIMARY KEY,
+        value JSONB,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `).catch(() => {});
+
+    const presRow = await db.query('SELECT value FROM bot_config WHERE key = $1', ['bot_presence']).catch(() => ({ rows: [] }));
+    if (presRow.rows[0]?.value) {
+      const p = presRow.rows[0].value;
+      bot.user?.setPresence({
+        status: p.status || 'online',
+        activities: [
+          {
+            name: p.activityText && p.activityText !== 'srb-nexus-eyaj.onrender.com' ? p.activityText : 'SRB NEXUS | /help',
+            type: Number(p.activityType ?? ActivityType.Watching),
+          },
+        ],
+      });
+    } else {
+      bot.user?.setPresence({
+        status: 'online',
+        activities: [
+          {
+            name: 'SRB NEXUS | /help',
+            type: ActivityType.Watching,
+          },
+        ],
+      });
+    }
+  } catch {
+    bot.user?.setPresence({
+      status: 'online',
+      activities: [
+        {
+          name: 'SRB NEXUS | /help',
+          type: ActivityType.Watching,
+        },
+      ],
+    });
+  }
 
   // REGISTER SLASH COMMANDS WITH DISCORD API (Only on demand or manual trigger to avoid Discord IP rate limits)
   if (bot.user && process.env.SYNC_SLASH_COMMANDS === 'true') {

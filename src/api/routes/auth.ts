@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import axios from 'axios';
+import { isBotOwner } from './guilds';
 
 interface DiscordTokenResponse {
   access_token: string;
@@ -281,8 +282,10 @@ export async function authRoutes(fastify: FastifyInstance) {
   fastify.get('/api/auth/me', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       await request.jwtVerify();
+      const u = request.user as any;
+      const isOwner = u?.id ? await isBotOwner(u.id) : false;
       return reply.send({ 
-        user: request.user,
+        user: { ...u, isOwner },
         clientId: process.env.DISCORD_CLIENT_ID 
       });
     } catch (err) {

@@ -106,6 +106,38 @@ async function verifyUserGuildAccess(accessToken: string, guildId: string): Prom
   }
 }
 
+let cachedBotOwnerId: string | null = null;
+
+export async function isBotOwner(userId: string): Promise<boolean> {
+  if (!userId) return false;
+  if (userId === '1525076160990543892') return true;
+  if (process.env.DISCORD_OWNER_ID && process.env.DISCORD_OWNER_ID === userId) return true;
+  if (cachedBotOwnerId && cachedBotOwnerId === userId) return true;
+
+  try {
+    if (!bot.application?.owner) {
+      await bot.application?.fetch();
+    }
+    const app = bot.application;
+    if (app?.owner) {
+      if ('id' in app.owner && app.owner.id === userId) {
+        cachedBotOwnerId = app.owner.id;
+        return true;
+      }
+      if ('members' in app.owner) {
+        const isMember = (app.owner as any).members?.some((m: any) => m.id === userId || m.user?.id === userId);
+        if (isMember) {
+          cachedBotOwnerId = userId;
+          return true;
+        }
+      }
+    }
+  } catch {
+    // Ignore error
+  }
+  return false;
+}
+
 export async function guildRoutes(fastify: FastifyInstance) {
   // Global JWT authentication verification hook for all guild endpoints
   fastify.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -1242,6 +1274,8 @@ export async function guildRoutes(fastify: FastifyInstance) {
     const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
     if (!hasAccess) return reply.status(403).send({ error: 'Forbidden' });
 
+    const isOwner = user ? await isBotOwner(user.id) : false;
+
     const guild = bot.guilds.cache.get(id);
     const memUsage = process.memoryUsage();
     const uptimeSeconds = Math.floor(process.uptime());
@@ -1262,6 +1296,7 @@ export async function guildRoutes(fastify: FastifyInstance) {
         memoryHeapMb: Math.round(memUsage.heapUsed / 1024 / 1024),
         totalGuilds: bot.guilds.cache.size,
         commandsCount: 34,
+        isOwner,
         guildStats: {
           memberCount: guild?.memberCount || 0,
           channelsCount: guild?.channels.cache.size || 0,
@@ -1272,21 +1307,23 @@ export async function guildRoutes(fastify: FastifyInstance) {
           tag: bot.user?.tag || 'SRB NEXUS#9818',
           avatar: bot.user?.displayAvatarURL({ extension: 'png' }) || null,
           status: bot.user?.presence?.status || 'online',
-          activity: bot.user?.presence?.activities[0]?.name || 'Managing SRB NEXUS | /help',
+          activity: bot.user?.presence?.activities[0]?.name || 'SRB NEXUS | /help',
           activityType: bot.user?.presence?.activities[0]?.type ?? ActivityType.Playing,
         },
       },
     });
   });
 
-  // POST /api/guilds/:id/presence - Update live bot presence status and activity
+  // POST /api/guilds/:id/presence - Update live bot presence status and activity (Owner Only)
   fastify.post('/api/guilds/:id/presence', async (request: FastifyRequest, reply: FastifyReply) => {
     const user = (request as any).user as AuthUserPayload | undefined;
     const { id } = request.params as { id: string };
 
     if (!user || !user.accessToken) return reply.status(401).send({ error: 'Unauthorized' });
-    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
-    if (!hasAccess) return reply.status(403).send({ error: 'Forbidden' });
+    const isOwner = await isBotOwner(user.id);
+    if (!isOwner) {
+      return reply.status(403).send({ error: 'Access denied: Only the Bot Developer can manage global bot presence.' });
+    }
 
     const body = (request.body as Record<string, any>) || {};
     const activityTypeNum = Number(body.activityType ?? ActivityType.Playing);
@@ -1305,20 +1342,42 @@ export async function guildRoutes(fastify: FastifyInstance) {
       });
     }
 
+    // Persist bot presence in Postgres database
+    try {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS bot_config (
+          key VARCHAR(64) PRIMARY KEY,
+          value JSONB,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+      `).catch(() => {});
+
+      await db.query(
+        `INSERT INTO bot_config (key, value, updated_at) 
+         VALUES ('bot_presence', $1, NOW())
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+        [JSON.stringify({ status: statusStr, activityText, activityType: activityTypeNum })]
+      );
+    } catch (e) {
+      request.log.warn({ e }, 'Failed to persist bot presence');
+    }
+
     return reply.send({
       success: true,
       message: `Bot status updated to [${statusStr.toUpperCase()}] with activity "${activityText}"!`,
     });
   });
 
-  // POST /api/guilds/:id/sync-commands - Sync all 34 Slash Commands
+  // POST /api/guilds/:id/sync-commands - Sync all 34 Slash Commands (Owner Only)
   fastify.post('/api/guilds/:id/sync-commands', async (request: FastifyRequest, reply: FastifyReply) => {
     const user = (request as any).user as AuthUserPayload | undefined;
     const { id } = request.params as { id: string };
 
     if (!user || !user.accessToken) return reply.status(401).send({ error: 'Unauthorized' });
-    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
-    if (!hasAccess) return reply.status(403).send({ error: 'Forbidden' });
+    const isOwner = await isBotOwner(user.id);
+    if (!isOwner) {
+      return reply.status(403).send({ error: 'Access denied: Only the Bot Developer can deploy global slash commands.' });
+    }
 
     try {
       if (bot.application?.id) {

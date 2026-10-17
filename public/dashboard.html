@@ -595,9 +595,11 @@
             </div>
 
             <div>
-              <button onclick="openDevConsoleModal()" class="text-[11px] text-slate-400 hover:text-white transition flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-dark-800 hover:bg-dark-750 border border-dark-700/60 shadow-sm">
-                <i class="fa-solid fa-sliders text-indigo-400"></i> Bot Control Studio
-              </button>
+              <div id="btn-dev-console-wrapper" class="hidden">
+                <button onclick="openDevConsoleModal()" class="text-[11px] text-slate-400 hover:text-white transition flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-dark-800 hover:bg-dark-750 border border-dark-700/60 shadow-sm">
+                  <i class="fa-solid fa-sliders text-indigo-400"></i> Bot Control Studio
+                </button>
+              </div>
             </div>
           </div>
 
@@ -3133,9 +3135,15 @@
 
         const meData = await meRes.json();
         const user = meData.user;
+        currentUser = user;
         if (!user) {
           showAuthModal();
           return;
+        }
+
+        if (user.isOwner) {
+          const devBtn = document.getElementById('btn-dev-console-wrapper');
+          if (devBtn) devBtn.classList.remove('hidden');
         }
 
         const avatarUrl = user.avatar
@@ -3840,6 +3848,11 @@
           roleEl.innerText = t.guildStats?.rolesCount ?? serverRoles.length;
         }
 
+        if (t.isOwner || currentUser?.isOwner) {
+          const devBtn = document.getElementById('btn-dev-console-wrapper');
+          if (devBtn) devBtn.classList.remove('hidden');
+        }
+
         updateOverviewModuleBadges();
       } catch (e) {
         console.warn('Telemetry fetch error', e);
@@ -3872,7 +3885,10 @@
       const modal = document.getElementById('auth-modal-container');
       const actTypeVal = cachedBotTelemetry?.botUser?.activityType ?? 3;
       const statusVal = cachedBotTelemetry?.botUser?.status ?? 'online';
-      const actTextVal = cachedBotTelemetry?.botUser?.activity || 'SRB NEXUS | /help';
+      let actTextVal = cachedBotTelemetry?.botUser?.activity || 'SRB NEXUS | /help';
+      if (!actTextVal || actTextVal === 'srb-nexus-eyaj.onrender.com') {
+        actTextVal = 'SRB NEXUS | /help';
+      }
 
       modal.innerHTML = `
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in">
@@ -3926,6 +3942,12 @@
               <div>
                 <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Custom Status Text</label>
                 <input type="text" id="input-presence-text" value="${actTextVal}" placeholder="e.g. Protecting Servers | /help" class="w-full bg-dark-850 border border-dark-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                <div class="flex items-center gap-1.5 pt-2 flex-wrap">
+                  <span class="text-[10px] text-slate-400 font-bold uppercase mr-1">Presets:</span>
+                  <button type="button" onclick="document.getElementById('input-presence-text').value='SRB NEXUS | /help'" class="px-2.5 py-1 rounded-lg bg-dark-800 hover:bg-dark-750 text-[11px] text-indigo-400 border border-dark-700 transition">SRB NEXUS | /help</button>
+                  <button type="button" onclick="document.getElementById('input-presence-text').value='Protecting Discord Servers | /help'" class="px-2.5 py-1 rounded-lg bg-dark-800 hover:bg-dark-750 text-[11px] text-cyan-400 border border-dark-700 transition">Protecting Servers</button>
+                  <button type="button" onclick="document.getElementById('input-presence-text').value='Watching Community | /help'" class="px-2.5 py-1 rounded-lg bg-dark-800 hover:bg-dark-750 text-[11px] text-emerald-400 border border-dark-700 transition">Watching Community</button>
+                </div>
               </div>
 
               <div class="pt-1 flex justify-end">
