@@ -368,7 +368,7 @@
       <div id="panel-overview" class="module-panel space-y-6">
         <div class="glass-panel rounded-3xl p-8 space-y-8">
           
-          <!-- Header and Save -->
+          <!-- Header and Refresh -->
           <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-dark-700/60 gap-4">
             <div>
               <div class="flex items-center gap-2.5">
@@ -377,11 +377,11 @@
                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Active Engine
                 </span>
               </div>
-              <p class="text-sm text-slate-400 mt-1">Real-time bot telemetry, presence status controls, and core guild parameters.</p>
+              <p class="text-sm text-slate-400 mt-1">Real-time server analytics, active security modules, and core management controls.</p>
             </div>
             <div class="flex items-center gap-3">
-              <button onclick="fetchTelemetry()" title="Refresh telemetry" class="px-3.5 py-2 rounded-xl bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-bold border border-dark-700 transition flex items-center gap-2">
-                <i class="fa-solid fa-arrows-rotate"></i> Refresh Metrics
+              <button onclick="refreshServerCache()" id="btn-refresh-cache" title="Refresh server channels, roles & telemetry" class="px-3.5 py-2 rounded-xl bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-bold border border-dark-700 transition flex items-center gap-2">
+                <i class="fa-solid fa-arrows-rotate"></i> Sync Server Data
               </button>
               <button onclick="saveModule('overview')" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-xs shadow-lg shadow-brand/25 transition">
                 <i class="fa-solid fa-floppy-disk"></i> Save Overview
@@ -389,123 +389,147 @@
             </div>
           </div>
 
-          <!-- Real-Time Telemetry Grid (4 Cards) -->
+          <!-- Real-Time Server Analytics Grid (4 Cards) -->
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <!-- Ping / Latency -->
+            <!-- Total Members -->
             <div class="p-5 rounded-2xl bg-dark-900/80 border border-dark-700/80 relative overflow-hidden group">
               <div class="flex items-center justify-between mb-3">
                 <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <i class="fa-solid fa-wifi text-indigo-400"></i> Bot Latency
+                  <i class="fa-solid fa-users text-cyan-400"></i> Total Members
                 </span>
-                <span id="stat-ping-status" class="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">Optimal</span>
-              </div>
-              <h3 id="stat-ping" class="font-heading font-black text-3xl text-white">38 ms</h3>
-              <p class="text-[11px] text-slate-500 mt-1">WebSocket Gateway connection</p>
-            </div>
-
-            <!-- RAM / Memory -->
-            <div class="p-5 rounded-2xl bg-dark-900/80 border border-dark-700/80 relative overflow-hidden group">
-              <div class="flex items-center justify-between mb-3">
-                <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <i class="fa-solid fa-microchip text-cyan-400"></i> Memory RSS
-                </span>
-                <span class="px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 text-[10px] font-bold">Node.js</span>
-              </div>
-              <h3 id="stat-ram" class="font-heading font-black text-3xl text-white">82 MB</h3>
-              <p class="text-[11px] text-slate-500 mt-1">Uptime: <span id="stat-uptime" class="text-slate-300 font-semibold">Running</span></p>
-            </div>
-
-            <!-- Guild Cache Stats -->
-            <div class="p-5 rounded-2xl bg-dark-900/80 border border-dark-700/80 relative overflow-hidden group">
-              <div class="flex items-center justify-between mb-3">
-                <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <i class="fa-solid fa-users text-amber-400"></i> Cached Guild
-                </span>
-                <span class="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20 text-[10px] font-bold">Synced</span>
+                <span class="px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 text-[10px] font-bold">Community</span>
               </div>
               <h3 id="stat-members" class="font-heading font-black text-3xl text-white">--</h3>
-              <p class="text-[11px] text-slate-500 mt-1"><span id="stat-channels" class="text-slate-300 font-semibold">--</span> text chans • <span id="stat-roles" class="text-slate-300 font-semibold">--</span> roles</p>
+              <p class="text-[11px] text-slate-500 mt-1">Total server membership base</p>
             </div>
 
-            <!-- Slash Commands registered -->
+            <!-- Server Channels -->
             <div class="p-5 rounded-2xl bg-dark-900/80 border border-dark-700/80 relative overflow-hidden group">
               <div class="flex items-center justify-between mb-3">
                 <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <i class="fa-solid fa-terminal text-purple-400"></i> Slash Commands
+                  <i class="fa-solid fa-hashtag text-indigo-400"></i> Channels
                 </span>
-                <span class="px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/20 text-[10px] font-bold">Discord API</span>
+                <span class="px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold">Structured</span>
               </div>
-              <h3 class="font-heading font-black text-3xl text-white">34 Active</h3>
-              <p class="text-[11px] text-slate-500 mt-1">All commands synced & ready</p>
+              <h3 id="stat-channels" class="font-heading font-black text-3xl text-white">--</h3>
+              <p class="text-[11px] text-slate-500 mt-1">Text, voice & category channels</p>
+            </div>
+
+            <!-- Server Roles -->
+            <div class="p-5 rounded-2xl bg-dark-900/80 border border-dark-700/80 relative overflow-hidden group">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <i class="fa-solid fa-shield-halved text-purple-400"></i> Server Roles
+                </span>
+                <span class="px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/20 text-[10px] font-bold">Hierarchy</span>
+              </div>
+              <h3 id="stat-roles" class="font-heading font-black text-3xl text-white">--</h3>
+              <p class="text-[11px] text-slate-500 mt-1">Configured permission tiers</p>
+            </div>
+
+            <!-- Security & Protection Shield -->
+            <div class="p-5 rounded-2xl bg-dark-900/80 border border-dark-700/80 relative overflow-hidden group">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <i class="fa-solid fa-shield-check text-emerald-400"></i> Protection Armor
+                </span>
+                <span id="stat-armor-badge" class="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">Armored</span>
+              </div>
+              <h3 id="stat-armor-title" class="font-heading font-black text-3xl text-emerald-400">Protected</h3>
+              <p class="text-[11px] text-slate-500 mt-1"><span id="stat-active-modules-count" class="text-slate-300 font-semibold">6</span> active defense & support systems</p>
             </div>
           </div>
 
-          <!-- Bot Presence Customizer & Quick Actions Row -->
+          <!-- Server Modules & Operations Grid -->
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            <!-- Bot Presence Customizer Studio -->
+            <!-- Active Modules & Feature Hub -->
             <div class="p-6 rounded-3xl bg-dark-900/60 border border-dark-700 space-y-4">
               <div class="flex items-center justify-between">
                 <h3 class="font-heading font-bold text-base text-white flex items-center gap-2">
-                  <i class="fa-solid fa-robot text-indigo-400"></i> Live Bot Presence Studio
+                  <i class="fa-solid fa-cubes-stacked text-cyan-400"></i> Server Systems & Modules
                 </h3>
-                <span class="text-[11px] text-slate-400">Instant Discord Sync</span>
+                <span class="text-[11px] text-slate-400">Click to configure</span>
               </div>
-              <p class="text-xs text-slate-400">Customize what activity, game, or custom status text the bot broadcasts across Discord servers.</p>
+              <p class="text-xs text-slate-400">Live operational status of SRB NEXUS protection and automation features on this server.</p>
 
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Activity Type</label>
-                  <select id="select-presence-activity-type" class="w-full bg-dark-850 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
-                    <option value="0">🎮 Playing</option>
-                    <option value="1">🟣 Streaming</option>
-                    <option value="2">🎧 Listening to</option>
-                    <option value="3">📺 Watching</option>
-                    <option value="5">🏆 Competing in</option>
-                  </select>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <!-- Support Tickets -->
+                <div onclick="switchTab('tickets')" class="p-3.5 rounded-2xl bg-dark-850 hover:bg-dark-800 border border-dark-700/80 hover:border-cyan-500/40 cursor-pointer transition group">
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-xs font-bold text-white flex items-center gap-2">
+                      <i class="fa-solid fa-ticket text-cyan-400 group-hover:scale-110 transition"></i> Support Desk
+                    </span>
+                    <span id="badge-overview-tickets" class="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">Active</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400">Private desk, multi-mode & claiming</p>
                 </div>
-                <div>
-                  <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Status State</label>
-                  <select id="select-presence-status" class="w-full bg-dark-850 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
-                    <option value="online">🟢 Online</option>
-                    <option value="idle">🟡 Idle</option>
-                    <option value="dnd">🔴 Do Not Disturb</option>
-                    <option value="invisible">⚫ Invisible</option>
-                  </select>
+
+                <!-- Verification Gate -->
+                <div onclick="switchTab('verification')" class="p-3.5 rounded-2xl bg-dark-850 hover:bg-dark-800 border border-dark-700/80 hover:border-indigo-500/40 cursor-pointer transition group">
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-xs font-bold text-white flex items-center gap-2">
+                      <i class="fa-solid fa-circle-check text-indigo-400 group-hover:scale-110 transition"></i> Verification Gate
+                    </span>
+                    <span id="badge-overview-verification" class="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">Active</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400">Anti-bot screening & role auto-assign</p>
                 </div>
-              </div>
 
-              <div>
-                <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Custom Status Text</label>
-                <input type="text" id="input-presence-text" value="SRB NEXUS | /help" placeholder="e.g. Protecting Servers | /help" class="w-full bg-dark-850 border border-dark-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
-              </div>
+                <!-- Anti-Raid Defense -->
+                <div onclick="switchTab('security')" class="p-3.5 rounded-2xl bg-dark-850 hover:bg-dark-800 border border-dark-700/80 hover:border-red-500/40 cursor-pointer transition group">
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-xs font-bold text-white flex items-center gap-2">
+                      <i class="fa-solid fa-shield-virus text-red-400 group-hover:scale-110 transition"></i> Anti-Raid Shield
+                    </span>
+                    <span id="badge-overview-antiraid" class="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">Armed</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400">Velocity join detection & auto-lockdown</p>
+                </div>
 
-              <div class="pt-2 flex justify-end">
-                <button onclick="updateBotPresence()" id="btn-update-presence" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition flex items-center gap-2 shadow-md shadow-indigo-600/30">
-                  <i class="fa-solid fa-arrows-rotate"></i> Update Presence Now
-                </button>
+                <!-- Auto-Moderation -->
+                <div onclick="switchTab('moderation')" class="p-3.5 rounded-2xl bg-dark-850 hover:bg-dark-800 border border-dark-700/80 hover:border-amber-500/40 cursor-pointer transition group">
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-xs font-bold text-white flex items-center gap-2">
+                      <i class="fa-solid fa-robot text-amber-400 group-hover:scale-110 transition"></i> Auto-Moderation
+                    </span>
+                    <span id="badge-overview-automod" class="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">Active</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400">Anti-spam, invite links & caps shield</p>
+                </div>
+
+                <!-- Welcome System -->
+                <div onclick="switchTab('welcome')" class="p-3.5 rounded-2xl bg-dark-850 hover:bg-dark-800 border border-dark-700/80 hover:border-pink-500/40 cursor-pointer transition group">
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-xs font-bold text-white flex items-center gap-2">
+                      <i class="fa-solid fa-hand-wave text-pink-400 group-hover:scale-110 transition"></i> Welcome System
+                    </span>
+                    <span id="badge-overview-welcome" class="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">Ready</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400">Canvas banners & join announcements</p>
+                </div>
+
+                <!-- Audit Security Logging -->
+                <div onclick="switchTab('audit')" class="p-3.5 rounded-2xl bg-dark-850 hover:bg-dark-800 border border-dark-700/80 hover:border-purple-500/40 cursor-pointer transition group">
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-xs font-bold text-white flex items-center gap-2">
+                      <i class="fa-solid fa-file-shield text-purple-400 group-hover:scale-110 transition"></i> Audit Trail Logs
+                    </span>
+                    <span id="badge-overview-audit" class="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">Active</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400">Real-time mod actions & event trail</p>
+                </div>
               </div>
             </div>
 
             <!-- Quick Action Operations Center -->
             <div class="p-6 rounded-3xl bg-dark-900/60 border border-dark-700 space-y-4">
               <h3 class="font-heading font-bold text-base text-white flex items-center gap-2">
-                <i class="fa-solid fa-bolt text-amber-400"></i> Quick Action Center
+                <i class="fa-solid fa-bolt text-amber-400"></i> Server Operations Center
               </h3>
-              <p class="text-xs text-slate-400">One-click administrative operations to broadcast messages, sync slash commands, or trigger emergency shields.</p>
+              <p class="text-xs text-slate-400">Immediate administrative actions for raid response, server broadcasts, and permission syncing.</p>
 
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                <!-- Sync Commands -->
-                <button onclick="syncSlashCommands()" id="btn-sync-commands" class="p-4 rounded-2xl bg-dark-850 hover:bg-dark-800 border border-dark-700 hover:border-indigo-500/40 text-left transition space-y-2 group">
-                  <div class="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-sm group-hover:scale-110 transition">
-                    <i class="fa-solid fa-arrows-rotate"></i>
-                  </div>
-                  <div>
-                    <h4 class="text-xs font-bold text-white">Sync Commands</h4>
-                    <p class="text-[10px] text-slate-400">Deploy 34 slash commands</p>
-                  </div>
-                </button>
-
                 <!-- Emergency Lockdown -->
                 <button onclick="toggleEmergencyLockdown()" id="btn-emergency-lockdown" class="p-4 rounded-2xl bg-dark-850 hover:bg-dark-800 border border-dark-700 hover:border-red-500/40 text-left transition space-y-2 group">
                   <div id="icon-lockdown" class="w-8 h-8 rounded-xl bg-red-500/10 text-red-400 flex items-center justify-center text-sm group-hover:scale-110 transition">
@@ -527,18 +551,54 @@
                     <p class="text-[10px] text-slate-400">Send server announcement</p>
                   </div>
                 </button>
+
+                <!-- Refresh Cache -->
+                <button onclick="refreshServerCache()" class="p-4 rounded-2xl bg-dark-850 hover:bg-dark-800 border border-dark-700 hover:border-cyan-500/40 text-left transition space-y-2 group">
+                  <div class="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-sm group-hover:scale-110 transition">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                  </div>
+                  <div>
+                    <h4 class="text-xs font-bold text-white">Sync Server</h4>
+                    <p class="text-[10px] text-slate-400">Reload roles & channels</p>
+                  </div>
+                </button>
               </div>
 
               <!-- General Prefix Setting -->
               <div class="pt-2 border-t border-dark-700/60">
-                <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Legacy Command Prefix</label>
+                <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Server Command Prefix</label>
                 <div class="flex items-center gap-3">
-                  <input type="text" id="input-prefix" value="!" class="w-24 bg-dark-850 border border-dark-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono text-center font-bold">
-                  <p class="text-xs text-slate-400">Prefix for text commands (e.g. <code class="text-indigo-400">!ping</code>). Slash commands use <code class="text-indigo-400">/</code>.</p>
+                  <input type="text" id="input-prefix" value="!" class="w-20 bg-dark-850 border border-dark-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono text-center font-bold">
+                  <p class="text-xs text-slate-400">Prefix for text commands in this server (e.g. <code class="text-cyan-400 font-mono">!help</code>). Slash commands use <code class="text-cyan-400 font-mono">/</code>.</p>
                 </div>
               </div>
             </div>
 
+          </div>
+
+          <!-- Subtle Bot Gateway & Telemetry Strip -->
+          <div class="p-4 rounded-2xl bg-dark-900/40 border border-dark-800 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-400">
+            <div class="flex items-center gap-3">
+              <span class="flex h-2.5 w-2.5 relative">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+              <span class="font-bold text-slate-300">Nexus Gateway Status:</span>
+              <span id="stat-ping-status" class="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">Healthy</span>
+              <span id="stat-ping" class="text-slate-300 font-mono font-semibold">-- ms</span>
+            </div>
+            
+            <div class="flex items-center gap-5 text-[11px]">
+              <div>Engine Uptime: <span id="stat-uptime" class="text-slate-300 font-semibold font-mono">--</span></div>
+              <div class="hidden sm:block">Memory: <span id="stat-ram" class="text-slate-300 font-semibold font-mono">-- MB</span></div>
+              <div>Slash Commands: <span class="text-slate-300 font-semibold">34 Registered</span></div>
+            </div>
+
+            <div>
+              <button onclick="openDevConsoleModal()" class="text-[11px] text-slate-400 hover:text-white transition flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-dark-800 hover:bg-dark-750 border border-dark-700/60 shadow-sm">
+                <i class="fa-solid fa-sliders text-indigo-400"></i> Bot Control Studio
+              </button>
+            </div>
           </div>
 
         </div>
@@ -3504,6 +3564,9 @@
           if (headerChanEl) {
             headerChanEl.innerText = nChanObj ? `#${nChanObj.name}` : (s.notifications_channel_id ? 'Configured' : 'Not Set');
           }
+
+          currentGuildSettings = s;
+          updateOverviewModuleBadges(s);
         }
 
         // 2. Fetch Live Telemetry
@@ -3634,7 +3697,100 @@
       }
     }
 
-    // Telemetry & Bot Presence
+    // Telemetry & Server Overview Logic
+    let cachedBotTelemetry = null;
+    let currentGuildSettings = null;
+
+    function updateOverviewModuleBadges(s) {
+      if (!s) s = currentGuildSettings || {};
+      let activeCount = 0;
+
+      // Tickets
+      const tickBadge = document.getElementById('badge-overview-tickets');
+      if (tickBadge) {
+        const active = s.tickets_enabled !== false;
+        tickBadge.innerText = active ? 'Active' : 'Disabled';
+        tickBadge.className = active 
+          ? 'px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold'
+          : 'px-2 py-0.5 rounded-full bg-slate-500/15 text-slate-400 border border-slate-500/20 text-[10px] font-bold';
+        if (active) activeCount++;
+      }
+
+      // Verification
+      const verBadge = document.getElementById('badge-overview-verification');
+      if (verBadge) {
+        const active = Boolean(s.verification_enabled || s.verified_role_id);
+        verBadge.innerText = active ? 'Active' : 'Not Set';
+        verBadge.className = active 
+          ? 'px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold'
+          : 'px-2 py-0.5 rounded-full bg-slate-500/15 text-slate-400 border border-slate-500/20 text-[10px] font-bold';
+        if (active) activeCount++;
+      }
+
+      // Anti-Raid
+      const raidBadge = document.getElementById('badge-overview-antiraid');
+      if (raidBadge) {
+        const active = s.anti_raid_enabled !== false;
+        raidBadge.innerText = active ? 'Armed' : 'Disabled';
+        raidBadge.className = active 
+          ? 'px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold'
+          : 'px-2 py-0.5 rounded-full bg-slate-500/15 text-slate-400 border border-slate-500/20 text-[10px] font-bold';
+        if (active) activeCount++;
+      }
+
+      // Auto-Mod
+      const modBadge = document.getElementById('badge-overview-automod');
+      if (modBadge) {
+        const active = s.auto_mod_enabled !== false;
+        modBadge.innerText = active ? 'Active' : 'Disabled';
+        modBadge.className = active 
+          ? 'px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold'
+          : 'px-2 py-0.5 rounded-full bg-slate-500/15 text-slate-400 border border-slate-500/20 text-[10px] font-bold';
+        if (active) activeCount++;
+      }
+
+      // Welcome
+      const welBadge = document.getElementById('badge-overview-welcome');
+      if (welBadge) {
+        const active = Boolean(s.welcome_channel_id);
+        welBadge.innerText = active ? 'Ready' : 'Not Set';
+        welBadge.className = active 
+          ? 'px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold'
+          : 'px-2 py-0.5 rounded-full bg-slate-500/15 text-slate-400 border border-slate-500/20 text-[10px] font-bold';
+        if (active) activeCount++;
+      }
+
+      // Audit Logs
+      const auditBadge = document.getElementById('badge-overview-audit');
+      if (auditBadge) {
+        const active = Boolean(s.log_channel_id);
+        auditBadge.innerText = active ? 'Active' : 'Not Set';
+        auditBadge.className = active 
+          ? 'px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold'
+          : 'px-2 py-0.5 rounded-full bg-slate-500/15 text-slate-400 border border-slate-500/20 text-[10px] font-bold';
+        if (active) activeCount++;
+      }
+
+      const modCountEl = document.getElementById('stat-active-modules-count');
+      if (modCountEl) modCountEl.innerText = activeCount;
+
+      const armorTitle = document.getElementById('stat-armor-title');
+      const armorBadge = document.getElementById('stat-armor-badge');
+      if (armorTitle && armorBadge) {
+        if (activeCount >= 3) {
+          armorTitle.innerText = 'Protected';
+          armorTitle.className = 'font-heading font-black text-3xl text-emerald-400';
+          armorBadge.innerText = 'Armored';
+          armorBadge.className = 'px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold';
+        } else {
+          armorTitle.innerText = 'Standard';
+          armorTitle.className = 'font-heading font-black text-3xl text-amber-400';
+          armorBadge.innerText = 'Moderate';
+          armorBadge.className = 'px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20 text-[10px] font-bold';
+        }
+      }
+    }
+
     async function fetchTelemetry() {
       if (!guildId) return;
       try {
@@ -3642,6 +3798,7 @@
         if (!res.ok) return;
         const data = await res.json();
         const t = data.telemetry || data;
+        cachedBotTelemetry = t;
 
         const pingEl = document.getElementById('stat-ping');
         const pingVal = t.ping ?? 38;
@@ -3652,15 +3809,15 @@
         const pingStatusEl = document.getElementById('stat-ping-status');
         if (pingStatusEl) {
           const ping = t.ping ?? 38;
-          if (ping < 80) {
+          if (ping < 160) {
             pingStatusEl.innerText = 'Optimal';
             pingStatusEl.className = 'px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold';
-          } else if (ping < 180) {
-            pingStatusEl.innerText = 'Normal';
-            pingStatusEl.className = 'px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20 text-[10px] font-bold';
+          } else if (ping < 320) {
+            pingStatusEl.innerText = 'Healthy';
+            pingStatusEl.className = 'px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold';
           } else {
             pingStatusEl.innerText = 'Elevated';
-            pingStatusEl.className = 'px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/20 text-[10px] font-bold';
+            pingStatusEl.className = 'px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20 text-[10px] font-bold';
           }
         }
 
@@ -3674,32 +3831,139 @@
         if (membersEl) membersEl.innerText = t.guildStats?.memberCount ?? t.memberCount ?? currentGuild?.memberCount ?? '--';
 
         const chanEl = document.getElementById('stat-channels');
-        if (chanEl) chanEl.innerText = t.guildStats?.channelsCount ?? t.channelCount ?? serverChannels.length;
+        if (chanEl && (t.guildStats?.channelsCount || serverChannels.length)) {
+          chanEl.innerText = t.guildStats?.channelsCount ?? serverChannels.length;
+        }
 
         const roleEl = document.getElementById('stat-roles');
-        if (roleEl) roleEl.innerText = t.guildStats?.rolesCount ?? t.roleCount ?? serverRoles.length;
-
-        // Presence inputs
-        const botUser = t.botUser || t.presence;
-        if (botUser) {
-          const actType = document.getElementById('select-presence-activity-type');
-          if (actType && botUser.activityType !== undefined) actType.value = botUser.activityType;
-
-          const statState = document.getElementById('select-presence-status');
-          if (statState && botUser.status) statState.value = botUser.status;
-
-          const actText = document.getElementById('input-presence-text');
-          if (actText && (botUser.activity || botUser.activityName)) actText.value = botUser.activity || botUser.activityName;
+        if (roleEl && (t.guildStats?.rolesCount || serverRoles.length)) {
+          roleEl.innerText = t.guildStats?.rolesCount ?? serverRoles.length;
         }
+
+        updateOverviewModuleBadges();
       } catch (e) {
         console.warn('Telemetry fetch error', e);
       }
     }
 
+    async function refreshServerCache() {
+      if (!guildId) return;
+      const btn = document.getElementById('btn-refresh-cache');
+      const orig = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-arrows-rotate fa-spin text-cyan-400"></i> Syncing...`;
+      }
+      try {
+        await loadServerData(guildId);
+        await fetchTelemetry();
+        showToast('🔄 Server channels, roles, and telemetry re-synced from Discord!', 'success');
+      } catch (err) {
+        showToast('Failed to refresh server cache', 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = orig;
+        }
+      }
+    }
+
+    function openDevConsoleModal() {
+      const modal = document.getElementById('auth-modal-container');
+      const actTypeVal = cachedBotTelemetry?.botUser?.activityType ?? 3;
+      const statusVal = cachedBotTelemetry?.botUser?.status ?? 'online';
+      const actTextVal = cachedBotTelemetry?.botUser?.activity || 'SRB NEXUS | /help';
+
+      modal.innerHTML = `
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in">
+          <div class="glass-panel max-w-lg w-full p-8 rounded-3xl border border-dark-700 space-y-6 shadow-2xl">
+            <div class="flex items-center justify-between pb-4 border-b border-dark-700">
+              <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center text-lg">
+                  <i class="fa-solid fa-robot"></i>
+                </div>
+                <div>
+                  <h3 class="text-lg font-bold text-white">Bot Developer Studio</h3>
+                  <p class="text-[11px] text-slate-400">Global controls across all connected Discord servers</p>
+                </div>
+              </div>
+              <button onclick="document.getElementById('auth-modal-container').innerHTML=''" class="text-slate-400 hover:text-white transition text-lg">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <!-- Global Bot Presence -->
+            <div class="p-5 rounded-2xl bg-dark-900/60 border border-dark-750 space-y-3.5">
+              <div class="flex items-center justify-between">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
+                  <i class="fa-solid fa-sliders text-indigo-400"></i> Global Presence & Activity
+                </h4>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">All Servers</span>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Activity Type</label>
+                  <select id="select-presence-activity-type" class="w-full bg-dark-850 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                    <option value="0" ${actTypeVal === 0 ? 'selected' : ''}>🎮 Playing</option>
+                    <option value="1" ${actTypeVal === 1 ? 'selected' : ''}>🟣 Streaming</option>
+                    <option value="2" ${actTypeVal === 2 ? 'selected' : ''}>🎧 Listening to</option>
+                    <option value="3" ${actTypeVal === 3 ? 'selected' : ''}>📺 Watching</option>
+                    <option value="5" ${actTypeVal === 5 ? 'selected' : ''}>🏆 Competing in</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Status State</label>
+                  <select id="select-presence-status" class="w-full bg-dark-850 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                    <option value="online" ${statusVal === 'online' ? 'selected' : ''}>🟢 Online</option>
+                    <option value="idle" ${statusVal === 'idle' ? 'selected' : ''}>🟡 Idle</option>
+                    <option value="dnd" ${statusVal === 'dnd' ? 'selected' : ''}>🔴 Do Not Disturb</option>
+                    <option value="invisible" ${statusVal === 'invisible' ? 'selected' : ''}>⚫ Invisible</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1">Custom Status Text</label>
+                <input type="text" id="input-presence-text" value="${actTextVal}" placeholder="e.g. Protecting Servers | /help" class="w-full bg-dark-850 border border-dark-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+              </div>
+
+              <div class="pt-1 flex justify-end">
+                <button onclick="updateBotPresence()" id="btn-update-presence" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition flex items-center gap-2 shadow-md shadow-indigo-600/30">
+                  <i class="fa-solid fa-arrows-rotate"></i> Update Presence Now
+                </button>
+              </div>
+            </div>
+
+            <!-- Slash Command Deployment -->
+            <div class="p-5 rounded-2xl bg-dark-900/60 border border-dark-750 flex items-center justify-between gap-4">
+              <div>
+                <h4 class="text-xs font-bold text-white flex items-center gap-2">
+                  <i class="fa-solid fa-terminal text-purple-400"></i> Global Slash Commands
+                </h4>
+                <p class="text-[11px] text-slate-400 mt-0.5">Force re-registration of all 34 slash commands with Discord API.</p>
+              </div>
+              <button onclick="syncSlashCommands()" id="btn-sync-commands" class="px-4 py-2 rounded-xl bg-dark-800 hover:bg-dark-700 border border-dark-700 hover:border-purple-500/40 text-white font-bold text-xs transition flex items-center gap-2 whitespace-nowrap">
+                <i class="fa-solid fa-cloud-arrow-up text-purple-400"></i> Sync Commands
+              </button>
+            </div>
+
+            <div class="flex items-center justify-end pt-2 border-t border-dark-700">
+              <button onclick="document.getElementById('auth-modal-container').innerHTML=''" class="px-5 py-2 rounded-xl bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-bold transition">Close</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     async function updateBotPresence() {
-      const activityType = parseInt(document.getElementById('select-presence-activity-type').value) || 0;
-      const status = document.getElementById('select-presence-status').value || 'online';
-      const activityText = document.getElementById('input-presence-text').value.trim() || 'SRB NEXUS | /help';
+      const actTypeEl = document.getElementById('select-presence-activity-type');
+      const statusEl = document.getElementById('select-presence-status');
+      const textEl = document.getElementById('input-presence-text');
+
+      const activityType = actTypeEl ? parseInt(actTypeEl.value) || 0 : 0;
+      const status = statusEl ? statusEl.value || 'online' : 'online';
+      const activityText = textEl ? textEl.value.trim() || 'SRB NEXUS | /help' : 'SRB NEXUS | /help';
 
       const btn = document.getElementById('btn-update-presence');
       const orig = btn ? btn.innerHTML : '';
@@ -3716,6 +3980,11 @@
         });
         if (res.ok) {
           showToast('🤖 Bot presence updated live across Discord!');
+          if (cachedBotTelemetry && cachedBotTelemetry.botUser) {
+            cachedBotTelemetry.botUser.activityType = activityType;
+            cachedBotTelemetry.botUser.status = status;
+            cachedBotTelemetry.botUser.activity = activityText;
+          }
         } else {
           showToast('Failed to update presence', 'error');
         }
@@ -3734,7 +4003,7 @@
       const orig = btn ? btn.innerHTML : '';
       if (btn) {
         btn.disabled = true;
-        btn.innerHTML = `<div class="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-sm"><i class="fa-solid fa-spinner fa-spin"></i></div><div><h4 class="text-xs font-bold text-white">Deploying...</h4><p class="text-[10px] text-slate-400">Syncing with Discord</p></div>`;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-purple-400"></i> Deploying...`;
       }
 
       try {
