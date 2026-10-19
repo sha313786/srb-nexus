@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@700;800&family=Space+Mono:wght@400;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   
   <script>
     tailwind.config = {
@@ -22,7 +22,9 @@
           fontFamily: {
             sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
             heading: ['Outfit', 'sans-serif'],
+            grotesk: ['"Space Grotesk"', 'sans-serif'],
             mono: ['"JetBrains Mono"', 'monospace'],
+            spacemono: ['"Space Mono"', 'monospace'],
           },
           colors: {
             brand: {
@@ -103,6 +105,145 @@
     .custom-scrollbar::-webkit-scrollbar-thumb {
       background: #202940;
       border-radius: 9999px;
+    }
+
+    /* ============================================================
+       TEST5.html STACKING PARALLAX SHOWCASE STYLES
+       ============================================================ */
+    .stack-hero {
+      text-align: center;
+      padding: 64px 24px 44px;
+    }
+    .stack-hero h2 {
+      font-family: 'Space Grotesk', 'Outfit', sans-serif;
+      font-size: clamp(32px, 4.5vw, 52px);
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+    }
+    .stack-hero p {
+      color: #94a3b8;
+      margin-top: 12px;
+      font-size: 16px;
+      max-width: 640px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .stack-container {
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 0 16px 140px;
+      position: relative;
+    }
+
+    .stack-card {
+      position: sticky;
+      top: 100px;
+      min-height: 520px;
+      background: rgba(14, 18, 28, 0.94);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 28px;
+      margin-bottom: 72px;
+      display: grid;
+      grid-template-columns: 1fr 1.15fr;
+      overflow: hidden;
+      box-shadow: 0 30px 70px -10px rgba(0, 0, 0, 0.85);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s ease;
+      will-change: transform, filter;
+    }
+
+    .card-content {
+      padding: 44px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 24px;
+    }
+    .card-meta {
+      font-family: 'Space Mono', 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+    }
+    .card-title {
+      font-family: 'Space Grotesk', 'Outfit', sans-serif;
+      font-size: clamp(24px, 2.5vw, 32px);
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.2;
+      margin-top: 8px;
+    }
+    .card-desc {
+      color: #94a3b8;
+      font-size: 15px;
+      line-height: 1.65;
+      margin-top: 14px;
+    }
+    .card-tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .tag {
+      font-family: 'Space Mono', 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 5px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      color: #e2e8f0;
+      font-weight: 600;
+    }
+
+    .card-visual {
+      position: relative;
+      overflow: hidden;
+      background: radial-gradient(circle at 50% 50%, #0d121f 0%, #06080e 100%);
+      border-left: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+    }
+
+    .btn-case {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 99px;
+      font-weight: 800;
+      text-decoration: none;
+      font-size: 13px;
+      width: fit-content;
+      transition: all 0.25s ease;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+    .btn-case:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
+
+    @media (max-width: 900px) {
+      .stack-card {
+        grid-template-columns: 1fr;
+        min-height: auto;
+        top: 80px;
+        margin-bottom: 40px;
+      }
+      .card-content {
+        padding: 28px 24px;
+      }
+      .card-visual {
+        border-left: none;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 24px 16px;
+      }
     }
   </style>
 </head>
@@ -593,166 +734,263 @@
     </section>
 
     <!-- ========================================== -->
-    <!-- 3. FEATURE BENTO GRID (Human-Crafted)      -->
+    <!-- 3. STACKING PARALLAX SHOWCASE (TEST5 Standard) -->
     <!-- ========================================== -->
     <section id="features" class="py-16 scroll-mt-20">
       
-      <div class="text-center max-w-2xl mx-auto mb-14">
-        <span class="text-xs font-bold text-brand uppercase tracking-wider px-3 py-1 rounded-full bg-brand/10 border border-brand/20 inline-block mb-3">
-          BUILT FOR MODERN COMMUNITIES
-        </span>
-        <h2 class="font-heading font-extrabold text-3xl sm:text-4xl text-white mb-4">
-          Engineered for safety, speed, and real community growth.
-        </h2>
-        <p class="text-slate-400 text-sm sm:text-base leading-relaxed">
-          Every feature is built directly into our central Node.js architecture with PostgreSQL persistence and sub-second reaction times.
-        </p>
+      <div class="stack-hero">
+        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-dark-850 border border-dark-700/80 text-brand text-xs font-mono font-bold uppercase tracking-wider mb-4 shadow-sm">
+          <span class="w-2 h-2 rounded-full bg-brand animate-pulse"></span>
+          <span>STACK REEL • SCROLL DOWN TO INSPECT</span>
+        </div>
+        <h2>CORE ARCHITECTURAL SUITE</h2>
+        <p>Scroll down to inspect our layered Discord automation, security, and rendering engines engineered for sub-second execution.</p>
       </div>
 
-      <!-- Bento Grid Layout -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="stack-container" id="stackContainer">
         
-        <!-- Bento 1: Invite Tracker (Spans 2 cols on tablet/desktop) -->
-        <div class="md:col-span-2 glass-surface rounded-3xl p-7 flex flex-col justify-between hover:border-brand/40 transition group">
-          <div>
-            <div class="flex items-center justify-between mb-4">
-              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-cyan/10 text-brand-cyan border border-brand-cyan/20 text-xs font-bold">
-                <i class="fa-solid fa-link"></i> Smart Invite Tracker
+        <!-- Stack Card 1: Invite Tracker -->
+        <article class="stack-card" style="border-color: rgba(0, 210, 255, 0.25);">
+          <div class="card-content">
+            <div>
+              <div class="card-meta text-brand-cyan">01 // INVITE TRACKING &amp; AUTO-ROLES</div>
+              <h3 class="card-title">Real-Time Invites &amp; Automatic Role Grants</h3>
+              <p class="card-desc">
+                NEXUS caches all active invite links and executes real-time join diffs the millisecond a member arrives. Automatically assign VIP roles to partner links, track staff recruitments, and maintain an accurate inviter leaderboard with zero database bottlenecks.
+              </p>
+            </div>
+            <div class="card-tags">
+              <span class="tag">Invite Caching</span>
+              <span class="tag">Auto-Roles</span>
+              <span class="tag">Real-Time Diffs</span>
+              <span class="tag">Leaderboards</span>
+            </div>
+            <a href="#demo" onclick="switchDemoTab('invites')" class="btn-case bg-brand-cyan hover:bg-cyan-300 text-black">
+              <span>EXPLORE INVITE ENGINE ↗</span>
+            </a>
+          </div>
+          <div class="card-visual">
+            <div class="w-full max-w-md rounded-xl bg-discord-sidebar border-l-4 border-l-brand-cyan p-5 space-y-3.5 shadow-2xl">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                  <i class="fa-solid fa-link text-brand-cyan"></i> Invite Tracked
+                </span>
+                <span class="text-[11px] text-emerald-400 font-mono font-bold">Join #1,402</span>
+              </div>
+              <p class="text-sm text-slate-200">
+                Welcome <span class="bg-brand-cyan/20 text-brand-cyan px-2 py-0.5 rounded font-mono font-semibold">@alex_developer</span> to the server!
+              </p>
+              <div class="grid grid-cols-2 gap-3 text-xs pt-3 border-t border-dark-700/60 font-mono">
+                <div>
+                  <span class="text-slate-400 block text-[10px] uppercase">Invite Link</span>
+                  <span class="text-white font-bold">discord.gg/builds</span>
+                </div>
+                <div>
+                  <span class="text-slate-400 block text-[10px] uppercase">Invited By</span>
+                  <span class="text-white font-bold">@sarah (42 invites)</span>
+                </div>
+                <div>
+                  <span class="text-slate-400 block text-[10px] uppercase">Granted Role</span>
+                  <span class="inline-flex items-center gap-1 text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 text-[11px]">
+                    <i class="fa-solid fa-shield text-[9px]"></i> @Developer
+                  </span>
+                </div>
+                <div>
+                  <span class="text-slate-400 block text-[10px] uppercase">Account Age</span>
+                  <span class="text-slate-300">2 yrs (Verified)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- Stack Card 2: Anti-Raid Velocity Shield -->
+        <article class="stack-card" style="border-color: rgba(239, 68, 68, 0.25);">
+          <div class="card-content">
+            <div>
+              <div class="card-meta text-red-400">02 // ZERO-LATENCY SECURITY DEFENSE</div>
+              <h3 class="card-title">Sub-Second Anti-Raid Velocity Mitigation</h3>
+              <p class="card-desc">
+                When bot and token raids strike, sliding-window velocity algorithms detect the join surge in under 150 milliseconds. NEXUS automatically heightens verification, quarantines malicious accounts, and locks active channels without waiting for manual admin intervention.
+              </p>
+            </div>
+            <div class="card-tags">
+              <span class="tag">Sliding Window</span>
+              <span class="tag">&lt; 150ms Reaction</span>
+              <span class="tag">Auto-Quarantine</span>
+              <span class="tag">Channel Lockdown</span>
+            </div>
+            <a href="#demo" onclick="switchDemoTab('antiraid')" class="btn-case bg-red-500 hover:bg-red-400 text-white">
+              <span>INSPECT DEFENSE SPECS ↗</span>
+            </a>
+          </div>
+          <div class="card-visual">
+            <div class="w-full max-w-md rounded-xl bg-discord-sidebar border-l-4 border-l-red-500 p-5 space-y-3.5 shadow-2xl">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                  <i class="fa-solid fa-triangle-exclamation"></i> Raid Velocity Exceeded
+                </span>
+                <span class="text-[10px] uppercase font-mono font-bold px-2 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-500/30">Auto-Mitigated</span>
+              </div>
+              <p class="text-sm text-slate-200">
+                Detected <strong class="text-white">16 joins in 2.3s</strong>. Sliding-window threshold triggered instant isolation.
+              </p>
+              <div class="bg-dark-900/90 rounded-lg p-3 text-xs space-y-2 font-mono border border-dark-750">
+                <div class="flex items-center gap-2 text-emerald-400">
+                  <i class="fa-solid fa-check text-[10px]"></i> Verification level heightened to HIGHEST
+                </div>
+                <div class="flex items-center gap-2 text-emerald-400">
+                  <i class="fa-solid fa-check text-[10px]"></i> 16 bot accounts quarantined
+                </div>
+                <div class="flex items-center gap-2 text-emerald-400">
+                  <i class="fa-solid fa-check text-[10px]"></i> Emergency alert sent to #mod-logs
+                </div>
+              </div>
+              <div class="flex items-center justify-between text-[11px] font-mono text-slate-400 pt-1">
+                <span>Threshold: 5 joins / 10s</span>
+                <span class="text-red-400 font-bold">0 Spam Dispatched</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- Stack Card 3: Canvas Welcomer -->
+        <article class="stack-card" style="border-color: rgba(99, 102, 241, 0.25);">
+          <div class="card-content">
+            <div>
+              <div class="card-meta text-indigo-400">03 // HIGH-RESOLUTION GRAPHICS ENGINE</div>
+              <h3 class="card-title">1024×450 Dynamic Canvas Welcome Cards</h3>
+              <p class="card-desc">
+                High-resolution welcome cards rendered server-side in sub-milliseconds via @napi-rs/canvas. Features circular avatar clipping, custom gradient backdrops, live member counters, and auto-colored role palettes with zero external image APIs.
+              </p>
+            </div>
+            <div class="card-tags">
+              <span class="tag">@napi-rs/canvas</span>
+              <span class="tag">Sub-Millisecond</span>
+              <span class="tag">Circular Avatar</span>
+              <span class="tag">Custom Themes</span>
+            </div>
+            <a href="#demo" onclick="switchDemoTab('welcomer')" class="btn-case bg-indigo-500 hover:bg-indigo-400 text-white">
+              <span>PREVIEW CANVAS CARDS ↗</span>
+            </a>
+          </div>
+          <div class="card-visual">
+            <div class="w-full max-w-md rounded-2xl overflow-hidden border border-dark-700/80 shadow-2xl bg-gradient-to-r from-[#0b0e17] via-[#141b2d] to-[#0b0e17] p-6 relative">
+              <div class="absolute -right-8 -bottom-8 w-36 h-36 bg-brand/20 rounded-full blur-2xl pointer-events-none"></div>
+              <div class="flex items-center gap-4 relative z-10">
+                <div class="relative">
+                  <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-brand to-brand-cyan p-1 shadow-lg shadow-brand/40">
+                    <div class="w-full h-full rounded-full bg-dark-900 flex items-center justify-center font-heading font-extrabold text-xl text-white">
+                      JA
+                    </div>
+                  </div>
+                  <span class="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-emerald-500 border-2 border-dark-900"></span>
+                </div>
+                <div>
+                  <span class="text-[10px] font-mono uppercase tracking-widest text-brand-cyan font-bold block mb-1">WELCOME TO THE SERVER</span>
+                  <h4 class="font-heading font-extrabold text-xl text-white tracking-tight leading-none mb-1">JESSICA_ART</h4>
+                  <div class="flex items-center gap-2 text-xs text-slate-300 font-mono">
+                    <span class="px-2 py-0.5 rounded bg-brand/20 text-brand font-bold text-[10px]">MEMBER #1,403</span>
+                    <span>•</span>
+                    <span class="text-slate-400 text-[11px]">1024×450 HD</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- Stack Card 4: Support & Quotations -->
+        <article class="stack-card" style="border-color: rgba(16, 185, 129, 0.25);">
+          <div class="card-content">
+            <div>
+              <div class="card-meta text-emerald-400">04 // ENTERPRISE SUPPORT ARCHITECTURE</div>
+              <h3 class="card-title">Modal Quotations &amp; Support Ticket Desk</h3>
+              <p class="card-desc">
+                Collect client specifications, estimated budgets, and project timelines directly inside native Discord modal forms. Auto-deploys private support channels with instant staff pings and full HTML transcript cloud archiving.
+              </p>
+            </div>
+            <div class="card-tags">
+              <span class="tag">Discord Modals</span>
+              <span class="tag">HTML Transcripts</span>
+              <span class="tag">Budget Calculator</span>
+              <span class="tag">Fastify Proxy</span>
+            </div>
+            <a href="#demo" onclick="switchDemoTab('tickets')" class="btn-case bg-emerald-500 hover:bg-emerald-400 text-black">
+              <span>DEPLOY TICKET DESK ↗</span>
+            </a>
+          </div>
+          <div class="card-visual">
+            <div class="w-full max-w-md rounded-xl bg-discord-sidebar border-l-4 border-l-emerald-500 p-5 space-y-3.5 shadow-2xl">
+              <span class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                <i class="fa-solid fa-headset text-emerald-400"></i> Support &amp; Quotation Desk
               </span>
-              <span class="text-xs text-slate-400 font-mono">Instant Role Grants</span>
-            </div>
-            <h3 class="font-heading font-bold text-2xl text-white mb-3">
-              Know where every member comes from and auto-assign roles.
-            </h3>
-            <p class="text-slate-300 text-sm leading-relaxed max-w-xl mb-6">
-              NEXUS caches all active invite links and performs real-time diffs when users join. Assign VIP roles to partner link joins, link staff invites to recruitment trackers, and maintain an accurate inviter leaderboard.
-            </p>
-          </div>
-
-          <!-- Feature snippet preview -->
-          <div class="bg-dark-900/90 rounded-2xl p-4 border border-dark-750 text-xs space-y-2">
-            <div class="flex items-center justify-between text-slate-400 pb-2 border-b border-dark-750">
-              <span class="font-mono">INVITE CODE</span>
-              <span class="font-mono">DESTINATION ROLE</span>
-              <span class="font-mono">USAGE</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="font-mono text-white font-semibold">discord.gg/developers</span>
-              <span class="px-2 py-0.5 rounded bg-brand/20 text-brand font-semibold">@Developer</span>
-              <span class="text-emerald-400 font-mono font-bold">142 uses</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="font-mono text-white font-semibold">discord.gg/vip-pass</span>
-              <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-semibold">@VIP Supporter</span>
-              <span class="text-emerald-400 font-mono font-bold">38 uses</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Bento 2: Anti-Raid Shield -->
-        <div class="glass-surface rounded-3xl p-7 flex flex-col justify-between hover:border-red-500/40 transition group">
-          <div>
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-bold mb-4">
-              <i class="fa-solid fa-shield-virus"></i> Velocity Shield
-            </span>
-            <h3 class="font-heading font-bold text-2xl text-white mb-3">
-              Sub-second anti-raid velocity mitigation.
-            </h3>
-            <p class="text-slate-300 text-sm leading-relaxed mb-6">
-              When bot raids strike, sliding-window algorithms detect the surge in milliseconds. NEXUS heightens guild verification, locks down active channels, and isolates suspicious accounts.
-            </p>
-          </div>
-
-          <div class="bg-dark-900/90 rounded-2xl p-4 border border-dark-750 text-xs space-y-2 font-mono">
-            <div class="flex justify-between items-center text-slate-300">
-              <span>Reaction Window:</span>
-              <span class="text-emerald-400 font-bold">&lt; 150ms</span>
-            </div>
-            <div class="flex justify-between items-center text-slate-300">
-              <span>Raid Velocity Limit:</span>
-              <span class="text-white">5 joins / 10s</span>
-            </div>
-            <div class="flex justify-between items-center text-slate-300">
-              <span>Auto-Quarantine:</span>
-              <span class="text-brand-cyan">Active</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Bento 3: Native Canvas Welcomer -->
-        <div class="glass-surface rounded-3xl p-7 flex flex-col justify-between hover:border-indigo-500/40 transition group">
-          <div>
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-bold mb-4">
-              <i class="fa-solid fa-wand-magic-sparkles"></i> Canvas Graphics
-            </span>
-            <h3 class="font-heading font-bold text-xl text-white mb-2">
-              1024×450 Dynamic Welcome Cards
-            </h3>
-            <p class="text-slate-400 text-sm leading-relaxed mb-6">
-              High-resolution welcome cards rendered server-side with user avatar circular clipping, server member counters, and custom backgrounds.
-            </p>
-          </div>
-
-          <div class="h-24 rounded-2xl bg-gradient-to-tr from-dark-900 to-indigo-950/60 border border-dark-750 flex items-center justify-center p-3 text-center">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full bg-brand/30 border border-brand flex items-center justify-center text-white font-bold text-sm">
-                SN
+              <p class="text-sm text-slate-200">
+                Need client assistance, bespoke bot development, or technical consultation? Select an option below.
+              </p>
+              <div class="grid grid-cols-2 gap-2 text-xs pt-1">
+                <div class="p-3 rounded-lg bg-dark-900/80 border border-dark-750">
+                  <span class="font-bold text-white block mb-0.5">💼 Project Quotation</span>
+                  <span class="text-[11px] text-slate-400">Budget &amp; scope calculator</span>
+                </div>
+                <div class="p-3 rounded-lg bg-dark-900/80 border border-dark-750">
+                  <span class="font-bold text-white block mb-0.5">🎫 Member Ticket</span>
+                  <span class="text-[11px] text-slate-400">Private room &amp; HTML export</span>
+                </div>
               </div>
-              <div class="text-left">
-                <span class="text-xs font-bold text-white block">WELCOME TO THE SERVER</span>
-                <span class="text-[10px] text-brand-cyan font-mono">MEMBER #1,402 • CUSTOM BACKDROPS</span>
+              <div class="flex items-center gap-2 pt-1 font-mono">
+                <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-bold">Fastify REST Proxy</span>
+                <span class="text-[10px] text-slate-400">PostgreSQL Logged</span>
               </div>
             </div>
           </div>
-        </div>
+        </article>
 
-        <!-- Bento 4: Support & Quotations -->
-        <div class="glass-surface rounded-3xl p-7 flex flex-col justify-between hover:border-emerald-500/40 transition group">
-          <div>
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold mb-4">
-              <i class="fa-solid fa-calculator"></i> Support &amp; Quotations
-            </span>
-            <h3 class="font-heading font-bold text-xl text-white mb-2">
-              Modal Quotations &amp; Support Tickets
-            </h3>
-            <p class="text-slate-400 text-sm leading-relaxed mb-6">
-              Collect client specifications, estimated budgets, and delivery timelines directly through native Discord modal dialogs with HTML transcript archiving.
-            </p>
-          </div>
-
-          <div class="bg-dark-900/90 rounded-2xl p-4 border border-dark-750 text-xs space-y-2">
-            <div class="flex items-center justify-between text-slate-300">
-              <span>Project Formats:</span>
-              <span class="text-white font-medium">Web Dev, Discord Bots</span>
+        <!-- Stack Card 5: Streamer & Game Radar -->
+        <article class="stack-card" style="border-color: rgba(245, 158, 11, 0.25);">
+          <div class="card-content">
+            <div>
+              <div class="card-meta text-amber-400">05 // COMMUNITY ENGAGEMENT RADAR</div>
+              <h3 class="card-title">Twitch, YouTube &amp; Free Games Radar</h3>
+              <p class="card-desc">
+                Keep server engagement high with instant notifications when creators go live on Twitch or YouTube. Includes automated Epic Games radar that alerts members the second 100% free games ($39.99 → $0.00) drop.
+              </p>
             </div>
-            <div class="flex items-center justify-between text-slate-300">
-              <span>Transcript Logs:</span>
-              <span class="text-emerald-400 font-medium">HTML Cloud Export</span>
+            <div class="card-tags">
+              <span class="tag">Twitch Webhooks</span>
+              <span class="tag">YouTube RSS</span>
+              <span class="tag">Epic Games API</span>
+              <span class="tag">Zero Delay</span>
+            </div>
+            <a href="#commands" class="btn-case bg-amber-500 hover:bg-amber-400 text-black">
+              <span>SETUP RADAR ALERTS ↗</span>
+            </a>
+          </div>
+          <div class="card-visual">
+            <div class="w-full max-w-md rounded-xl bg-discord-sidebar border-l-4 border-l-amber-500 p-5 space-y-3.5 shadow-2xl">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                  <i class="fa-solid fa-gamepad text-amber-400"></i> Free Game radar
+                </span>
+                <span class="text-[10px] uppercase font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">100% OFF</span>
+              </div>
+              <div class="p-3.5 rounded-lg bg-dark-900/90 border border-dark-750 flex items-center justify-between">
+                <div>
+                  <h5 class="font-heading font-bold text-sm text-white">Ghostwire: Tokyo</h5>
+                  <span class="text-[11px] text-slate-400 font-mono">Epic Games Store • Limited Time</span>
+                </div>
+                <div class="text-right font-mono">
+                  <span class="text-xs line-through text-slate-500 block">$39.99</span>
+                  <span class="text-emerald-400 font-extrabold text-sm">$0.00 FREE</span>
+                </div>
+              </div>
+              <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono pt-1">
+                <span>Auto-Notifies in #free-games</span>
+                <span class="text-amber-400 font-bold">Twitch &amp; YouTube Linked</span>
+              </div>
             </div>
           </div>
-        </div>
-
-        <!-- Bento 5: Livestreams & Game Drops -->
-        <div class="glass-surface rounded-3xl p-7 flex flex-col justify-between hover:border-amber-500/40 transition group">
-          <div>
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold mb-4">
-              <i class="fa-solid fa-gamepad"></i> Stream &amp; Game Radar
-            </span>
-            <h3 class="font-heading font-bold text-xl text-white mb-2">
-              Twitch, YouTube &amp; Free Games
-            </h3>
-            <p class="text-slate-400 text-sm leading-relaxed mb-6">
-              Instant alerts when your favorite creators go live on Twitch or YouTube, plus automated notifications whenever Epic Games releases 100% free games.
-            </p>
-          </div>
-
-          <div class="bg-dark-900/90 rounded-2xl p-4 border border-dark-750 text-xs flex items-center justify-between">
-            <span class="flex items-center gap-2 text-slate-300">
-              <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> Free Game Alert
-            </span>
-            <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-mono font-bold">$39.99 &rarr; $0.00</span>
-          </div>
-        </div>
+        </article>
 
       </div>
 
@@ -1214,12 +1452,31 @@
       renderGuilds(filtered);
     }
 
-    async function logout() {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      window.location.href = '/';
+    // Smooth Scale & Dimming on Scroll (TEST5 Stacking Parallax Engine)
+    function initStackingCards() {
+      const cards = document.querySelectorAll('.stack-card');
+      if (!cards.length) return;
+
+      window.addEventListener('scroll', () => {
+        cards.forEach((card, i) => {
+          const rect = card.getBoundingClientRect();
+          if (rect.top <= 130 && i < cards.length - 1) {
+            const nextCard = cards[i + 1].getBoundingClientRect();
+            const progress = Math.max(0, Math.min(1, (window.innerHeight - nextCard.top) / window.innerHeight));
+            const scale = 1 - progress * 0.06;
+            const brightness = 1 - progress * 0.35;
+            card.style.transform = `scale(${scale})`;
+            card.style.filter = `brightness(${brightness})`;
+          } else {
+            card.style.transform = 'scale(1)';
+            card.style.filter = 'brightness(1)';
+          }
+        });
+      }, { passive: true });
     }
 
     // Initialize
+    initStackingCards();
     checkAuth();
   </script>
 </body>
