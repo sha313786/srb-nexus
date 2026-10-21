@@ -71,6 +71,9 @@ export const bot = new Client({
     api: process.env.DISCORD_API_BASE_URL
       ? `${process.env.DISCORD_API_BASE_URL.replace(/\/$/, '')}/api`
       : 'https://discord.com/api',
+    headers: process.env.DISCORD_PROXY_SECRET
+      ? { 'x-proxy-auth': process.env.DISCORD_PROXY_SECRET }
+      : undefined,
   },
   intents: [
     GatewayIntentBits.Guilds,
@@ -651,23 +654,36 @@ async function start() {
       prefix: '/',
     });
 
-    app.get('/health', async () => {
-      return {
+    app.get('/health', async (request, reply) => {
+      const authHeader = (request.headers['x-admin-key'] || request.headers['authorization']) as string | undefined;
+      const isAdmin = !!(process.env.ADMIN_SECRET_KEY && authHeader === process.env.ADMIN_SECRET_KEY);
+
+      const publicHealth = {
         status: 'ok',
         bot: {
           online: bot.isReady(),
           user: bot.user ? bot.user.tag : null,
           guildCount: bot.guilds.cache.size,
           ping: bot.ws?.ping ?? -1,
-          tokenConfigured: !!process.env.DISCORD_TOKEN,
-          apiBase: process.env.DISCORD_API_BASE_URL || 'https://discord.com',
-          lastError: lastBotError,
-          lastRateLimit: lastBotRateLimit,
-          debugEvents: lastDebugEvents,
         },
         uptime: Math.floor(process.uptime()),
         timestamp: new Date().toISOString(),
       };
+
+      if (isAdmin) {
+        return {
+          ...publicHealth,
+          diagnostics: {
+            tokenConfigured: !!process.env.DISCORD_TOKEN,
+            apiBase: process.env.DISCORD_API_BASE_URL || 'https://discord.com',
+            lastError: lastBotError,
+            lastRateLimit: lastBotRateLimit,
+            debugEvents: lastDebugEvents,
+          },
+        };
+      }
+
+      return publicHealth;
     });
 
     await app.register(authRoutes);

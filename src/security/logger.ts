@@ -6,7 +6,7 @@ interface SecurityAuditOptions {
   guild: Guild;
   userId: string;
   userTag: string;
-  action: 'DIRECT_KICK' | 'BAN' | 'LOCKDOWN';
+  action: 'DIRECT_KICK' | 'BAN' | 'LOCKDOWN' | 'TIMEOUT';
   reason: string;
   eventType: 'SPAM' | 'SCAM' | 'RAID';
   details: string;
