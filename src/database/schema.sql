@@ -296,3 +296,27 @@ CREATE TABLE IF NOT EXISTS guild_owner_config (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_owner_config_guild ON guild_owner_config (guild_id);
+
+-- 14. Spam Catcher Module Configuration
+CREATE TABLE IF NOT EXISTS guild_spam_catcher (
+    guild_id VARCHAR(32) PRIMARY KEY,
+    enabled BOOLEAN DEFAULT TRUE,
+    sensitivity VARCHAR(20) DEFAULT 'medium',
+    action VARCHAR(20) DEFAULT 'TIMEOUT',
+    timeout_duration_seconds INTEGER DEFAULT 300,
+    max_messages_per_window INTEGER DEFAULT 5,
+    window_seconds INTEGER DEFAULT 4,
+    max_duplicates INTEGER DEFAULT 3,
+    max_mentions INTEGER DEFAULT 4,
+    anti_discord_invites BOOLEAN DEFAULT TRUE,
+    anti_phishing_links BOOLEAN DEFAULT TRUE,
+    honeypot_channel_id VARCHAR(32),
+    log_channel_id VARCHAR(32),
+    whitelist_roles JSONB DEFAULT '[]'::jsonb,
+    whitelist_channels JSONB DEFAULT '[]'::jsonb,
+    owner_dm_alert BOOLEAN DEFAULT TRUE,
+    total_spams_caught INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_spam_catcher_guild ON guild_spam_catcher (guild_id);

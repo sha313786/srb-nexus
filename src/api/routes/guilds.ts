@@ -20,6 +20,7 @@ import { registerSlashCommands } from '../../discord/commands';
 import { deployVerificationPanel } from '../../services/verification';
 import { setupDefaultStatCounters, updateGuildVoiceStats } from '../../services/voiceStats';
 import { listGuildTags, upsertGuildTag, deleteGuildTag, getGuildTag } from '../../services/tagEngine';
+import { getSpamCatcherConfig, invalidateSpamCatcherCache } from '../../security/antiSpam';
 
 interface AuthUserPayload {
   id: string;
@@ -2494,6 +2495,263 @@ export async function guildRoutes(fastify: FastifyInstance) {
         success: false,
         error: 'Failed to deliver DM. Please check your Discord Privacy Settings (Allow direct messages from server members).',
       });
+    }
+  });
+
+
+
+  // ==========================================
+  // 🛡️ SPAM CATCHER MODULE ENDPOINTS
+  // ==========================================
+
+  // GET /api/guilds/:id/spamcatcher
+  fastify.get('/api/guilds/:id/spamcatcher', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) {
+      return reply.status(403).send({ error: 'You do not have permission to access this server' });
+    }
+
+    try {
+      const cfg = await getSpamCatcherConfig(id);
+      const res = await db.query(
+        "SELECT total_spams_caught FROM guild_spam_catcher WHERE guild_id = $1",
+        [id]
+      ).catch(() => ({ rows: [] }));
+      const totalCaught = res.rows[0]?.total_spams_caught || 0;
+
+      const sovereign = await isSovereignUser(user.id, id);
+
+      return reply.send({
+        guildId: id,
+        config: cfg,
+        totalCaught,
+        canConfigure: sovereign.allowed,
+      });
+    } catch (err: any) {
+      request.log.error({ err }, 'Failed to fetch spam catcher config');
+      return reply.status(500).send({ error: 'Failed to retrieve spam catcher configuration' });
+    }
+  });
+
+  // POST /api/guilds/:id/spamcatcher
+  fastify.post('/api/guilds/:id/spamcatcher', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) {
+      return reply.status(403).send({ error: 'You do not have permission to manage this server' });
+    }
+
+    // Sovereign Settings Lock check
+    const ownerConfigCheck = await getGuildOwnerConfig(id);
+    if (ownerConfigCheck?.settings_locked) {
+      const { allowed } = await isSovereignUser(user.id, id);
+      if (!allowed) {
+        return reply.status(423).send({
+          error: 'LOCKED',
+          message: '🔒 Server Settings are locked by the Server Owner. Only the Server Owner and designated Co-Owners can modify configurations.',
+        });
+      }
+    }
+
+    const body = (request.body as Record<string, any>) || {};
+
+    try {
+      await db.query(
+        "INSERT INTO guild_spam_catcher (guild_id) VALUES ($1) ON CONFLICT (guild_id) DO NOTHING",
+        [id]
+      );
+
+      const updates: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
+
+      if (body.enabled !== undefined) {
+        updates.push(`enabled = $${paramIndex++}`);
+        values.push(Boolean(body.enabled));
+      }
+
+      if (body.sensitivity !== undefined) {
+        const sens = ['low', 'medium', 'high', 'extreme'].includes(String(body.sensitivity).toLowerCase())
+          ? String(body.sensitivity).toLowerCase()
+          : 'medium';
+        updates.push(`sensitivity = $${paramIndex++}`);
+        values.push(sens);
+      }
+
+      if (body.action !== undefined) {
+        const act = ['DELETE', 'TIMEOUT', 'KICK', 'BAN'].includes(String(body.action).toUpperCase())
+          ? String(body.action).toUpperCase()
+          : 'TIMEOUT';
+        updates.push(`action = $${paramIndex++}`);
+        values.push(act);
+      }
+
+      if (body.timeout_duration_seconds !== undefined) {
+        updates.push(`timeout_duration_seconds = $${paramIndex++}`);
+        values.push(Math.max(60, Math.min(86400, Number(body.timeout_duration_seconds) || 300)));
+      }
+
+      if (body.honeypot_channel_id !== undefined) {
+        const cleanChan = body.honeypot_channel_id ? String(body.honeypot_channel_id).replace(/[<#@!&>]/g, '').trim() : null;
+        updates.push(`honeypot_channel_id = $${paramIndex++}`);
+        values.push(cleanChan || null);
+      }
+
+      if (body.log_channel_id !== undefined) {
+        const cleanLog = body.log_channel_id ? String(body.log_channel_id).replace(/[<#@!&>]/g, '').trim() : null;
+        updates.push(`log_channel_id = $${paramIndex++}`);
+        values.push(cleanLog || null);
+      }
+
+      if (body.anti_discord_invites !== undefined) {
+        updates.push(`anti_discord_invites = $${paramIndex++}`);
+        values.push(Boolean(body.anti_discord_invites));
+      }
+
+      if (body.anti_phishing_links !== undefined) {
+        updates.push(`anti_phishing_links = $${paramIndex++}`);
+        values.push(Boolean(body.anti_phishing_links));
+      }
+
+      if (body.owner_dm_alert !== undefined) {
+        updates.push(`owner_dm_alert = $${paramIndex++}`);
+        values.push(Boolean(body.owner_dm_alert));
+      }
+
+      if (body.whitelist_roles !== undefined) {
+        const cleanRoles = Array.isArray(body.whitelist_roles)
+          ? body.whitelist_roles.filter((r: any) => typeof r === 'string' && /^\d{17,20}$/.test(r))
+          : [];
+        updates.push(`whitelist_roles = $${paramIndex++}`);
+        values.push(JSON.stringify(cleanRoles));
+      }
+
+      if (body.whitelist_channels !== undefined) {
+        const cleanChannels = Array.isArray(body.whitelist_channels)
+          ? body.whitelist_channels.filter((c: any) => typeof c === 'string' && /^\d{17,20}$/.test(c))
+          : [];
+        updates.push(`whitelist_channels = $${paramIndex++}`);
+        values.push(JSON.stringify(cleanChannels));
+      }
+
+      updates.push("updated_at = NOW()");
+      values.push(id);
+
+      if (updates.length > 1) {
+        const query = `UPDATE guild_spam_catcher SET ${updates.join(', ')} WHERE guild_id = $${paramIndex}`;
+        await db.query(query, values);
+      }
+
+      invalidateSpamCatcherCache(id);
+      const updated = await getSpamCatcherConfig(id);
+
+      return reply.send({
+        success: true,
+        message: '🛡️ Spam Catcher configuration saved successfully',
+        config: updated,
+      });
+    } catch (err: any) {
+      request.log.error({ err }, 'Failed to save spam catcher config');
+      return reply.status(500).send({ error: 'Failed to update spam catcher configuration' });
+    }
+  });
+
+  // GET /api/guilds/:id/spamcatcher/logs
+  fastify.get('/api/guilds/:id/spamcatcher/logs', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) {
+      return reply.status(403).send({ error: 'You do not have permission to access this server' });
+    }
+
+    try {
+      const res = await db.query(
+        `SELECT id, user_id, event_type, reason, metadata, created_at 
+         FROM security_events 
+         WHERE guild_id = $1 AND (event_type LIKE '%SPAM%' OR reason LIKE '%Spam%' OR reason LIKE '%Honeypot%')
+         ORDER BY id DESC LIMIT 30`,
+        [id]
+      ).catch(() => ({ rows: [] }));
+
+      return reply.send({ logs: res.rows });
+    } catch (err: any) {
+      request.log.error({ err }, 'Failed to fetch spam logs');
+      return reply.status(500).send({ error: 'Failed to retrieve spam logs' });
+    }
+  });
+
+  // POST /api/guilds/:id/spamcatcher/test
+  fastify.post('/api/guilds/:id/spamcatcher/test', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const botGuild = bot.guilds.cache.get(id) || (await bot.guilds.fetch(id).catch(() => null));
+    if (!botGuild) {
+      return reply.status(404).send({ error: 'Bot is not in this guild' });
+    }
+
+    try {
+      const cfg = await getSpamCatcherConfig(id);
+      const owner = await botGuild.fetchOwner().catch(() => null);
+
+      const testEmbed = new EmbedBuilder()
+        .setTitle('🛡️ [SPAM CATCHER TEST] Incident Simulation')
+        .setDescription(`This is an authorized verification test from **SRB NEXUS Spam Catcher** for **${botGuild.name}**.`)
+        .setColor(0x00f0ff)
+        .addFields(
+          { name: 'Simulated User', value: `<@${user.id}> (${user.username})`, inline: true },
+          { name: 'Simulated Action', value: '`' + cfg.action + '`', inline: true },
+          { name: 'Sensitivity', value: '`' + cfg.sensitivity.toUpperCase() + '`', inline: true },
+          { name: 'Trigger Heuristic', value: 'Velocity Flood & Mass Duplicate Simulation', inline: false }
+        )
+        .setFooter({ text: 'SRB NEXUS Sovereign Server Owner Alert' })
+        .setTimestamp();
+
+      let dmSent = false;
+      if (owner) {
+        try {
+          await owner.send({ embeds: [testEmbed] });
+          dmSent = true;
+        } catch {}
+      }
+
+      if (cfg.log_channel_id) {
+        const logChan = await botGuild.channels.fetch(cfg.log_channel_id).catch(() => null);
+        if (logChan && logChan instanceof TextChannel) {
+          await logChan.send({ embeds: [testEmbed] }).catch(() => {});
+        }
+      }
+
+      return reply.send({
+        success: true,
+        message: `✅ Test completed! ${dmSent ? 'Direct DM alert delivered to Server Owner.' : 'Owner DM alert could not be sent (DMs closed).'}`,
+      });
+    } catch (err: any) {
+      request.log.error({ err }, 'Failed to execute spam test');
+      return reply.status(500).send({ error: 'Failed to execute spam catcher test' });
     }
   });
 
