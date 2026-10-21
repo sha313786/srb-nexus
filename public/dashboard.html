@@ -3122,9 +3122,11 @@
               </div>
 
               <!-- Status Badge -->
-              <div id="badge-honeypot-active-status" class="shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-dark-950 border border-dark-800 text-xs">
-                <span class="w-2 h-2 rounded-full bg-slate-500"></span>
-                <span class="text-slate-400">Trap Inactive</span>
+              <div id="badge-honeypot-active-status" class="shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs">
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span class="text-amber-300 font-medium flex items-center gap-1.5">
+                  <i class="fa-solid fa-triangle-exclamation text-amber-400 text-xs"></i> Trap Inactive (Click Deploy Below)
+                </span>
               </div>
             </div>
 
@@ -7848,7 +7850,74 @@
       } finally {
         if (btn) {
           btn.disabled = false;
-          btn.innerHTML = '<i class="fa-solid fa-rocket mr-2"></i> <span>Deploy Spam Catcher Channel</span>';
+        }
+      }
+    }
+
+    function updateHoneypotStatusUI(cfg) {
+      const trapBadge = document.getElementById('badge-honeypot-active-status');
+      const deployBtn = document.getElementById('btn-deploy-spam-channel');
+      const deployChanSelect = document.getElementById('select-deploy-spam-channel');
+      const deployActionSelect = document.getElementById('select-deploy-spam-action');
+      const deployHoursInput = document.getElementById('input-deploy-spam-hours');
+
+      if (!cfg) return;
+
+      if (cfg.enabled === false) {
+        if (trapBadge) {
+          trapBadge.className = 'shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs';
+          trapBadge.innerHTML = `
+            <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+            <span class="text-rose-300 font-medium flex items-center gap-1.5">
+              <i class="fa-solid fa-ban text-rose-400"></i> Engine Disabled (Enable Toggle Below)
+            </span>
+          `;
+        }
+        if (deployBtn) {
+          deployBtn.innerHTML = '<i class="fa-solid fa-rocket mr-2"></i> <span>Deploy Spam Catcher Channel</span>';
+        }
+      } else if (cfg.honeypot_channel_id) {
+        const activeChan = (serverChannels || []).find(c => c.id === cfg.honeypot_channel_id);
+        const chanName = activeChan ? activeChan.name : cfg.honeypot_channel_id;
+
+        if (trapBadge) {
+          trapBadge.className = 'shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs shadow-sm shadow-emerald-500/10';
+          trapBadge.innerHTML = `
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="text-emerald-300 font-semibold flex items-center gap-1.5">
+              <i class="fa-solid fa-circle-check text-emerald-400"></i> Trap Armed: #${chanName}
+            </span>
+          `;
+        }
+
+        if (deployChanSelect && activeChan) {
+          deployChanSelect.value = cfg.honeypot_channel_id;
+        }
+        if (deployActionSelect && cfg.action) {
+          deployActionSelect.value = cfg.action;
+        }
+        if (deployHoursInput && cfg.timeout_duration_seconds) {
+          deployHoursInput.value = Math.max(1, Math.round(cfg.timeout_duration_seconds / 3600));
+        }
+
+        updateTrapPreview(deployChanSelect?.value);
+        updateTrapDurationPreview();
+
+        if (deployBtn) {
+          deployBtn.innerHTML = '<i class="fa-solid fa-arrows-rotate mr-2"></i> <span>Re-Deploy / Update Trap Channel</span>';
+        }
+      } else {
+        if (trapBadge) {
+          trapBadge.className = 'shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs';
+          trapBadge.innerHTML = `
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            <span class="text-amber-300 font-medium flex items-center gap-1.5">
+              <i class="fa-solid fa-triangle-exclamation text-amber-400 text-xs"></i> Trap Inactive (Click Deploy Below)
+            </span>
+          `;
+        }
+        if (deployBtn) {
+          deployBtn.innerHTML = '<i class="fa-solid fa-rocket mr-2"></i> <span>Deploy Spam Catcher Channel</span>';
         }
       }
     }
@@ -7909,6 +7978,9 @@
         const checkAlert = document.getElementById('check-spamcatcher-owner-alert');
         if (checkAlert) checkAlert.checked = cfg.owner_dm_alert === true;
 
+        // Synchronize Turnkey Honeypot Deployer & Live Status Pill
+        updateHoneypotStatusUI(cfg);
+
         // Whitelists
         spamWhitelistRoles = Array.isArray(cfg.whitelist_roles) ? [...cfg.whitelist_roles] : [];
         spamWhitelistChannels = Array.isArray(cfg.whitelist_channels) ? [...cfg.whitelist_channels] : [];
@@ -7941,6 +8013,12 @@
       }
       if (addWhitelistSelect) {
         addWhitelistSelect.innerHTML = '<option value="">Select a channel to exempt...</option>' + opts;
+      }
+      const deploySelect = document.getElementById('select-deploy-spam-channel');
+      if (deploySelect) {
+        const curVal = deploySelect.value || 'auto';
+        deploySelect.innerHTML = '<option value="auto">✨ Auto-Create "# 🐝-spam-catcher" (Recommended)</option>' + opts;
+        deploySelect.value = curVal;
       }
     }
 

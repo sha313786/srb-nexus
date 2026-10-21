@@ -79,6 +79,15 @@ export async function deploySpamCatcherHoneypot(
                 PermissionFlagsBits.ReadMessageHistory,
               ],
             },
+            {
+              id: botMember.id,
+              allow: [
+                PermissionFlagsBits.ViewChannel,
+                PermissionFlagsBits.SendMessages,
+                PermissionFlagsBits.EmbedLinks,
+                PermissionFlagsBits.ManageMessages,
+              ],
+            },
           ],
         });
       }
