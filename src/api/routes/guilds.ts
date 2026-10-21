@@ -108,6 +108,39 @@ async function verifyUserGuildAccess(accessToken: string, guildId: string): Prom
 
 let cachedBotOwnerId: string | null = null;
 
+export async function getGuildOwnerConfig(guildId: string, guildOwnerId?: string) {
+  let res = await db.query("SELECT * FROM guild_owner_config WHERE guild_id = $1", [guildId]).catch(() => ({ rows: [] }));
+  if (res.rows.length === 0 && guildOwnerId) {
+    await db.query(
+      "INSERT INTO guild_owner_config (guild_id, owner_id) VALUES ($1, $2) ON CONFLICT (guild_id) DO NOTHING",
+      [guildId, guildOwnerId]
+    ).catch(() => {});
+    res = await db.query("SELECT * FROM guild_owner_config WHERE guild_id = $1", [guildId]).catch(() => ({ rows: [] }));
+  }
+  return res.rows[0] || null;
+}
+
+export async function isSovereignUser(userId: string, guildId: string): Promise<{ isOwner: boolean; isCoOwner: boolean; isBotSysOwner: boolean; allowed: boolean }> {
+  const isBotSysOwner = await isBotOwner(userId);
+  const botGuild = bot.guilds.cache.get(guildId) || (await bot.guilds.fetch(guildId).catch(() => null));
+  const isOwner = Boolean(botGuild && botGuild.ownerId === userId);
+
+  let isCoOwner = false;
+  if (!isOwner && !isBotSysOwner) {
+    const config = await getGuildOwnerConfig(guildId, botGuild?.ownerId);
+    if (config && Array.isArray(config.co_owners)) {
+      isCoOwner = config.co_owners.includes(userId);
+    }
+  }
+
+  return {
+    isOwner,
+    isCoOwner,
+    isBotSysOwner,
+    allowed: isOwner || isCoOwner || isBotSysOwner,
+  };
+}
+
 export async function isBotOwner(userId: string): Promise<boolean> {
   if (!userId) return false;
   if (userId === '1525076160990543892') return true;
@@ -228,9 +261,21 @@ export async function guildRoutes(fastify: FastifyInstance) {
     }
 
     const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
-    if (!hasAccess) {
-      return reply.status(403).send({ error: 'You do not have permission to manage this server' });
-    }
+        if (!hasAccess) {
+          return reply.status(403).send({ error: 'You do not have permission to manage this server' });
+        }
+    
+        // Sovereign Settings Lock Check
+        const ownerConfigCheck = await getGuildOwnerConfig(id);
+        if (ownerConfigCheck?.settings_locked) {
+          const { allowed } = await isSovereignUser(user.id, id);
+          if (!allowed) {
+            return reply.status(423).send({
+              error: 'LOCKED',
+              message: '🔒 Server Settings are locked by the Server Owner. Only the Server Owner and designated Co-Owners can modify configurations.',
+            });
+          }
+        }
 
     const guild = bot.guilds.cache.get(id) || (await bot.guilds.fetch(id).catch(() => null));
     if (!guild) {
@@ -279,9 +324,21 @@ export async function guildRoutes(fastify: FastifyInstance) {
     }
 
     const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
-    if (!hasAccess) {
-      return reply.status(403).send({ error: 'You do not have permission to manage this server' });
-    }
+        if (!hasAccess) {
+          return reply.status(403).send({ error: 'You do not have permission to manage this server' });
+        }
+    
+        // Sovereign Settings Lock Check
+        const ownerConfigCheck = await getGuildOwnerConfig(id);
+        if (ownerConfigCheck?.settings_locked) {
+          const { allowed } = await isSovereignUser(user.id, id);
+          if (!allowed) {
+            return reply.status(423).send({
+              error: 'LOCKED',
+              message: '🔒 Server Settings are locked by the Server Owner. Only the Server Owner and designated Co-Owners can modify configurations.',
+            });
+          }
+        }
 
     try {
       const result = await db.query<GuildSettingRow>(
@@ -2190,4 +2247,254 @@ export async function guildRoutes(fastify: FastifyInstance) {
     await channel.send({ content, embeds: [embed] });
     return reply.send({ success: true, message: `Embed successfully dispatched to #${channel.name}!` });
   });
+
+
+  // ==========================================
+  // 👑 SOVEREIGN SERVER OWNER MODULE ENDPOINTS
+  // ==========================================
+
+  // GET /api/guilds/:id/owner-config
+  fastify.get('/api/guilds/:id/owner-config', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) {
+      return reply.status(403).send({ error: 'You do not have permission to access this server' });
+    }
+
+    const botGuild = bot.guilds.cache.get(id) || (await bot.guilds.fetch(id).catch(() => null));
+    if (!botGuild) {
+      return reply.status(404).send({ error: 'Bot is not in this guild' });
+    }
+
+    try {
+      const ownerMember = await botGuild.fetchOwner().catch(() => null);
+      const ownerConfig = await getGuildOwnerConfig(id, botGuild.ownerId);
+
+      const sovereign = await isSovereignUser(user.id, id);
+
+      const rawCoOwners: string[] = Array.isArray(ownerConfig?.co_owners) ? ownerConfig.co_owners : [];
+      const rawProtectedRoles: string[] = Array.isArray(ownerConfig?.protected_roles) ? ownerConfig.protected_roles : [];
+
+      // Fetch co-owner rich identities
+      const detailedCoOwners = await Promise.all(
+        rawCoOwners.map(async (coId) => {
+          try {
+            const member = await botGuild.members.fetch(coId).catch(() => null);
+            if (member) {
+              return {
+                id: member.id,
+                username: member.user.username,
+                discriminator: member.user.discriminator,
+                tag: member.user.tag,
+                avatar: member.user.displayAvatarURL({ size: 64 }),
+                displayName: member.displayName,
+              };
+            }
+            const fetchedUser = await bot.users.fetch(coId).catch(() => null);
+            if (fetchedUser) {
+              return {
+                id: fetchedUser.id,
+                username: fetchedUser.username,
+                discriminator: fetchedUser.discriminator,
+                tag: fetchedUser.tag,
+                avatar: fetchedUser.displayAvatarURL({ size: 64 }),
+                displayName: fetchedUser.username,
+              };
+            }
+          } catch {}
+          return { id: coId, username: 'Unknown User', tag: coId, avatar: null, displayName: coId };
+        })
+      );
+
+      // Fetch guild settings for lockdown indicator
+      const settingsRes = await db.query(
+        "SELECT is_locked_down FROM guild_settings WHERE guild_id = $1",
+        [id]
+      ).catch(() => ({ rows: [] }));
+      const isLockedDown = Boolean(settingsRes.rows[0]?.is_locked_down);
+
+      return reply.send({
+        guildId: id,
+        guildName: botGuild.name,
+        guildIcon: botGuild.iconURL({ size: 128 }),
+        memberCount: botGuild.memberCount,
+        owner: {
+          id: botGuild.ownerId,
+          username: ownerMember?.user.username || 'Owner',
+          discriminator: ownerMember?.user.discriminator || '0000',
+          tag: ownerMember?.user.tag || 'Owner',
+          avatar: ownerMember?.user.displayAvatarURL({ size: 128 }) || null,
+        },
+        viewer: {
+          id: user.id,
+          isOwner: sovereign.isOwner,
+          isCoOwner: sovereign.isCoOwner,
+          isBotOwner: sovereign.isBotSysOwner,
+          canConfigure: sovereign.allowed,
+        },
+        settingsLocked: Boolean(ownerConfig?.settings_locked),
+        ownerDmAlerts: ownerConfig?.owner_dm_alerts !== false,
+        coOwners: detailedCoOwners,
+        protectedRoles: rawProtectedRoles,
+        isLockedDown,
+      });
+    } catch (err: any) {
+      request.log.error({ err }, 'Failed to fetch owner config');
+      return reply.status(500).send({ error: 'Failed to retrieve owner configuration' });
+    }
+  });
+
+  // POST /api/guilds/:id/owner-config
+  fastify.post('/api/guilds/:id/owner-config', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const botGuild = bot.guilds.cache.get(id) || (await bot.guilds.fetch(id).catch(() => null));
+    if (!botGuild) {
+      return reply.status(404).send({ error: 'Bot is not in this guild' });
+    }
+
+    const sovereign = await isSovereignUser(user.id, id);
+    if (!sovereign.allowed) {
+      return reply.status(403).send({
+        error: 'Forbidden',
+        message: '⛔ Only the Primary Server Owner or designated Executive Co-Owners can modify sovereign configuration.',
+      });
+    }
+
+    const body = (request.body as Record<string, any>) || {};
+
+    // Co-owner edits require Primary Server Owner or Bot System Developer
+    if (body.co_owners !== undefined && !sovereign.isOwner && !sovereign.isBotSysOwner) {
+      return reply.status(403).send({
+        error: 'Forbidden',
+        message: '⛔ Only the Primary Server Owner can add or revoke Executive Co-Owners.',
+      });
+    }
+
+    try {
+      // Ensure row exists
+      await db.query(
+        "INSERT INTO guild_owner_config (guild_id, owner_id) VALUES ($1, $2) ON CONFLICT (guild_id) DO NOTHING",
+        [id, botGuild.ownerId]
+      );
+
+      const updates: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
+
+      if (body.co_owners !== undefined) {
+        const cleanCoOwners = Array.isArray(body.co_owners)
+          ? body.co_owners.filter((uid: any) => typeof uid === 'string' && /^\d{17,20}$/.test(uid))
+          : [];
+        updates.push(`co_owners = $${paramIndex++}`);
+        values.push(JSON.stringify(cleanCoOwners));
+      }
+
+      if (body.protected_roles !== undefined) {
+        const cleanRoles = Array.isArray(body.protected_roles)
+          ? body.protected_roles.filter((rid: any) => typeof rid === 'string' && /^\d{17,20}$/.test(rid))
+          : [];
+        updates.push(`protected_roles = $${paramIndex++}`);
+        values.push(JSON.stringify(cleanRoles));
+      }
+
+      if (body.settings_locked !== undefined) {
+        updates.push(`settings_locked = $${paramIndex++}`);
+        values.push(Boolean(body.settings_locked));
+      }
+
+      if (body.owner_dm_alerts !== undefined) {
+        updates.push(`owner_dm_alerts = $${paramIndex++}`);
+        values.push(Boolean(body.owner_dm_alerts));
+      }
+
+      updates.push("updated_at = NOW()");
+      values.push(id);
+
+      if (updates.length > 1) {
+        const query = `UPDATE guild_owner_config SET ${updates.join(', ')} WHERE guild_id = $${paramIndex}`;
+        await db.query(query, values);
+      }
+
+      const updated = await db.query("SELECT * FROM guild_owner_config WHERE guild_id = $1", [id]);
+
+      return reply.send({
+        success: true,
+        message: '👑 Sovereign Owner Configuration updated successfully',
+        config: updated.rows[0],
+      });
+    } catch (err: any) {
+      request.log.error({ err }, 'Failed to save owner config');
+      return reply.status(500).send({ error: 'Failed to update owner configuration' });
+    }
+  });
+
+  // POST /api/guilds/:id/owner-config/test-dm
+  fastify.post('/api/guilds/:id/owner-config/test-dm', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const botGuild = bot.guilds.cache.get(id) || (await bot.guilds.fetch(id).catch(() => null));
+    if (!botGuild) {
+      return reply.status(404).send({ error: 'Bot is not in this guild' });
+    }
+
+    const sovereign = await isSovereignUser(user.id, id);
+    if (!sovereign.allowed) {
+      return reply.status(403).send({
+        error: 'Forbidden',
+        message: 'Only the Server Owner or designated Co-Owners can test owner alert delivery.',
+      });
+    }
+
+    try {
+      const recipientUser = await bot.users.fetch(user.id).catch(() => null);
+      if (!recipientUser) {
+        return reply.status(404).send({ error: 'Could not fetch your Discord user profile' });
+      }
+
+      const testEmbed = new EmbedBuilder()
+        .setTitle('👑 [SRB NEXUS] Sovereign Owner Alert Verification')
+        .setDescription(
+          `Hello **${recipientUser.username}**!\n\nThis is a verified test alert from **SRB NEXUS** for your server **${botGuild.name}**.\n\nYour direct messaging channel is confirmed and active. High-priority security incidents (Anti-Raid alerts, Spam waves, Nuke attempts, or Mass actions) will immediately notify you here.`
+        )
+        .setColor(0x00f0ff)
+        .addFields(
+          { name: 'Server', value: botGuild.name, inline: true },
+          { name: 'Server ID', value: botGuild.id, inline: true },
+          { name: 'Alert Status', value: '🟢 Verified & Active', inline: true }
+        )
+        .setFooter({ text: 'SRB NEXUS Sovereign Infrastructure Suite' })
+        .setTimestamp();
+
+      await recipientUser.send({ embeds: [testEmbed] });
+
+      return reply.send({
+        success: true,
+        message: '✅ Test security alert successfully delivered to your Discord Direct Messages!',
+      });
+    } catch (dmErr: any) {
+      request.log.warn({ dmErr }, 'Failed to deliver test alert DM');
+      return reply.status(400).send({
+        success: false,
+        error: 'Failed to deliver DM. Please check your Discord Privacy Settings (Allow direct messages from server members).',
+      });
+    }
+  });
+
 }

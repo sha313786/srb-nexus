@@ -41,24 +41,58 @@ export async function logSecurityEvent(opts: SecurityAuditOptions): Promise<void
     ).catch(() => ({ rows: [] }));
 
     const logChannelId = rows[0]?.logging_channel_id;
-    if (!logChannelId) return;
+    if (logChannelId) {
+      const channel = await opts.guild.channels.fetch(logChannelId).catch(() => null);
+      if (channel && channel instanceof TextChannel) {
+        const embed = new EmbedBuilder()
+          .setTitle(`🚨 [SECURITY ACTION] ${opts.eventType} DETECTED`)
+          .setColor(0xff0000)
+          .addFields(
+            { name: 'User', value: `<@${opts.userId}> (${opts.userTag})`, inline: true },
+            { name: 'Action Enforced', value: `\`${opts.action}\``, inline: true },
+            { name: 'Reason', value: opts.reason, inline: false },
+            { name: 'Details', value: opts.details, inline: false }
+          )
+          .setTimestamp();
 
-    const channel = await opts.guild.channels.fetch(logChannelId).catch(() => null);
-    if (!channel || !(channel instanceof TextChannel)) return;
-
-    const embed = new EmbedBuilder()
-      .setTitle(`🚨 [SECURITY ACTION] ${opts.eventType} DETECTED`)
-      .setColor(0xff0000)
-      .addFields(
-        { name: 'User', value: `<@${opts.userId}> (${opts.userTag})`, inline: true },
-        { name: 'Action Enforced', value: `\`${opts.action}\``, inline: true },
-        { name: 'Reason', value: opts.reason, inline: false },
-        { name: 'Details', value: opts.details, inline: false }
-      )
-      .setTimestamp();
-
-    await channel.send({ embeds: [embed] });
+        await channel.send({ embeds: [embed] }).catch(() => {});
+      }
+    }
   } catch (err) {
     logger.error({ err }, 'Failed to send security audit embed to Discord channel');
+  }
+
+  // 3. Dispatch Sovereign Owner Direct DM Alert if enabled
+  try {
+    const ownerRes = await db.query(
+      `SELECT owner_dm_alerts FROM guild_owner_config WHERE guild_id = $1`,
+      [opts.guild.id]
+    ).catch(() => ({ rows: [] }));
+
+    // Defaults to true if row exists and is true, or if no row yet
+    const alertsEnabled = ownerRes.rows.length === 0 ? true : ownerRes.rows[0].owner_dm_alerts !== false;
+
+    if (alertsEnabled) {
+      const owner = await opts.guild.fetchOwner().catch(() => null);
+      if (owner) {
+        const dmEmbed = new EmbedBuilder()
+          .setTitle(`🛡️ [SRB NEXUS] Security Alert in ${opts.guild.name}`)
+          .setDescription(`A critical security defense action was triggered in your server **${opts.guild.name}**.`)
+          .setColor(0xe02424)
+          .addFields(
+            { name: 'Incident Type', value: `\`${opts.eventType}\``, inline: true },
+            { name: 'Action Enforced', value: `\`${opts.action}\``, inline: true },
+            { name: 'Target User', value: `<@${opts.userId}> (\`${opts.userTag}\`)`, inline: false },
+            { name: 'Reason', value: opts.reason, inline: false },
+            { name: 'Details', value: opts.details, inline: false }
+          )
+          .setFooter({ text: 'SRB NEXUS Sovereign Server Owner Alert' })
+          .setTimestamp();
+
+        await owner.send({ embeds: [dmEmbed] }).catch(() => {});
+      }
+    }
+  } catch (ownerErr) {
+    logger.debug({ ownerErr }, 'Skipped owner direct DM alert dispatch');
   }
 }

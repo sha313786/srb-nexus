@@ -1112,6 +1112,19 @@ async function start() {
         UNIQUE (guild_id, name)
       );
       CREATE INDEX IF NOT EXISTS idx_tags_guild ON guild_tags (guild_id);
+
+      -- Sovereign Server Owner Configuration Table
+      CREATE TABLE IF NOT EXISTS guild_owner_config (
+        guild_id VARCHAR(32) PRIMARY KEY,
+        owner_id VARCHAR(32) NOT NULL,
+        co_owners JSONB DEFAULT '[]'::jsonb,
+        protected_roles JSONB DEFAULT '[]'::jsonb,
+        settings_locked BOOLEAN DEFAULT FALSE,
+        owner_dm_alerts BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_owner_config_guild ON guild_owner_config (guild_id);
     `);
 
     app.log.info('Database connection established & all tables and security schemas initialized successfully');

@@ -55,6 +55,7 @@ import { serverstatsCommand } from './serverstats';
 import { tempvoiceCommand } from './tempvoice';
 import { tagCommand } from './tag';
 import { modmailCommand } from './modmail';
+import { serverownerCommand } from './serverowner';
 
 export const commandRegistry = new Map<string, any>();
 
@@ -110,6 +111,7 @@ const allCommands = [
   serverstatsCommand,
   tempvoiceCommand,
   modmailCommand,
+  serverownerCommand,
 ];
 
 for (const cmd of allCommands) {

@@ -2859,6 +2859,216 @@
         </div>
       </div>
 
+
+      <!-- 20. SOVEREIGN SERVER OWNER MODULE PANEL -->
+      <div id="panel-serverowner" class="module-panel space-y-6 hidden">
+        <div class="glass-panel rounded-3xl p-8 space-y-8">
+          
+          <!-- Panel Header -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-dark-700/60 gap-4">
+            <div>
+              <div class="flex items-center gap-2.5">
+                <h2 class="font-heading font-extrabold text-2xl text-white flex items-center gap-2">
+                  <i class="fa-solid fa-crown text-amber-400"></i> Sovereign Server Owner Suite
+                </h2>
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold">
+                  <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span> Sovereign Authority
+                </span>
+              </div>
+              <p class="text-sm text-slate-400 mt-1">High-order executive governance for the Discord Server Owner. Manage executive co-owners, lock configurations from junior admins, and enforce direct DM security alerts.</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <button onclick="testOwnerAlert()" id="btn-owner-test-alert" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-dark-800 hover:bg-dark-700 text-slate-300 border border-dark-700 font-bold text-xs transition">
+                <i class="fa-solid fa-bell"></i> <span>Send Test Alert DM</span>
+              </button>
+              <button onclick="saveOwnerConfig()" id="btn-save-owner-config" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/25 transition">
+                <i class="fa-solid fa-floppy-disk"></i> Save Sovereign Suite
+              </button>
+            </div>
+          </div>
+
+          <!-- Dynamic Access Status Banner -->
+          <div id="owner-suite-status-banner" class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3">
+            <i class="fa-solid fa-shield-halved text-amber-400 text-lg"></i>
+            <div class="text-xs text-amber-200">
+              <span class="font-bold">Sovereign Authority Verified:</span> You are accessing the sovereign management panel for this Discord server.
+            </div>
+          </div>
+
+          <!-- Top Row: Server Owner Profile & Sovereign Lock -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Card 1: Primary Server Owner Identity -->
+            <div class="p-6 rounded-2xl bg-dark-900/80 border border-dark-700/80 space-y-4">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                  <i class="fa-solid fa-crown text-amber-400"></i> Primary Server Sovereign
+                </span>
+                <span class="px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20 text-[10px] font-bold">Unrevokable</span>
+              </div>
+              
+              <div class="flex items-center gap-4 pt-2">
+                <div class="relative">
+                  <img id="owner-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Owner Avatar" class="w-16 h-16 rounded-2xl object-cover border-2 border-amber-400/50 shadow-md">
+                  <div class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center text-[10px] shadow">
+                    <i class="fa-solid fa-crown"></i>
+                  </div>
+                </div>
+                <div class="space-y-1">
+                  <h3 id="owner-name-tag" class="text-lg font-heading font-bold text-white flex items-center gap-2">
+                    Server Owner
+                  </h3>
+                  <div class="flex items-center gap-2">
+                    <span id="owner-snowflake-id" class="font-mono text-xs text-slate-400 bg-dark-950 px-2 py-0.5 rounded-md border border-dark-700">ID: --</span>
+                    <button onclick="navigator.clipboard.writeText(document.getElementById('owner-snowflake-id').innerText.replace('ID: ', '')); showToast('Copied Owner ID to clipboard!', 'info');" class="text-slate-500 hover:text-white text-xs transition" title="Copy User ID">
+                      <i class="fa-solid fa-copy"></i>
+                    </button>
+                  </div>
+                  <p class="text-[11px] text-slate-500">Holder of ultimate ownership crown on Discord Gateway.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card 2: Sovereign Settings Lockdown (Anti-Rogue Admin) -->
+            <div class="p-6 rounded-2xl bg-dark-900/80 border border-dark-700/80 space-y-4">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                  <i class="fa-solid fa-lock text-red-400"></i> Sovereign Settings Lockdown
+                </span>
+                <span id="badge-owner-settings-lock-status" class="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">UNLOCKED</span>
+              </div>
+
+              <div class="flex items-start justify-between gap-4 pt-1">
+                <div>
+                  <h4 class="font-bold text-sm text-white">Lock Server Configuration from Junior Admins</h4>
+                  <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+                    When enabled, standard Discord administrators (<code class="bg-dark-950 px-1 py-0.5 rounded text-amber-300">Administrator</code> / <code class="bg-dark-950 px-1 py-0.5 rounded text-amber-300">Manage Server</code>) are strictly blocked from changing bot modules, toggling filters, or editing settings on the SRB NEXUS dashboard. Only the Primary Server Owner and designated Executive Co-Owners retain editing rights.
+                  </p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                  <input type="checkbox" id="check-owner-settings-lock" onchange="updateLockBadgeState()" class="sr-only peer">
+                  <div class="w-11 h-6 bg-dark-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+                </label>
+              </div>
+
+              <div class="text-[11px] text-slate-500 flex items-center gap-1.5 pt-2 border-t border-dark-800">
+                <i class="fa-solid fa-shield-virus text-red-400"></i>
+                <span>Prevents compromised staff accounts or rogue admins from hijacking bot security.</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Second Row: Direct DM Alerts & Protected Roles -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- Card 3: Sovereign Direct DM Security Alerts -->
+            <div class="p-6 rounded-2xl bg-dark-900/80 border border-dark-700/80 space-y-4">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                  <i class="fa-solid fa-paper-plane text-cyan-400"></i> Sovereign Direct DM Alerts
+                </span>
+                <span class="px-2.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 text-[10px] font-bold">VIP Alert</span>
+              </div>
+
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <h4 class="font-bold text-sm text-white">Direct DM Notifications on Security Incidents</h4>
+                  <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+                    SRB NEXUS will send high-priority direct messages to the Server Owner's Discord inbox whenever major incidents occur (Anti-Raid triggers, Spam velocity kicks, Nuke attempts, or Emergency Lockdowns).
+                  </p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                  <input type="checkbox" id="check-owner-dm-alerts" checked class="sr-only peer">
+                  <div class="w-11 h-6 bg-dark-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500"></div>
+                </label>
+              </div>
+
+              <div class="p-3 rounded-xl bg-dark-950 border border-dark-800 text-xs text-slate-400 flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <i class="fa-solid fa-circle-info text-cyan-400"></i>
+                  <span>Ensure your Discord privacy allows DMs from server members.</span>
+                </div>
+                <button onclick="testOwnerAlert()" class="text-cyan-400 hover:text-cyan-300 font-bold underline whitespace-nowrap">Test DM</button>
+              </div>
+            </div>
+
+            <!-- Card 4: Protected Server Roles -->
+            <div class="p-6 rounded-2xl bg-dark-900/80 border border-dark-700/80 space-y-4">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                  <i class="fa-solid fa-shield-cat text-purple-400"></i> Protected Server Roles
+                </span>
+                <span class="px-2.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/20 text-[10px] font-bold">Hierarchy</span>
+              </div>
+
+              <div>
+                <h4 class="font-bold text-sm text-white">Sovereign Hierarchy Roles</h4>
+                <p class="text-xs text-slate-400 mt-1">Roles designated here represent sovereign authority and cannot be modified or purged by lower administration tiers.</p>
+              </div>
+
+              <!-- Add Protected Role Selector -->
+              <div class="flex items-center gap-2">
+                <select id="select-add-protected-role" class="flex-1 bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500">
+                  <option value="">Select a role to protect...</option>
+                </select>
+                <button onclick="addProtectedRoleFromUI()" class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition">
+                  <i class="fa-solid fa-plus"></i> Protect
+                </button>
+              </div>
+
+              <!-- Protected Roles Badges Container -->
+              <div id="container-protected-roles-badges" class="flex flex-wrap gap-2 pt-1 min-h-[40px]">
+                <!-- Populated dynamically -->
+                <span class="text-xs text-slate-500">No protected roles designated yet.</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Third Row: Executive Co-Owners Hub -->
+          <div class="p-6 rounded-2xl bg-dark-900/80 border border-dark-700/80 space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-dark-800">
+              <div>
+                <h3 class="text-base font-heading font-bold text-white flex items-center gap-2">
+                  <i class="fa-solid fa-users-gear text-amber-400"></i> Executive Co-Owners Hub
+                </h3>
+                <p class="text-xs text-slate-400 mt-1">Designate trusted delegates who share executive dashboard privileges with you. Co-owners bypass Sovereign Settings Lockdown and can manage bot settings.</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="text" id="input-new-coowner-id" placeholder="Enter Discord User ID (17-20 digits)" class="w-64 bg-dark-950 border border-dark-700 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition font-mono">
+                <button onclick="addCoOwnerFromUI()" id="btn-add-coowner" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition whitespace-nowrap">
+                  <i class="fa-solid fa-user-plus mr-1"></i> Add Co-Owner
+                </button>
+              </div>
+            </div>
+
+            <!-- Co-Owners List Cards -->
+            <div id="owner-co-owners-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <!-- Populated dynamically -->
+              <div class="p-4 rounded-xl bg-dark-950/60 border border-dark-800 text-center py-8 col-span-full text-slate-500 text-xs">
+                <i class="fa-solid fa-user-shield text-2xl text-slate-600 mb-2 block"></i>
+                No executive co-owners designated yet. Add a trusted user above.
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom: Emergency Server Lockdown Protocol -->
+          <div class="p-6 rounded-2xl bg-red-950/20 border border-red-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="space-y-1">
+              <h4 class="font-bold text-sm text-red-300 flex items-center gap-2">
+                <i class="fa-solid fa-triangle-exclamation text-red-400"></i> Sovereign Emergency Server Lockdown
+              </h4>
+              <p class="text-xs text-slate-400">Instantly locks send permissions across all standard channels in the event of an active coordinated attack or rogue bot token leak.</p>
+            </div>
+            <button onclick="triggerEmergencyLockdown()" class="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs shadow-lg shadow-red-600/30 transition whitespace-nowrap">
+              <i class="fa-solid fa-biohazard mr-1.5"></i> Trigger Emergency Lockdown
+            </button>
+          </div>
+
+        </div>
+      </div>
+
     </section>
 
   </main>
@@ -2991,6 +3201,8 @@
         fetchTelemetry();
       } else if (tabName === 'welcome') {
         renderWelcomePreview();
+      } else if (tabName === 'serverowner') {
+        loadOwnerConfig();
       } else if (tabName === 'audit') {
         loadAuditLogs();
       } else if (tabName === 'levels') {
@@ -6902,6 +7114,333 @@
       } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Send Embed to Discord</span>';
+      }
+    }
+
+
+    // ==========================================
+    // 👑 SOVEREIGN SERVER OWNER MODULE LOGIC
+    // ==========================================
+    let cachedOwnerConfig = null;
+    let selectedProtectedRoles = [];
+
+    async function loadOwnerConfig() {
+      if (!guildId) return;
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/owner-config`);
+        if (!res.ok) return;
+        const data = await res.json();
+        cachedOwnerConfig = data;
+
+        // 1. Populate Primary Owner Profile
+        const ownerAvatar = document.getElementById('owner-avatar');
+        if (ownerAvatar && data.owner?.avatar) {
+          ownerAvatar.src = data.owner.avatar;
+        }
+        const ownerNameTag = document.getElementById('owner-name-tag');
+        if (ownerNameTag) {
+          ownerNameTag.innerText = data.owner?.tag || data.owner?.username || 'Server Owner';
+        }
+        const ownerSnowflake = document.getElementById('owner-snowflake-id');
+        if (ownerSnowflake) {
+          ownerSnowflake.innerText = `ID: ${data.owner?.id || '--'}`;
+        }
+
+        // 2. Settings Lock Checkbox & Badge
+        const lockCheck = document.getElementById('check-owner-settings-lock');
+        if (lockCheck) {
+          lockCheck.checked = Boolean(data.settingsLocked);
+        }
+        updateLockBadgeState();
+
+        // 3. DM Alerts Checkbox
+        const dmCheck = document.getElementById('check-owner-dm-alerts');
+        if (dmCheck) {
+          dmCheck.checked = Boolean(data.ownerDmAlerts);
+        }
+
+        // 4. Viewer Access Control & Banner
+        const banner = document.getElementById('owner-suite-status-banner');
+        const saveBtn = document.getElementById('btn-save-owner-config');
+        const addCoOwnerBtn = document.getElementById('btn-add-coowner');
+        const coOwnerInput = document.getElementById('input-new-coowner-id');
+
+        if (data.viewer?.isOwner || data.viewer?.isBotOwner) {
+          if (banner) {
+            banner.className = 'p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3';
+            banner.innerHTML = `<i class="fa-solid fa-shield-halved text-amber-400 text-lg"></i>
+              <div class="text-xs text-amber-200">
+                <span class="font-bold">Primary Sovereign Privileges:</span> You are the verified Discord Server Owner with absolute governance rights.
+              </div>`;
+          }
+          if (saveBtn) saveBtn.disabled = false;
+          if (addCoOwnerBtn) addCoOwnerBtn.disabled = false;
+          if (coOwnerInput) coOwnerInput.disabled = false;
+        } else if (data.viewer?.isCoOwner) {
+          if (banner) {
+            banner.className = 'p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center gap-3';
+            banner.innerHTML = `<i class="fa-solid fa-users text-indigo-400 text-lg"></i>
+              <div class="text-xs text-indigo-200">
+                <span class="font-bold">Executive Co-Owner Access:</span> You possess sovereign dashboard management permissions granted by the Server Owner.
+              </div>`;
+          }
+          if (saveBtn) saveBtn.disabled = false;
+          if (addCoOwnerBtn) addCoOwnerBtn.disabled = true; // Only primary owner can designate more co-owners
+          if (coOwnerInput) coOwnerInput.disabled = true;
+        } else {
+          // Standard admin
+          if (banner) {
+            banner.className = 'p-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center gap-3';
+            banner.innerHTML = `<i class="fa-solid fa-lock text-red-400 text-lg"></i>
+              <div class="text-xs text-red-300">
+                <span class="font-bold">Restricted Administrator View:</span> This suite is sovereign. Only the Primary Server Owner (${data.owner?.tag}) or designated Co-Owners can modify these policies.
+              </div>`;
+          }
+          if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.classList.add('opacity-50', 'cursor-not-allowed');
+          }
+          if (addCoOwnerBtn) addCoOwnerBtn.disabled = true;
+          if (coOwnerInput) coOwnerInput.disabled = true;
+          if (lockCheck) lockCheck.disabled = true;
+          if (dmCheck) dmCheck.disabled = true;
+        }
+
+        // 5. Render Co-Owners List
+        renderCoOwnersList(data.coOwners || [], data.viewer);
+
+        // 6. Populate Protected Roles Dropdown and Badges
+        selectedProtectedRoles = Array.isArray(data.protectedRoles) ? [...data.protectedRoles] : [];
+        populateProtectedRoleDropdown();
+        renderProtectedRolesList();
+
+      } catch (err) {
+        console.error('Failed to load owner config', err);
+      }
+    }
+
+    function updateLockBadgeState() {
+      const lockCheck = document.getElementById('check-owner-settings-lock');
+      const badge = document.getElementById('badge-owner-settings-lock-status');
+      if (!badge || !lockCheck) return;
+      if (lockCheck.checked) {
+        badge.className = 'px-2.5 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/20 text-[10px] font-bold';
+        badge.innerText = '🔒 LOCKED (Owner Only)';
+      } else {
+        badge.className = 'px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold';
+        badge.innerText = '🟢 UNLOCKED (Admins Allowed)';
+      }
+    }
+
+    function renderCoOwnersList(coOwners, viewer) {
+      const container = document.getElementById('owner-co-owners-list');
+      if (!container) return;
+
+      if (coOwners.length === 0) {
+        container.innerHTML = `<div class="p-4 rounded-xl bg-dark-950/60 border border-dark-800 text-center py-8 col-span-full text-slate-500 text-xs">
+          <i class="fa-solid fa-user-shield text-2xl text-slate-600 mb-2 block"></i>
+          No executive co-owners designated yet. Add a trusted user above.
+        </div>`;
+        return;
+      }
+
+      const isPrimaryOwner = viewer?.isOwner || viewer?.isBotOwner;
+
+      container.innerHTML = coOwners.map(co => `
+        <div class="p-4 rounded-xl bg-dark-950 border border-dark-800 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <img src="${co.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="w-10 h-10 rounded-xl object-cover border border-dark-700">
+            <div>
+              <h5 class="text-xs font-bold text-white">${co.displayName || co.username}</h5>
+              <p class="font-mono text-[10px] text-slate-500">${co.tag} • ${co.id}</p>
+            </div>
+          </div>
+          ${isPrimaryOwner ? `<button onclick="removeCoOwner('${co.id}')" class="px-2.5 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[11px] font-bold transition" title="Revoke Co-Owner Privileges"><i class="fa-solid fa-trash-can mr-1"></i> Revoke</button>` : ''}
+        </div>
+      `).join('');
+    }
+
+    function populateProtectedRoleDropdown() {
+      const select = document.getElementById('select-add-protected-role');
+      if (!select || !serverRoles) return;
+      select.innerHTML = '<option value="">Select a role to protect...</option>' + 
+        serverRoles
+          .filter(r => !selectedProtectedRoles.includes(r.id))
+          .map(r => `<option value="${r.id}">${r.name}</option>`)
+          .join('');
+    }
+
+    function renderProtectedRolesList() {
+      const container = document.getElementById('container-protected-roles-badges');
+      if (!container) return;
+
+      if (selectedProtectedRoles.length === 0) {
+        container.innerHTML = '<span class="text-xs text-slate-500">No protected roles designated yet.</span>';
+        return;
+      }
+
+      container.innerHTML = selectedProtectedRoles.map(rid => {
+        const roleObj = (serverRoles || []).find(r => r.id === rid);
+        const name = roleObj ? roleObj.name : rid;
+        const color = roleObj?.color && roleObj.color !== '#000000' ? roleObj.color : '#a855f7';
+        return `
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-dark-950 border border-dark-700 text-xs font-semibold text-white shadow-sm" style="border-left: 3px solid ${color}">
+            <i class="fa-solid fa-shield-halved text-purple-400 text-[10px]"></i>
+            <span>${name}</span>
+            <button onclick="removeProtectedRole('${rid}')" class="text-slate-500 hover:text-red-400 ml-1 text-[10px]" title="Remove Protection">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </span>
+        `;
+      }).join('');
+    }
+
+    function addProtectedRoleFromUI() {
+      const select = document.getElementById('select-add-protected-role');
+      const val = select?.value;
+      if (!val) {
+        return showToast('Please select a role to protect.', 'info');
+      }
+      if (!selectedProtectedRoles.includes(val)) {
+        selectedProtectedRoles.push(val);
+        populateProtectedRoleDropdown();
+        renderProtectedRolesList();
+        showToast('Role added to protected roles list. Click "Save Sovereign Suite" to commit changes.', 'success');
+      }
+    }
+
+    function removeProtectedRole(roleId) {
+      selectedProtectedRoles = selectedProtectedRoles.filter(r => r !== roleId);
+      populateProtectedRoleDropdown();
+      renderProtectedRolesList();
+      showToast('Role removed from protected list. Click "Save Sovereign Suite" to commit.', 'info');
+    }
+
+    async function addCoOwnerFromUI() {
+      const input = document.getElementById('input-new-coowner-id');
+      const userId = input?.value.trim();
+      if (!userId || !/^\d{17,20}$/.test(userId)) {
+        return showToast('Please enter a valid 17-20 digit Discord User ID.', 'error');
+      }
+
+      const currentCoOwners = (cachedOwnerConfig?.coOwners || []).map(c => c.id);
+      if (currentCoOwners.includes(userId)) {
+        return showToast('This user is already an executive co-owner.', 'info');
+      }
+
+      const newCoOwners = [...currentCoOwners, userId];
+
+      const btn = document.getElementById('btn-add-coowner');
+      if (btn) btn.disabled = true;
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/owner-config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ co_owners: newCoOwners }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast('Executive Co-Owner added successfully!', 'success');
+          if (input) input.value = '';
+          await loadOwnerConfig();
+        } else {
+          showToast(data.message || data.error || 'Failed to add co-owner', 'error');
+        }
+      } catch (err) {
+        showToast('Network error designating co-owner', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function removeCoOwner(targetUserId) {
+      if (!confirm('Are you sure you want to revoke executive co-owner privileges from this user?')) return;
+
+      const currentCoOwners = (cachedOwnerConfig?.coOwners || []).map(c => c.id);
+      const newCoOwners = currentCoOwners.filter(id => id !== targetUserId);
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/owner-config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ co_owners: newCoOwners }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast('Executive Co-Owner revoked.', 'success');
+          await loadOwnerConfig();
+        } else {
+          showToast(data.message || data.error || 'Failed to revoke co-owner', 'error');
+        }
+      } catch (err) {
+        showToast('Network error revoking co-owner', 'error');
+      }
+    }
+
+    async function saveOwnerConfig() {
+      if (!guildId) return;
+      const btn = document.getElementById('btn-save-owner-config');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+      }
+
+      try {
+        const payload = {
+          settings_locked: document.getElementById('check-owner-settings-lock')?.checked ?? false,
+          owner_dm_alerts: document.getElementById('check-owner-dm-alerts')?.checked ?? true,
+          protected_roles: selectedProtectedRoles,
+        };
+
+        const res = await fetch(`/api/guilds/${guildId}/owner-config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          showToast(data.message || '👑 Sovereign Owner Configuration saved!', 'success');
+          await loadOwnerConfig();
+        } else {
+          showToast(data.message || data.error || 'Failed to save owner config', 'error');
+        }
+      } catch (err) {
+        showToast('Network error saving owner config', 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Sovereign Suite';
+        }
+      }
+    }
+
+    async function testOwnerAlert() {
+      if (!guildId) return;
+      const btn = document.getElementById('btn-owner-test-alert');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Dispatching DM...';
+      }
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/owner-config/test-dm`, {
+          method: 'POST',
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(data.message || '✅ Test security alert delivered to your Discord DMs!', 'success');
+        } else {
+          showToast(data.error || 'Failed to deliver test alert DM. Check privacy settings.', 'error');
+        }
+      } catch (err) {
+        showToast('Network error sending test alert DM', 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-bell"></i> <span>Send Test Alert DM</span>';
+        }
       }
     }
 
