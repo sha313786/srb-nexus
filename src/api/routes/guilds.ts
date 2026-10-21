@@ -21,6 +21,7 @@ import { deployVerificationPanel } from '../../services/verification';
 import { setupDefaultStatCounters, updateGuildVoiceStats } from '../../services/voiceStats';
 import { listGuildTags, upsertGuildTag, deleteGuildTag, getGuildTag } from '../../services/tagEngine';
 import { getSpamCatcherConfig, invalidateSpamCatcherCache } from '../../security/antiSpam';
+import { deploySpamCatcherHoneypot } from '../../services/spamCatcherDeployer';
 
 interface AuthUserPayload {
   id: string;
@@ -2752,6 +2753,61 @@ export async function guildRoutes(fastify: FastifyInstance) {
     } catch (err: any) {
       request.log.error({ err }, 'Failed to execute spam test');
       return reply.status(500).send({ error: 'Failed to execute spam catcher test' });
+    }
+  });
+
+
+  // POST /api/guilds/:id/spamcatcher/deploy
+  fastify.post('/api/guilds/:id/spamcatcher/deploy', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) {
+      return reply.status(403).send({ error: 'You do not have permission to manage this server' });
+    }
+
+    // Sovereign Settings Lock check
+    const ownerConfigCheck = await getGuildOwnerConfig(id);
+    if (ownerConfigCheck?.settings_locked) {
+      const { allowed } = await isSovereignUser(user.id, id);
+      if (!allowed) {
+        return reply.status(423).send({
+          error: 'LOCKED',
+          message: '🔒 Server Settings are locked by the Server Owner. Only the Server Owner and designated Co-Owners can deploy modules.',
+        });
+      }
+    }
+
+    const body = (request.body as Record<string, any>) || {};
+
+    try {
+      const deployRes = await deploySpamCatcherHoneypot(bot, {
+        guildId: id,
+        channelId: body.channelId || null,
+        timeoutHours: Number(body.timeoutHours) || 6,
+        action: body.action || 'TIMEOUT',
+        customTitle: body.customTitle,
+        customDesc: body.customDesc,
+      });
+
+      if (!deployRes.success) {
+        return reply.status(400).send({ error: deployRes.error || 'Failed to deploy spam catcher channel' });
+      }
+
+      return reply.send({
+        success: true,
+        channelId: deployRes.channelId,
+        messageId: deployRes.messageId,
+        message: '🐝 Spam Catcher Honeypot Channel successfully deployed!',
+      });
+    } catch (err: any) {
+      request.log.error({ err }, 'Failed to deploy spam catcher honeypot');
+      return reply.status(500).send({ error: 'Failed to deploy spam catcher channel' });
     }
   });
 

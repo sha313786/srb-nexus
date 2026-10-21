@@ -9,6 +9,7 @@ import {
 import { db } from '../../core/database';
 import { isBotOwner, isSovereignUser } from '../../api/routes/guilds';
 import { invalidateSpamCatcherCache, getSpamCatcherConfig } from '../../security/antiSpam';
+import { deploySpamCatcherHoneypot } from '../../services/spamCatcherDeployer';
 import { logger } from '../../core/logger';
 
 export const spamcatcherCommand = {
@@ -19,6 +20,37 @@ export const spamcatcherCommand = {
       sub
         .setName('status')
         .setDescription('View current Spam Catcher configuration, sensitivity, action, and statistics')
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('deploy')
+        .setDescription('Deploy the honeypot spam-catcher channel with the official warning embed')
+        .addChannelOption((opt) =>
+          opt
+            .setName('channel')
+            .setDescription('Target text channel (leave empty to auto-create "#🐝-spam-catcher")')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
+        )
+        .addIntegerOption((opt) =>
+          opt
+            .setName('timeout_hours')
+            .setDescription('Timeout duration in hours (default: 6 hours)')
+            .setMinValue(1)
+            .setMaxValue(720)
+            .setRequired(false)
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName('action')
+            .setDescription('Enforcement penalty')
+            .addChoices(
+              { name: 'Timeout Member (Recommended)', value: 'TIMEOUT' },
+              { name: 'Kick Member', value: 'KICK' },
+              { name: 'Ban Member', value: 'BAN' }
+            )
+            .setRequired(false)
+        )
     )
     .addSubcommand((sub) =>
       sub
@@ -181,7 +213,6 @@ export const spamcatcherCommand = {
     if (!interaction.guild) return;
 
     const guild = interaction.guild;
-    const isOwner = interaction.user.id === guild.ownerId;
     const sovereign = await isSovereignUser(interaction.user.id, guild.id);
 
     // Permission Check: If Server Owner Settings are locked, only Sovereign users (Owner, Co-Owners, Bot Owner) can configure
@@ -220,6 +251,36 @@ export const spamcatcherCommand = {
 
       const dbRes = await db.query(`SELECT * FROM guild_spam_catcher WHERE guild_id = $1`, [guild.id]);
       const current = dbRes.rows[0] || {};
+
+      // 0. DEPLOY HONEYPOT CHANNEL
+      if (subcommand === 'deploy') {
+        const channel = interaction.options.getChannel('channel');
+        const timeoutHours = interaction.options.getInteger('timeout_hours') || 6;
+        const action = (interaction.options.getString('action') as any) || 'TIMEOUT';
+
+        const deployRes = await deploySpamCatcherHoneypot(interaction.client, {
+          guildId: guild.id,
+          channelId: channel?.id,
+          timeoutHours,
+          action,
+        });
+
+        if (!deployRes.success) {
+          await interaction.editReply(`❌ Failed to deploy Spam Catcher: ${deployRes.error}`);
+          return;
+        }
+
+        const embed = new EmbedBuilder()
+          .setTitle('🐝 Spam Catcher Channel Deployed!')
+          .setDescription(
+            `Successfully deployed the Spam Catcher trap into <#${deployRes.channelId}> with an automated **${timeoutHours} Hours timeout** countermeasure.\n\nAny message sent by automated spam bots or unverified self-bots in this channel will be purged immediately and the sender timed out.`
+          )
+          .setColor(0x00f0ff)
+          .setTimestamp();
+
+        await interaction.editReply({ embeds: [embed] });
+        return;
+      }
 
       // 1. STATUS
       if (subcommand === 'status') {

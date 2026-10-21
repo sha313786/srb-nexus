@@ -3105,6 +3105,102 @@
             </div>
           </div>
 
+          <!-- Turnkey Honeypot Trap Channel Deployer (Discord Match) -->
+          <div class="p-6 rounded-3xl bg-gradient-to-r from-rose-950/30 via-dark-900 to-amber-950/20 border border-rose-500/30 space-y-6">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-dark-800">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold uppercase tracking-wider text-rose-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-bee text-amber-400"></i> Turnkey Spam Catcher Channel Deployer
+                  </span>
+                  <span class="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/20 text-[10px] font-bold font-mono">1-CLICK HONEYPOT</span>
+                </div>
+                <h3 class="text-lg font-heading font-bold text-white mt-1">Deploy Automated "# 🐝 ꜛ SPAM-CATCHER" Channel</h3>
+                <p class="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
+                  Automatically provisions or links a dedicated decoy trap channel with the official warning embed. Real members avoid typing, but automated spam-bots immediately post their links and get hit with a <strong>6 Hours timeout</strong>.
+                </p>
+              </div>
+
+              <!-- Status Badge -->
+              <div id="badge-honeypot-active-status" class="shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-dark-950 border border-dark-800 text-xs">
+                <span class="w-2 h-2 rounded-full bg-slate-500"></span>
+                <span class="text-slate-400">Trap Inactive</span>
+              </div>
+            </div>
+
+            <!-- Grid: Live Preview vs Deploy Controls -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+              
+              <!-- Left: Discord-Accurate Embed Preview (Matches Screenshot) -->
+              <div class="lg:col-span-7 bg-[#313338] p-5 rounded-2xl border border-dark-700/80 shadow-2xl font-sans">
+                <!-- Channel Header simulation -->
+                <div class="flex items-center gap-2 pb-3 mb-3 border-b border-dark-700/50 text-xs text-slate-300 font-semibold">
+                  <i class="fa-solid fa-hashtag text-slate-400"></i>
+                  <span id="preview-trap-chan-name">🐝・spam-catcher</span>
+                  <span class="text-[10px] text-slate-500 font-normal ml-auto">Channel Start</span>
+                </div>
+
+                <!-- Bot Message -->
+                <div class="flex items-start gap-3">
+                  <img src="https://cdn.discordapp.com/embed/avatars/0.png" class="w-10 h-10 rounded-full bg-brand p-1 shrink-0">
+                  <div class="space-y-2 flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span class="font-bold text-sm text-white">SRB NEXUS</span>
+                      <span class="bg-[#5865F2] text-white text-[9px] font-bold px-1 rounded">APP</span>
+                      <span class="text-[10px] text-[#949ba4]">Today at 12:00 AM</span>
+                    </div>
+
+                    <!-- Embed Container -->
+                    <div class="bg-[#2b2d31] rounded-lg p-4 border-l-4 border-cyan-400 flex items-start justify-between gap-4">
+                      <div class="space-y-1.5 flex-1">
+                        <h4 class="font-bold text-sm text-white flex items-center gap-1.5">
+                          DO NOT SEND MESSAGES IN THIS CHANNEL 🚨
+                        </h4>
+                        <p class="text-xs text-[#dbdee1] leading-relaxed">
+                          This channel is used to catch spam bots. Any messages sent here will result in a <strong class="text-white" id="preview-trap-duration-text">6 Hours timeout</strong>.
+                        </p>
+                      </div>
+                      <div class="w-14 h-14 rounded-xl bg-dark-900/80 border border-cyan-500/30 flex items-center justify-center shrink-0 text-cyan-400 text-2xl shadow-inner">
+                        <i class="fa-solid fa-shield-virus"></i>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right: Deployment Config Controls -->
+              <div class="lg:col-span-5 space-y-4 bg-dark-950/70 p-5 rounded-2xl border border-dark-800">
+                <div>
+                  <label class="block text-xs font-bold text-slate-300 mb-1.5">Target Discord Channel</label>
+                  <select id="select-deploy-spam-channel" onchange="updateTrapPreview(this.value)" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-rose-400 transition">
+                    <option value="auto">✨ Auto-Create "# 🐝-spam-catcher" (Recommended)</option>
+                  </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1.5">Countermeasure</label>
+                    <select id="select-deploy-spam-action" onchange="updateTrapDurationPreview()" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-rose-400 transition">
+                      <option value="TIMEOUT" selected>Timeout</option>
+                      <option value="KICK">Kick</option>
+                      <option value="BAN">Ban</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1.5">Timeout Hours</label>
+                    <input type="number" id="input-deploy-spam-hours" min="1" max="720" value="6" oninput="updateTrapDurationPreview()" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-rose-400 transition font-mono">
+                  </div>
+                </div>
+
+                <button onclick="deploySpamCatcherHoneypotUI()" id="btn-deploy-spam-channel" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-400 hover:to-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-rose-500/20 transition flex items-center justify-center gap-2">
+                  <i class="fa-solid fa-rocket"></i> <span>Deploy Spam Catcher Channel</span>
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+
           <!-- Quick Metrics Banner (3 Cards) -->
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div class="p-5 rounded-2xl bg-dark-900/80 border border-dark-700/80">
@@ -7693,6 +7789,69 @@
     let cachedSpamCatcherConfig = null;
     let spamWhitelistRoles = [];
     let spamWhitelistChannels = [];
+
+    
+    function updateTrapDurationPreview() {
+      const act = document.getElementById('select-deploy-spam-action')?.value || 'TIMEOUT';
+      const hours = parseInt(document.getElementById('input-deploy-spam-hours')?.value) || 6;
+      const previewText = document.getElementById('preview-trap-duration-text');
+      if (!previewText) return;
+      if (act === 'KICK') previewText.innerText = 'instant Kick';
+      else if (act === 'BAN') previewText.innerText = 'permanent Ban';
+      else previewText.innerText = `${hours} Hours timeout`;
+    }
+
+    function updateTrapPreview(chanVal) {
+      const previewChan = document.getElementById('preview-trap-chan-name');
+      if (!previewChan) return;
+      if (chanVal === 'auto' || !chanVal) {
+        previewChan.innerText = '🐝・spam-catcher';
+      } else {
+        const c = (serverChannels || []).find(ch => ch.id === chanVal);
+        previewChan.innerText = c ? c.name : chanVal;
+      }
+    }
+
+    async function deploySpamCatcherHoneypotUI() {
+      if (!guildId) return;
+      const channelVal = document.getElementById('select-deploy-spam-channel')?.value;
+      const timeoutHours = parseInt(document.getElementById('input-deploy-spam-hours')?.value) || 6;
+      const action = document.getElementById('select-deploy-spam-action')?.value || 'TIMEOUT';
+
+      const btn = document.getElementById('btn-deploy-spam-channel');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Deploying Trap Channel...';
+      }
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/spamcatcher/deploy`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            channelId: channelVal === 'auto' ? null : channelVal,
+            timeoutHours,
+            action,
+          }),
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          showToast(data.message || '🐝 Spam Catcher honeypot channel successfully deployed!', 'success');
+          await refreshServerCache();
+          await loadSpamCatcher();
+        } else {
+          showToast(data.error || 'Failed to deploy spam catcher channel', 'error');
+        }
+      } catch (err) {
+        showToast('Network error deploying spam catcher channel', 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-rocket mr-2"></i> <span>Deploy Spam Catcher Channel</span>';
+        }
+      }
+    }
 
     async function loadSpamCatcher() {
       if (!guildId) return;
