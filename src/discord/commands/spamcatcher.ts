@@ -554,8 +554,9 @@ export const spamcatcherCommand = {
           .setFooter({ text: 'SRB NEXUS Sovereign Server Owner Alert' })
           .setTimestamp();
 
+        const cfg = await getSpamCatcherConfig(guild.id);
         let dmDelivered = false;
-        if (owner) {
+        if (cfg.owner_dm_alert === true && owner) {
           try {
             await owner.send({ embeds: [testEmbed] });
             dmDelivered = true;
@@ -563,7 +564,7 @@ export const spamcatcherCommand = {
         }
 
         await interaction.editReply(
-          `✅ **Test Complete**: Spam Catcher pipeline is fully functional.\n${dmDelivered ? '• Direct DM alert successfully delivered to the Server Owner.' : '• Could not deliver DM to Server Owner (DMs closed or privacy settings).'}`
+          `✅ **Test Complete**: Spam Catcher pipeline is fully functional.\n${cfg.owner_dm_alert ? (dmDelivered ? '• Direct DM alert successfully delivered to the Server Owner.' : '• Could not deliver DM to Server Owner (DMs closed or privacy settings).') : '• (Owner DM Alert is OFF, so no direct message was dispatched).'}`
         );
         return;
       }

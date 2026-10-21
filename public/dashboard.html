@@ -7907,7 +7907,7 @@
         if (checkInvites) checkInvites.checked = cfg.anti_discord_invites !== false;
 
         const checkAlert = document.getElementById('check-spamcatcher-owner-alert');
-        if (checkAlert) checkAlert.checked = cfg.owner_dm_alert !== false;
+        if (checkAlert) checkAlert.checked = cfg.owner_dm_alert === true;
 
         // Whitelists
         spamWhitelistRoles = Array.isArray(cfg.whitelist_roles) ? [...cfg.whitelist_roles] : [];
@@ -8099,7 +8099,7 @@
           honeypot_channel_id: document.getElementById('select-spamcatcher-honeypot')?.value || null,
           log_channel_id: document.getElementById('select-spamcatcher-log-channel')?.value || null,
           anti_discord_invites: document.getElementById('check-spamcatcher-invites')?.checked ?? true,
-          owner_dm_alert: document.getElementById('check-spamcatcher-owner-alert')?.checked ?? true,
+          owner_dm_alert: document.getElementById('check-spamcatcher-owner-alert')?.checked === true,
           whitelist_roles: spamWhitelistRoles,
           whitelist_channels: spamWhitelistChannels,
         };

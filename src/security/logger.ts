@@ -63,18 +63,23 @@ export async function logSecurityEvent(opts: SecurityAuditOptions): Promise<void
   }
 
   // 3. Dispatch Sovereign Owner Direct DM Alert if enabled
+  // NOTE: SPAM DM alerts are managed strictly by antiSpam.ts respecting the owner's Spam Catcher DM toggle.
+  if (opts.eventType === 'SPAM') {
+    return;
+  }
+
   try {
     const ownerRes = await db.query(
       `SELECT owner_dm_alerts FROM guild_owner_config WHERE guild_id = $1`,
       [opts.guild.id]
     ).catch(() => ({ rows: [] }));
 
-    // Defaults to true if row exists and is true, or if no row yet
-    const alertsEnabled = ownerRes.rows.length === 0 ? true : ownerRes.rows[0].owner_dm_alerts !== false;
+    // ONLY send DM if owner_dm_alerts is explicitly TRUE
+    const alertsEnabled = ownerRes.rows.length > 0 && ownerRes.rows[0].owner_dm_alerts === true;
 
     if (alertsEnabled) {
       const owner = await opts.guild.fetchOwner().catch(() => null);
-      if (owner) {
+      if (owner && owner.id !== opts.userId) {
         const dmEmbed = new EmbedBuilder()
           .setTitle(`🛡️ [SRB NEXUS] Security Alert in ${opts.guild.name}`)
           .setDescription(`A critical security defense action was triggered in your server **${opts.guild.name}**.`)

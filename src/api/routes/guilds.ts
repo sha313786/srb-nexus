@@ -2417,8 +2417,16 @@ export async function guildRoutes(fastify: FastifyInstance) {
       }
 
       if (body.owner_dm_alerts !== undefined) {
+        const isDmOn = Boolean(body.owner_dm_alerts);
         updates.push(`owner_dm_alerts = $${paramIndex++}`);
-        values.push(Boolean(body.owner_dm_alerts));
+        values.push(isDmOn);
+
+        // Also synchronize to guild_spam_catcher
+        await db.query(
+          "UPDATE guild_spam_catcher SET owner_dm_alert = $1, updated_at = NOW() WHERE guild_id = $2",
+          [isDmOn, id]
+        ).catch(() => {});
+        invalidateSpamCatcherCache(id);
       }
 
       updates.push("updated_at = NOW()");
@@ -2628,8 +2636,17 @@ export async function guildRoutes(fastify: FastifyInstance) {
       }
 
       if (body.owner_dm_alert !== undefined) {
+        const isDmOn = Boolean(body.owner_dm_alert);
         updates.push(`owner_dm_alert = $${paramIndex++}`);
-        values.push(Boolean(body.owner_dm_alert));
+        values.push(isDmOn);
+
+        // Also synchronize to guild_owner_config so DMs stay strictly consistent
+        const botGuild = bot.guilds.cache.get(id);
+        const ownerId = botGuild?.ownerId || user.id;
+        await db.query(
+          "INSERT INTO guild_owner_config (guild_id, owner_id, owner_dm_alerts) VALUES ($1, $2, $3) ON CONFLICT (guild_id) DO UPDATE SET owner_dm_alerts = $3, updated_at = NOW()",
+          [id, ownerId, isDmOn]
+        ).catch(() => {});
       }
 
       if (body.whitelist_roles !== undefined) {
@@ -2732,7 +2749,7 @@ export async function guildRoutes(fastify: FastifyInstance) {
         .setTimestamp();
 
       let dmSent = false;
-      if (owner) {
+      if (cfg.owner_dm_alert === true && owner) {
         try {
           await owner.send({ embeds: [testEmbed] });
           dmSent = true;
@@ -2748,7 +2765,7 @@ export async function guildRoutes(fastify: FastifyInstance) {
 
       return reply.send({
         success: true,
-        message: `✅ Test completed! ${dmSent ? 'Direct DM alert delivered to Server Owner.' : 'Owner DM alert could not be sent (DMs closed).'}`,
+        message: cfg.owner_dm_alert ? `✅ Test completed! ${dmSent ? 'Direct DM alert delivered to Server Owner.' : 'Owner DM alert could not be sent (DMs closed).'}` : '✅ Test completed! (Owner Direct DM Alert is OFF, so no direct message was sent).',
       });
     } catch (err: any) {
       request.log.error({ err }, 'Failed to execute spam test');

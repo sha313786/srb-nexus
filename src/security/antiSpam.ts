@@ -74,7 +74,7 @@ export async function getSpamCatcherConfig(guildId: string): Promise<SpamCatcher
       log_channel_id: null,
       whitelist_roles: [],
       whitelist_channels: [],
-      owner_dm_alert: true,
+      owner_dm_alert: false,
     };
   }
 
@@ -116,7 +116,7 @@ export async function getSpamCatcherConfig(guildId: string): Promise<SpamCatcher
     log_channel_id: row.log_channel_id || null,
     whitelist_roles: Array.isArray(row.whitelist_roles) ? row.whitelist_roles : [],
     whitelist_channels: Array.isArray(row.whitelist_channels) ? row.whitelist_channels : [],
-    owner_dm_alert: row.owner_dm_alert !== false,
+    owner_dm_alert: row.owner_dm_alert === true,
   };
 
   configCache.set(guildId, { config, cachedAt: now });
@@ -303,8 +303,18 @@ async function enforceSpamCatcherAction(
       }
     }
 
-    // Direct DM Alert to Server Owner
-    if (cfg.owner_dm_alert) {
+    // Direct DM Alert to Server Owner (Strictly only if explicitly enabled)
+    if (cfg.owner_dm_alert === true) {
+      const ownerConfig = await db.query(
+        "SELECT owner_dm_alerts FROM guild_owner_config WHERE guild_id = $1",
+        [guild.id]
+      ).catch(() => ({ rows: [] }));
+
+      // If server owner globally disabled DM alerts, respect it!
+      if (ownerConfig.rows.length > 0 && ownerConfig.rows[0].owner_dm_alerts === false) {
+        return;
+      }
+
       const owner = await guild.fetchOwner().catch(() => null);
       if (owner && owner.id !== userId) {
         const ownerEmbed = new EmbedBuilder()
