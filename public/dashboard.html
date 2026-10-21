@@ -217,9 +217,9 @@
               <i class="fa-solid fa-shield-virus w-5 text-center text-red-400"></i>
               <span>Anti-Raid Defense</span>
             </button>
-            <button onclick="switchTab('moderation')" id="btn-moderation" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
+            <button onclick="switchTab('moderation')" id="btn-moderation" data-keywords="spam anti-spam spam-catcher automod filter timeout" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
               <i class="fa-solid fa-gavel w-5 text-center text-amber-400"></i>
-              <span>Moderation &amp; Auto-Mod</span>
+              <span>Auto-Mod &amp; Spam Catcher</span>
             </button>
           </div>
         </div>
@@ -739,8 +739,11 @@
                 <!-- Anti-Spam -->
                 <div class="flex items-center justify-between p-4 rounded-2xl bg-dark-900/80 border border-dark-700">
                   <div>
-                    <h4 class="font-bold text-sm text-white">Anti-Spam Frequency Filter</h4>
-                    <p class="text-xs text-slate-400">Flags rapid repetitive messages or copy-pasted duplicate spam.</p>
+                    <div class="flex items-center gap-2">
+                      <h4 class="font-bold text-sm text-white">Spam Catcher &amp; Frequency Shield</h4>
+                      <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 font-mono">5M TIMEOUT</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-0.5">Automated detection of velocity floods (&gt;5 msgs/4s), duplicate text loops, and mass mentions (&gt;4) with progressive 5m timeout.</p>
                   </div>
                   <label class="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" id="check-anti-spam" class="sr-only peer">
@@ -2951,7 +2954,7 @@
     function filterSidebarTabs(query) {
       const q = (query || '').toLowerCase().trim();
       document.querySelectorAll('.tab-btn').forEach(btn => {
-        const text = btn.innerText.toLowerCase();
+        const text = (btn.innerText + ' ' + (btn.getAttribute('data-keywords') || '')).toLowerCase();
         if (!q || text.includes(q)) {
           btn.classList.remove('hidden');
         } else {
