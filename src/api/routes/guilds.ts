@@ -200,6 +200,21 @@ export async function guildRoutes(fastify: FastifyInstance) {
       };
     });
 
+    // If bot developer / system owner, ensure all guilds currently running the bot are manageable
+    const isOwner = await isBotOwner(user.id);
+    if (isOwner) {
+      bot.guilds.cache.forEach((bg) => {
+        if (!result.some((g) => g.id === bg.id)) {
+          result.push({
+            id: bg.id,
+            name: bg.name,
+            icon: bg.icon ? `https://cdn.discordapp.com/icons/${bg.id}/${bg.icon}.png` : null,
+            hasBot: true,
+          });
+        }
+      });
+    }
+
     return reply.send({ guilds: result });
   });
 

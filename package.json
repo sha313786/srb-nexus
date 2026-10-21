@@ -4,8 +4,8 @@
   "description": "SRB NEXUS Central Infrastructure & Security System",
   "main": "dist/index.js",
   "scripts": {
-    "build:css": "tailwindcss -i ./src/styles/input.css -o ./public/styles.css --minify",
-    "watch:css": "tailwindcss -i ./src/styles/input.css -o ./public/styles.css --watch",
+    "build:css": "tailwindcss -c ./tailwind.config.js -i ./src/styles/input.css -o ./public/styles.css --minify",
+    "watch:css": "tailwindcss -c ./tailwind.config.js -i ./src/styles/input.css -o ./public/styles.css --watch",
     "build": "npm run build:css && tsc && copyfiles -u 0 public/* dist/ && copyfiles -u 0 assets/**/* dist/",
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",

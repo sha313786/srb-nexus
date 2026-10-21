@@ -6,7 +6,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Copy dependency manifests
-COPY package*.json tsconfig.json ./
+COPY package*.json tsconfig.json tailwind.config.js ./
 
 # Install dependencies for compilation
 RUN npm ci
