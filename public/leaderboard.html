@@ -9,6 +9,7 @@
 
   <!-- Pre-compiled Static Tailwind CSS (High Speed, Zero Runtime JS Overhead) -->
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/nexus-bg.css">
 
   <style>
     body {
@@ -53,6 +54,18 @@
   </style>
 </head>
 <body class="min-h-screen flex flex-col font-sans antialiased text-slate-200">
+
+  <!-- High-Visibility Cyber Aurora & Interactive Neural Canvas Stage -->
+  <div class="nexus-bg-stage" aria-hidden="true">
+    <div class="nexus-grid-animated"></div>
+    <div class="nexus-orb nexus-orb-1"></div>
+    <div class="nexus-orb nexus-orb-2"></div>
+    <div class="nexus-orb nexus-orb-3"></div>
+    <div class="nexus-orb nexus-orb-4"></div>
+    <div id="nexus-mouse-glow"></div>
+    <canvas id="nexus-bg-canvas"></canvas>
+  </div>
+
 
   <!-- Navigation -->
   <header class="sticky top-0 z-50 glass-surface border-b border-white/5">
@@ -372,5 +385,6 @@
 
     window.addEventListener('DOMContentLoaded', init);
   </script>
+  <script src="/nexus-bg.js" defer></script>
 </body>
 </html>
