@@ -8,6 +8,8 @@ import { logger } from '../core/logger';
 import { authRoutes } from './routes/auth';
 import { guildRoutes } from './routes/guilds';
 import { healthRoutes } from './routes/health';
+import { leadsRoutes } from './routes/leads';
+import fastifyCors from '@fastify/cors';
 
 export const apiServer: FastifyInstance = Fastify({
   logger: false,
@@ -19,6 +21,12 @@ const publicPath = fs.existsSync(path.join(__dirname, '../../public'))
   : path.join(__dirname, '../public');
 
 // Register Static Files Plugin
+apiServer.register(fastifyCors, {
+  origin: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
+});
+
 apiServer.register(fastifyStatic, {
   root: publicPath,
   prefix: '/',
@@ -51,6 +59,7 @@ apiServer.get('/servers', async (req, reply) => {
 apiServer.register(healthRoutes);
 apiServer.register(authRoutes);
 apiServer.register(guildRoutes);
+apiServer.register(leadsRoutes);
 
 export async function startServer(port: number = 10000): Promise<FastifyInstance> {
   try {
