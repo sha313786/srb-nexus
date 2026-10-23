@@ -1041,6 +1041,46 @@ async function start() {
         results.watchNoCookie = { error: e.message };
       }
 
+      try {
+        const rResolve = await fetch('https://www.youtube.com/youtubei/v1/navigation/resolve_url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: 'https://www.youtube.com/@jackalknightyt/live',
+            context: { client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' } }
+          })
+        });
+        const dResolve = await rResolve.json();
+        results.resolveUrlTest = {
+          status: rResolve.status,
+          endpoint: dResolve.endpoint
+        };
+      } catch (e: any) {
+        results.resolveUrlTest = { error: e.message };
+      }
+
+      try {
+        const rPlayer = await fetch('https://www.youtube.com/youtubei/v1/player', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            videoId: 'uQhzhd9Hi1E',
+            context: { client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' } }
+          })
+        });
+        const dPlayer = await rPlayer.json();
+        results.playerApiTest = {
+          status: rPlayer.status,
+          isLive: dPlayer.videoDetails?.isLive,
+          isLiveContent: dPlayer.videoDetails?.isLiveContent,
+          title: dPlayer.videoDetails?.title,
+          author: dPlayer.videoDetails?.author,
+          playabilityStatus: dPlayer.playabilityStatus?.status
+        };
+      } catch (e: any) {
+        results.playerApiTest = { error: e.message };
+      }
+
       return reply.send(results);
     });
 
