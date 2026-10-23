@@ -170,113 +170,54 @@ export async function fetchStreamInfo(
         channelId = rawChannel;
       }
 
-      const consentHeaders = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Cookie': 'SOCS=CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjMwODI5LjA3X3AwGgJlbiIAEhkA; CONSENT=YES+'
-      };
-
-      // Strategy 1: Check YouTube /live endpoint for embedded player response (Returns 200 on Render)
+      // Step 1: Query YouTube InnerTube resolve_url API for active live stream
       try {
-        const liveRes = await fetch(`https://www.youtube.com/@${cleanName}/live`, {
-          headers: consentHeaders,
-          redirect: 'follow',
+        const resolveTarget = `https://www.youtube.com/@${cleanName}/live`;
+        const resolveRes = await fetch('https://www.youtube.com/youtubei/v1/navigation/resolve_url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: resolveTarget,
+            context: { client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' } }
+          }),
           signal: AbortSignal.timeout(6000)
         });
 
-        if (liveRes.ok) {
-          const html = await liveRes.text();
+        if (resolveRes.ok) {
+          const resolveData: any = await resolveRes.json();
+          const endpoint = resolveData.endpoint;
+          const candidateVideoId = endpoint?.watchEndpoint?.videoId;
+          const pageType = endpoint?.commandMetadata?.webCommandMetadata?.webPageType;
 
-          // Try parsing player response embedded in the live page
-          const vDetailsMatch = html.match(/"videoDetails":\s*(\{[^<]+?\})\s*,\s*"playerConfig"/);
-          if (vDetailsMatch) {
+          if (endpoint?.browseEndpoint?.browseId && !channelId) {
+            channelId = endpoint.browseEndpoint.browseId;
+          }
+
+          // If /live resolved to a watch page with a video ID, the creator is actively LIVE NOW!
+          if (candidateVideoId && pageType === 'WEB_PAGE_TYPE_WATCH') {
+            isLive = true;
+            liveVideoId = candidateVideoId;
+            liveTitle = 'Live on YouTube';
+            liveThumbnail = `https://i.ytimg.com/vi/${candidateVideoId}/maxresdefault.jpg`;
+
+            // Enrich metadata via official YouTube oEmbed API
             try {
-              const vDetails = JSON.parse(vDetailsMatch[1]);
-              if (vDetails.isLive || vDetails.isLiveContent) {
-                isLive = true;
-                liveVideoId = vDetails.videoId;
-                liveTitle = vDetails.title;
-                authorName = vDetails.author || authorName;
-                liveViewerCount = parseInt(vDetails.viewCount || '0', 10) || 0;
-                liveThumbnail = `https://i.ytimg.com/vi/${liveVideoId}/maxresdefault.jpg`;
-                if (!channelId && vDetails.channelId) channelId = vDetails.channelId;
+              const oeRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${candidateVideoId}&format=json`, {
+                signal: AbortSignal.timeout(5000)
+              });
+              if (oeRes.ok) {
+                const oeData: any = await oeRes.json();
+                if (oeData.title) liveTitle = oeData.title;
+                if (oeData.author_name) authorName = oeData.author_name;
+                if (oeData.thumbnail_url) liveThumbnail = oeData.thumbnail_url;
               }
-            } catch {}
-          }
-
-          // Fallback regex inside live page
-          if (!isLive) {
-            const vIdMatch = html.match(/"videoDetails":\{"videoId":"([a-zA-Z0-9_-]{11})"/);
-            const isLiveBadge = html.includes('"isLive":true') || html.includes('"isLiveNow":true');
-            if (vIdMatch && isLiveBadge) {
-              isLive = true;
-              liveVideoId = vIdMatch[1];
-              const tMatch = html.match(/"title":"(.*?)"/);
-              if (tMatch) liveTitle = tMatch[1];
-              liveThumbnail = `https://i.ytimg.com/vi/${liveVideoId}/maxresdefault.jpg`;
+            } catch (oeErr) {
+              logger.warn({ oeErr, candidateVideoId }, '[RADAR] Failed to fetch oEmbed details');
             }
-          }
-
-          // Extract channelId if present in html
-          if (!channelId) {
-            const chMatch = html.match(/"channelId":"(UC[a-zA-Z0-9_-]{22})"/);
-            const extMatch = html.match(/"externalId":"(UC[a-zA-Z0-9_-]{22})"/);
-            if (chMatch) channelId = chMatch[1];
-            else if (extMatch) channelId = extMatch[1];
           }
         }
       } catch (err) {
-        logger.warn({ err, handle }, '[RADAR] Failed during YouTube /live fetch');
-      }
-
-      // Strategy 2: Query YouTube InnerTube resolve_url API if /live didn't catch it
-      if (!isLive) {
-        try {
-          const resolveRes = await fetch('https://www.youtube.com/youtubei/v1/navigation/resolve_url', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              url: `https://www.youtube.com/@${cleanName}/live`,
-              context: { client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' } }
-            }),
-            signal: AbortSignal.timeout(6000)
-          });
-
-          if (resolveRes.ok) {
-            const resolveData: any = await resolveRes.json();
-            const candidateVideoId = resolveData.endpoint?.watchEndpoint?.videoId;
-            if (resolveData.endpoint?.browseEndpoint?.browseId && !channelId) {
-              channelId = resolveData.endpoint.browseEndpoint.browseId;
-            }
-
-            if (candidateVideoId) {
-              const playerRes = await fetch('https://www.youtube.com/youtubei/v1/player', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  videoId: candidateVideoId,
-                  context: { client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' } }
-                }),
-                signal: AbortSignal.timeout(6000)
-              });
-
-              if (playerRes.ok) {
-                const playerData: any = await playerRes.json();
-                const details = playerData.videoDetails;
-                if (details && (details.isLive || details.isLiveContent)) {
-                  isLive = true;
-                  liveVideoId = candidateVideoId;
-                  liveTitle = details.title || 'Live on YouTube';
-                  authorName = details.author || authorName;
-                  liveViewerCount = parseInt(details.viewCount || '0', 10) || 0;
-                  liveThumbnail = `https://i.ytimg.com/vi/${candidateVideoId}/maxresdefault.jpg`;
-                }
-              }
-            }
-          }
-        } catch (err) {
-          logger.warn({ err, handle }, '[RADAR] Failed during YouTube InnerTube live resolve');
-        }
+        logger.warn({ err, handle }, '[RADAR] Failed during YouTube InnerTube live resolve');
       }
 
       // Step 2: Fallback / Secondary RSS Check for recent video upload
@@ -285,7 +226,7 @@ export async function fetchStreamInfo(
       let latestVideoUrl = `https://youtube.com/${handle}`;
       let latestThumbnail = '';
 
-      if (channelId) {
+      if (!isLive && channelId) {
         try {
           const rssRes = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, {
             headers: { 'User-Agent': 'Mozilla/5.0' },
@@ -299,36 +240,10 @@ export async function fetchStreamInfo(
             if (authorTag && authorTag[1]) authorName = authorTag[1];
 
             if (idMatch && idMatch[1]) {
-              const candidateId = idMatch[1];
-              latestVideoId = candidateId;
+              latestVideoId = idMatch[1];
               latestVideoTitle = titleMatch ? titleMatch[1].trim() : 'New YouTube Video';
               latestVideoUrl = `https://www.youtube.com/watch?v=${latestVideoId}`;
               latestThumbnail = `https://i.ytimg.com/vi/${latestVideoId}/hqdefault.jpg`;
-
-              // If live wasn't found through /live, check candidate video with player API
-              if (!isLive) {
-                const playerRes = await fetch('https://www.youtube.com/youtubei/v1/player', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    videoId: candidateId,
-                    context: { client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' } }
-                  }),
-                  signal: AbortSignal.timeout(6000)
-                }).catch(() => null);
-
-                if (playerRes && playerRes.ok) {
-                  const playerData: any = await playerRes.json();
-                  const details = playerData.videoDetails;
-                  if (details && (details.isLive || details.isLiveContent)) {
-                    isLive = true;
-                    liveVideoId = candidateId;
-                    liveTitle = details.title || latestVideoTitle;
-                    liveThumbnail = `https://i.ytimg.com/vi/${candidateId}/maxresdefault.jpg`;
-                    liveViewerCount = parseInt(details.viewCount || '0', 10) || 0;
-                  }
-                }
-              }
             }
           }
         } catch (err) {
