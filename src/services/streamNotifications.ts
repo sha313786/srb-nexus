@@ -398,7 +398,7 @@ export function buildStreamEmbed(tracker: Partial<StreamTrackerRow>, info: Strea
     mention = `<@&${tracker.mention_role}> `;
   }
 
-  const typeDisplay = isVideoUpload ? 'new video' : (isPremiere ? 'premiere' : 'live stream');
+  const typeDisplay = isVideoUpload ? 'video' : (isPremiere ? 'premiere' : 'live stream');
 
   let defaultTemplate = isVideoUpload
     ? '{streamer} just uploaded a new video on {platform}! 🎬'
@@ -408,9 +408,11 @@ export function buildStreamEmbed(tracker: Partial<StreamTrackerRow>, info: Strea
 
   let customText = tracker.custom_message || defaultTemplate;
 
-  // Auto-adapt if user had "{streamer} is now LIVE on {platform}! 🔴" but this event is a video upload
+  // Auto-adapt message if custom template doesn't match event type
   if (isVideoUpload && customText.includes('is now LIVE')) {
     customText = customText.replace(/is now LIVE/gi, 'just uploaded a new video').replace(/🔴/g, '🎬');
+  } else if (!isVideoUpload && (customText.includes('uploaded a new video') || customText.includes('published new video'))) {
+    customText = customText.replace(/uploaded a new video|published new video/gi, 'is now LIVE').replace(/🎬/g, '🔴');
   }
 
   customText = customText
@@ -419,7 +421,8 @@ export function buildStreamEmbed(tracker: Partial<StreamTrackerRow>, info: Strea
     .replace(/{title}/g, info.title || 'New Release')
     .replace(/{game}/g, info.game || 'Streaming')
     .replace(/{type}/g, typeDisplay)
-    .replace(/{url}/g, info.streamUrl);
+    .replace(/{url}/g, info.streamUrl)
+    .replace(/\bnew new\b/gi, 'new');
 
   const content = `${mention}${customText}`;
 
