@@ -979,6 +979,65 @@ async function start() {
       }
     });
 
+    app.get('/api/public/debug-fetch-yt', async (request, reply) => {
+      const consentHeaders = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cookie': 'SOCS=CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjMwODI5LjA3X3AwGgJlbiIAEhkA; CONSENT=YES+'
+      };
+
+      const results: any = {};
+
+      try {
+        const r1 = await fetch('https://www.youtube.com/@jackalknightyt/live', { headers: consentHeaders, redirect: 'follow' });
+        const t1 = await r1.text();
+        results.liveWithCookie = {
+          status: r1.status,
+          finalUrl: r1.url,
+          isLiveNow: t1.includes('"isLiveNow":true'),
+          isLive: t1.includes('"isLive":true'),
+          liveBroadcastDetails: t1.includes('"liveBroadcastDetails"'),
+          isCompleted: t1.includes('"status":"COMPLETED"'),
+          snippet: t1.slice(0, 300)
+        };
+      } catch (e: any) {
+        results.liveWithCookie = { error: e.message };
+      }
+
+      try {
+        const r2 = await fetch('https://www.youtube.com/@jackalknightyt/live', { redirect: 'follow' });
+        const t2 = await r2.text();
+        results.liveNoCookie = {
+          status: r2.status,
+          finalUrl: r2.url,
+          isLiveNow: t2.includes('"isLiveNow":true'),
+          isLive: t2.includes('"isLive":true'),
+          liveBroadcastDetails: t2.includes('"liveBroadcastDetails"'),
+          snippet: t2.slice(0, 300)
+        };
+      } catch (e: any) {
+        results.liveNoCookie = { error: e.message };
+      }
+
+      try {
+        const r3 = await fetch('https://www.youtube.com/watch?v=uQhzhd9Hi1E', { redirect: 'follow' });
+        const t3 = await r3.text();
+        results.watchNoCookie = {
+          status: r3.status,
+          finalUrl: r3.url,
+          isLiveNow: t3.includes('"isLiveNow":true'),
+          isLive: t3.includes('"isLive":true'),
+          liveBroadcastDetails: t3.includes('"liveBroadcastDetails"'),
+          isCompleted: t3.includes('"status":"COMPLETED"'),
+          snippet: t3.slice(0, 300)
+        };
+      } catch (e: any) {
+        results.watchNoCookie = { error: e.message };
+      }
+
+      return reply.send(results);
+    });
+
     if (typeof (db as any).connect === 'function') {
       await (db as any).connect();
     }
