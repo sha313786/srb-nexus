@@ -179,9 +179,9 @@ export async function fetchStreamInfo(
         'Cookie': 'SOCS=CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjMwODI5LjA3X3AwGgJlbiIAEhkA; CONSENT=YES+'
       };
 
-      // Strategy 1: Check live broadcast endpoint
+      // Strategy 1: Check handle live broadcast endpoint (YouTube redirects /@handle/live directly to the active live stream)
       try {
-        const liveTarget = channelId ? `https://www.youtube.com/channel/${channelId}/live` : `https://www.youtube.com/${handle}/live`;
+        const liveTarget = `https://www.youtube.com/@${cleanName}/live`;
         const liveCheck = await fetch(liveTarget, {
           headers: consentHeaders,
           redirect: 'follow',
@@ -294,9 +294,10 @@ export async function fetchStreamInfo(
               if (!isLive) {
                 const vRes = await fetch(`https://www.youtube.com/watch?v=${candidateId}`, {
                   headers: consentHeaders,
+                  redirect: 'follow',
                   signal: AbortSignal.timeout(6000)
-                });
-                if (vRes.ok) {
+                }).catch(() => null);
+                if (vRes && vRes.ok) {
                   const vHtml = await vRes.text();
                   const vLive = (vHtml.includes('"isLiveNow":true') || (vHtml.includes('"isLive":true') && vHtml.includes('"liveBroadcastDetails"'))) && !vHtml.includes('"status":"COMPLETED"');
                   if (vLive) {
