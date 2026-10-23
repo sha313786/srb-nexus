@@ -168,103 +168,65 @@ export async function fetchStreamInfo(
         channelId = KNOWN_CHANNEL_IDS[cleanName];
       } else if (rawChannel.match(/^(UC[a-zA-Z0-9_-]{22})$/)) {
         channelId = rawChannel;
-      } else {
-        const directMatch = rawChannel.match(/\/channel\/(UC[a-zA-Z0-9_-]{22})/i);
-        if (directMatch) channelId = directMatch[1];
       }
 
-      const consentHeaders = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Cookie': 'SOCS=CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjMwODI5LjA3X3AwGgJlbiIAEhkA; CONSENT=YES+'
-      };
-
-      // Strategy 1: Check handle live broadcast endpoint (YouTube redirects /@handle/live directly to the active live stream)
+      // Step 1: Query YouTube InnerTube resolve_url API for active live stream
       try {
-        const liveTarget = `https://www.youtube.com/@${cleanName}/live`;
-        const liveCheck = await fetch(liveTarget, {
-          headers: consentHeaders,
-          redirect: 'follow',
+        const resolveRes = await fetch('https://www.youtube.com/youtubei/v1/navigation/resolve_url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: `https://www.youtube.com/@${cleanName}/live`,
+            context: { client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' } }
+          }),
           signal: AbortSignal.timeout(6000)
         });
 
-        if (liveCheck && liveCheck.ok) {
-          const html = await liveCheck.text();
-
-          // Extract channel ID and Author if not yet known
-          if (!channelId) {
-            const chMatch = html.match(/"channelId":"(UC[a-zA-Z0-9_-]{22})"/);
-            const extMatch = html.match(/"externalId":"(UC[a-zA-Z0-9_-]{22})"/);
-            if (chMatch) channelId = chMatch[1];
-            else if (extMatch) channelId = extMatch[1];
+        if (resolveRes.ok) {
+          const resolveData: any = await resolveRes.json();
+          const candidateVideoId = resolveData.endpoint?.watchEndpoint?.videoId;
+          if (resolveData.endpoint?.browseEndpoint?.browseId && !channelId) {
+            channelId = resolveData.endpoint.browseEndpoint.browseId;
           }
 
-          const canonicalMatch = html.match(/<link rel="canonical" href="(.*?)"/);
-          const canonical = canonicalMatch ? canonicalMatch[1] : '';
+          if (candidateVideoId) {
+            // Verify active live status with YouTube InnerTube player API
+            const playerRes = await fetch('https://www.youtube.com/youtubei/v1/player', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                videoId: candidateVideoId,
+                context: { client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' } }
+              }),
+              signal: AbortSignal.timeout(6000)
+            });
 
-          if (!channelId && canonical) {
-            const chFromCanonical = canonical.match(/\/(UC[a-zA-Z0-9_-]{22})/);
-            if (chFromCanonical) channelId = chFromCanonical[1];
-          }
+            if (playerRes.ok) {
+              const playerData: any = await playerRes.json();
+              const details = playerData.videoDetails;
+              if (details) {
+                authorName = details.author || handle;
+                if (!channelId && details.channelId) channelId = details.channelId;
 
-          const authorMatch = html.match(/<meta itemprop="name" content="(.*?)"/) || html.match(/"author":"(.*?)"/);
-          if (authorMatch && authorMatch[1]) authorName = authorMatch[1];
+                const isStreamActive = Boolean(details.isLive || details.isLiveContent);
+                const isCompleted = playerData.playabilityStatus?.status === 'LIVE_STREAM_OFFLINE';
 
-          // Check if actively streaming live
-          const isCanonicalWatch = canonical.includes('/watch?v=');
-          const hasLiveNow = html.includes('"isLiveNow":true');
-          const hasIsLive = html.includes('"isLive":true') && (html.includes('"liveBroadcastDetails"') || html.includes('"isLiveContent":true'));
-          const isCompleted = html.includes('"status":"COMPLETED"') || html.includes('"status":"LIVE_STREAM_OFFLINE"') || html.includes('"wasLive":true');
-
-          if (isCanonicalWatch && (hasLiveNow || hasIsLive) && !isCompleted) {
-            isLive = true;
-            const matchTitle = html.match(/<title>(.*?)<\/title>/);
-            if (matchTitle && matchTitle[1]) {
-              liveTitle = matchTitle[1].replace(' - YouTube', '').trim();
-            }
-            const vIdMatch = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
-            const vFromCanonical = canonical.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
-            if (vIdMatch) {
-              liveVideoId = vIdMatch[1];
-            } else if (vFromCanonical) {
-              liveVideoId = vFromCanonical[1];
-            }
-
-            if (liveVideoId) {
-              liveThumbnail = `https://i.ytimg.com/vi/${liveVideoId}/maxresdefault.jpg`;
-            }
-
-            const viewersMatch = html.match(/"viewCount":{"runs":\[{"text":"([0-9,]+)"}/) || html.match(/"originalViewCount":"([0-9]+)"/);
-            if (viewersMatch && viewersMatch[1]) {
-              liveViewerCount = parseInt(viewersMatch[1].replace(/,/g, ''), 10) || 0;
+                if (isStreamActive && !isCompleted) {
+                  isLive = true;
+                  liveVideoId = candidateVideoId;
+                  liveTitle = details.title || 'Live on YouTube';
+                  liveViewerCount = parseInt(details.viewCount || '0', 10) || 0;
+                  liveThumbnail = `https://i.ytimg.com/vi/${candidateVideoId}/maxresdefault.jpg`;
+                }
+              }
             }
           }
         }
       } catch (err) {
-        logger.warn({ err, handle }, '[RADAR] Failed during YouTube live check');
+        logger.warn({ err, handle }, '[RADAR] Failed during YouTube InnerTube live resolve');
       }
 
-      // Strategy 2: If channelId is still missing, resolve from channel about page
-      if (!channelId) {
-        try {
-          const chRes = await fetch(`https://www.youtube.com/${handle}`, {
-            headers: consentHeaders,
-            signal: AbortSignal.timeout(5000)
-          });
-          if (chRes.ok) {
-            const chHtml = await chRes.text();
-            const chMatch = chHtml.match(/"externalId":"(UC[a-zA-Z0-9_-]{22})"/);
-            const chUrlMatch = chHtml.match(/channel_id=(UC[a-zA-Z0-9_-]{22})/);
-            if (chMatch) channelId = chMatch[1];
-            else if (chUrlMatch) channelId = chUrlMatch[1];
-
-            const aMatch = chHtml.match(/<meta property="og:title" content="(.*?)"/);
-            if (aMatch && aMatch[1]) authorName = aMatch[1];
-          }
-        } catch {}
-      }
-
-      // Strategy 3: Fast Google RSS XML Feed Check
+      // Step 2: Fallback / Secondary RSS Check for recent video upload
       let latestVideoId = '';
       let latestVideoTitle = '';
       let latestVideoUrl = `https://youtube.com/${handle}`;
@@ -290,25 +252,27 @@ export async function fetchStreamInfo(
               latestVideoUrl = `https://www.youtube.com/watch?v=${latestVideoId}`;
               latestThumbnail = `https://i.ytimg.com/vi/${latestVideoId}/hqdefault.jpg`;
 
-              // If /live didn't mark as live, test candidate video directly
+              // If live wasn't found through /live, check candidate video with player API
               if (!isLive) {
-                const vRes = await fetch(`https://www.youtube.com/watch?v=${candidateId}`, {
-                  headers: consentHeaders,
-                  redirect: 'follow',
+                const playerRes = await fetch('https://www.youtube.com/youtubei/v1/player', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    videoId: candidateId,
+                    context: { client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' } }
+                  }),
                   signal: AbortSignal.timeout(6000)
                 }).catch(() => null);
-                if (vRes && vRes.ok) {
-                  const vHtml = await vRes.text();
-                  const vLive = (vHtml.includes('"isLiveNow":true') || (vHtml.includes('"isLive":true') && vHtml.includes('"liveBroadcastDetails"'))) && !vHtml.includes('"status":"COMPLETED"');
-                  if (vLive) {
+
+                if (playerRes && playerRes.ok) {
+                  const playerData: any = await playerRes.json();
+                  const details = playerData.videoDetails;
+                  if (details && (details.isLive || details.isLiveContent)) {
                     isLive = true;
                     liveVideoId = candidateId;
-                    liveTitle = latestVideoTitle;
+                    liveTitle = details.title || latestVideoTitle;
                     liveThumbnail = `https://i.ytimg.com/vi/${candidateId}/maxresdefault.jpg`;
-                    const vViewersMatch = vHtml.match(/"viewCount":{"runs":\[{"text":"([0-9,]+)"}/) || vHtml.match(/"originalViewCount":"([0-9]+)"/);
-                    if (vViewersMatch && vViewersMatch[1]) {
-                      liveViewerCount = parseInt(vViewersMatch[1].replace(/,/g, ''), 10) || 0;
-                    }
+                    liveViewerCount = parseInt(details.viewCount || '0', 10) || 0;
                   }
                 }
               }

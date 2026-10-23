@@ -991,14 +991,20 @@ async function start() {
       try {
         const r1 = await fetch('https://www.youtube.com/@jackalknightyt/live', { headers: consentHeaders, redirect: 'follow' });
         const t1 = await r1.text();
+        const canMatch = t1.match(/<link rel="canonical" href="(.*?)"/);
+        const vidMatches = t1.match(/"videoId":"([a-zA-Z0-9_-]{11})"/g);
+        const titleMatch = t1.match(/<title>(.*?)<\/title>/);
         results.liveWithCookie = {
           status: r1.status,
           finalUrl: r1.url,
+          canonical: canMatch ? canMatch[1] : null,
+          title: titleMatch ? titleMatch[1] : null,
+          hasTargetVideo: t1.includes('uQhzhd9Hi1E'),
+          hasLiveBadge: t1.includes('BADGE_STYLE_TYPE_LIVE_NOW') || t1.includes('"LIVE"'),
+          isLiveFlag: t1.includes('"isLive":true'),
           isLiveNow: t1.includes('"isLiveNow":true'),
-          isLive: t1.includes('"isLive":true'),
           liveBroadcastDetails: t1.includes('"liveBroadcastDetails"'),
-          isCompleted: t1.includes('"status":"COMPLETED"'),
-          snippet: t1.slice(0, 300)
+          sampleVideoIds: vidMatches ? vidMatches.slice(0, 5) : []
         };
       } catch (e: any) {
         results.liveWithCookie = { error: e.message };
