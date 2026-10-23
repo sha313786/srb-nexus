@@ -158,13 +158,16 @@ export async function fetchStreamInfo(
       let channelId = '';
       let authorName = handle;
 
-      // Check live broadcast endpoint
+      const consentHeaders = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cookie': 'SOCS=CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjMwODI5LjA3X3AwGgJlbiIAEhkA; CONSENT=YES+'
+      };
+
+      // Step 1: Check live broadcast endpoint
       try {
         const liveCheck = await fetch(`https://www.youtube.com/${handle}/live`, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9'
-          }
+          headers: consentHeaders
         });
 
         if (liveCheck && liveCheck.ok) {
@@ -188,7 +191,7 @@ export async function fetchStreamInfo(
           // Check if actively streaming live
           const isCanonicalWatch = canonical.includes('/watch?v=');
           const hasLiveNow = html.includes('"isLiveNow":true');
-          const hasIsLive = html.includes('"isLive":true');
+          const hasIsLive = html.includes('"isLive":true') && (html.includes('"liveBroadcastDetails"') || html.includes('"isLiveContent":true'));
           const isCompleted = html.includes('"status":"COMPLETED"') || html.includes('"status":"LIVE_STREAM_OFFLINE"') || html.includes('"wasLive":true');
 
           if (isCanonicalWatch && (hasLiveNow || hasIsLive) && !isCompleted) {
@@ -212,24 +215,7 @@ export async function fetchStreamInfo(
         logger.warn({ err, handle }, '[RADAR] Failed during YouTube live check');
       }
 
-      // If genuinely live right now, return active Live Stream
-      if (isLive && liveVideoId) {
-        return {
-          isLive: true,
-          eventType: 'live',
-          platform: 'youtube',
-          channelName: cleanName,
-          displayName: authorName || handle,
-          title: liveTitle || 'Live on YouTube',
-          game: 'YouTube Live',
-          viewers: liveViewerCount || 1,
-          thumbnailUrl: liveThumbnail || `https://i.ytimg.com/vi/${liveVideoId}/hqdefault.jpg`,
-          streamUrl: `https://www.youtube.com/watch?v=${liveVideoId}`,
-          streamId: liveVideoId
-        };
-      }
-
-      // If not live, check latest video via official Google YouTube RSS Feed
+      // Step 2: Fallback / Secondary RSS Feed Check
       let latestVideoId = '';
       let latestVideoTitle = '';
       let latestVideoUrl = `https://youtube.com/${handle}`;
@@ -248,17 +234,57 @@ export async function fetchStreamInfo(
             if (authorTag && authorTag[1]) authorName = authorTag[1];
 
             if (idMatch && idMatch[1]) {
-              latestVideoId = idMatch[1];
+              const candidateId = idMatch[1];
+              latestVideoId = candidateId;
               latestVideoTitle = titleMatch ? titleMatch[1].trim() : 'New YouTube Video';
               latestVideoUrl = `https://www.youtube.com/watch?v=${latestVideoId}`;
               latestThumbnail = `https://i.ytimg.com/vi/${latestVideoId}/hqdefault.jpg`;
+
+              // If /live didn't mark as live, test candidate video directly with consent headers
+              if (!isLive) {
+                const vRes = await fetch(`https://www.youtube.com/watch?v=${candidateId}`, {
+                  headers: consentHeaders
+                });
+                if (vRes.ok) {
+                  const vHtml = await vRes.text();
+                  const vLive = (vHtml.includes('"isLiveNow":true') || (vHtml.includes('"isLive":true') && vHtml.includes('"liveBroadcastDetails"'))) && !vHtml.includes('"status":"COMPLETED"');
+                  if (vLive) {
+                    isLive = true;
+                    liveVideoId = candidateId;
+                    liveTitle = latestVideoTitle;
+                    liveThumbnail = `https://i.ytimg.com/vi/${candidateId}/maxresdefault.jpg`;
+                    const vViewersMatch = vHtml.match(/"viewCount":{"runs":\[{"text":"([0-9,]+)"}/) || vHtml.match(/"originalViewCount":"([0-9]+)"/);
+                    if (vViewersMatch && vViewersMatch[1]) {
+                      liveViewerCount = parseInt(vViewersMatch[1].replace(/,/g, ''), 10) || 0;
+                    }
+                  }
+                }
+              }
             }
           }
         } catch (err) {
-          logger.warn({ err, channelId }, '[RADAR] Failed to fetch YouTube RSS feed');
+          logger.warn({ err, channelId }, '[RADAR] Failed during YouTube RSS check');
         }
       }
 
+      // If genuinely live right now, return active Live Stream
+      if (isLive && liveVideoId) {
+        return {
+          isLive: true,
+          eventType: 'live',
+          platform: 'youtube',
+          channelName: cleanName,
+          displayName: authorName || handle,
+          title: liveTitle || 'Live on YouTube',
+          game: 'YouTube Live',
+          viewers: liveViewerCount || 1,
+          thumbnailUrl: liveThumbnail || `https://i.ytimg.com/vi/${liveVideoId}/hqdefault.jpg`,
+          streamUrl: `https://www.youtube.com/watch?v=${liveVideoId}`,
+          streamId: liveVideoId
+        };
+      }
+
+      // If not live, but recent video was found
       if (latestVideoId) {
         return {
           isLive: false,
@@ -551,8 +577,9 @@ async function pollTrackedStreams(bot: Client) {
 
         // 1. Live Stream Transition Check
         if (eventMode !== 'upload') {
-          if (!tracker.is_live && streamInfo.isLive) {
-            logger.info(`[RADAR] Streamer ${tracker.channel_name} (${tracker.platform}) went LIVE!`);
+          const isNewStream = streamInfo.isLive && (!tracker.is_live || (streamInfo.streamId && tracker.last_stream_id !== streamInfo.streamId));
+          if (isNewStream) {
+            logger.info(`[RADAR] Streamer ${tracker.channel_name} (${tracker.platform}) went LIVE: ${streamInfo.title}`);
             await dispatchStreamNotification(bot, tracker, streamInfo);
 
             await db.query(

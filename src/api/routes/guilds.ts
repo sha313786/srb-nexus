@@ -15,7 +15,7 @@ import {
   PermissionFlagsBits,
 } from 'discord.js';
 import { getGuildLiveFeed, sendTestLiveNotification } from '../../services/liveNotifications';
-import { fetchStreamInfo, testStreamNotification, StreamTrackerRow } from '../../services/streamNotifications';
+import { fetchStreamInfo, testStreamNotification, dispatchStreamNotification, StreamTrackerRow } from '../../services/streamNotifications';
 import { registerSlashCommands } from '../../discord/commands';
 import { deployVerificationPanel } from '../../services/verification';
 import { setupDefaultStatCounters, updateGuildVoiceStats } from '../../services/voiceStats';
@@ -1240,6 +1240,15 @@ export async function guildRoutes(fastify: FastifyInstance) {
         ]
       );
 
+      // If creator is already live right now, immediately dispatch notification
+      if (initialInfo?.isLive) {
+        try {
+          await dispatchStreamNotification(bot, insertRes.rows[0], initialInfo);
+        } catch (e) {
+          request.log.error({ e }, 'Failed to dispatch initial live notification');
+        }
+      }
+
       return reply.send({ success: true, stream: insertRes.rows[0], message: `Started tracking ${cleanChannel} on ${platform.toUpperCase()}` });
     } catch (err: any) {
       request.log.error({ err }, 'Failed to insert stream tracker');
@@ -1290,11 +1299,19 @@ export async function guildRoutes(fastify: FastifyInstance) {
       const tracker = trackerRes.rows[0];
       const info = await fetchStreamInfo(tracker.platform, tracker.channel_name);
 
+      if (info.isLive && (!tracker.is_live || (info.streamId && tracker.last_stream_id !== info.streamId))) {
+        try {
+          await dispatchStreamNotification(bot, tracker, info);
+        } catch (e) {
+          request.log.error({ e }, 'Failed to dispatch live notification on manual check');
+        }
+      }
+
       await db.query(
         `UPDATE stream_trackers 
-         SET is_live = $1, last_title = $2, last_game = $3, last_checked_at = NOW() 
-         WHERE id = $4`,
-        [info.isLive, info.title, info.game, tracker.id]
+         SET is_live = $1, last_stream_id = $2, last_title = $3, last_game = $4, last_checked_at = NOW() 
+         WHERE id = $5`,
+        [info.isLive, info.streamId || tracker.last_stream_id, info.title, info.game, tracker.id]
       );
 
       return reply.send({ success: true, info });
