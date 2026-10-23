@@ -1221,8 +1221,8 @@ export async function guildRoutes(fastify: FastifyInstance) {
       const initialInfo = await fetchStreamInfo(platform, cleanChannel).catch(() => null);
 
       const insertRes = await db.query(
-        `INSERT INTO stream_trackers (guild_id, platform, channel_name, display_name, discord_channel_id, custom_message, mention_role, event_type, is_live, last_stream_id, last_title, last_game)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        `INSERT INTO stream_trackers (guild_id, platform, channel_name, display_name, discord_channel_id, custom_message, mention_role, event_type, is_live, last_stream_id, last_title, last_game, last_checked_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
          RETURNING *`,
         [
           id,
@@ -1299,7 +1299,7 @@ export async function guildRoutes(fastify: FastifyInstance) {
       const tracker = trackerRes.rows[0];
       const info = await fetchStreamInfo(tracker.platform, tracker.channel_name);
 
-      if (info.isLive && (!tracker.is_live || (info.streamId && tracker.last_stream_id !== info.streamId))) {
+      if (info.isLive) {
         try {
           await dispatchStreamNotification(bot, tracker, info);
         } catch (e) {

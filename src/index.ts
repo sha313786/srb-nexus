@@ -18,6 +18,7 @@ import {
   ActivityType,
   Partials,
   VoiceState,
+  PermissionFlagsBits,
 } from 'discord.js';
 
 // Register cross-platform fonts for Canvas rendering on Linux/Docker/Render
@@ -50,7 +51,12 @@ import { handleMessageCreate as processSecurityAndSpam } from './discord/events/
 import { processAntiRaid } from './security/antiRaid';
 import { startBackgroundSchedulers } from './services/cronTasks';
 import { startFreeGamesWatcher } from './services/liveNotifications';
-import { startStreamWatcher } from './services/streamNotifications';
+import {
+  startStreamWatcher,
+  fetchStreamInfo,
+  dispatchStreamNotification,
+  StreamTrackerRow,
+} from './services/streamNotifications';
 import {
   initInviteTracker,
   detectUsedInvite,
@@ -892,6 +898,85 @@ async function start() {
         topXp,
         topInviters,
       });
+    });
+
+    // Public Diagnostic Radar endpoint to inspect database rows, live detection, and trigger alerts
+    app.get('/api/public/radar-status', async (request, reply) => {
+      try {
+        const query = (request.query as Record<string, any>) || {};
+        const res = await db.query<StreamTrackerRow>('SELECT * FROM stream_trackers ORDER BY id DESC');
+        
+        const details = await Promise.all(
+          res.rows.map(async (row: StreamTrackerRow) => {
+            let discordChannel: any = null;
+            let botPerms: any = null;
+            try {
+              const ch = await bot.channels.fetch(row.discord_channel_id).catch(() => null);
+              if (ch && ch.isTextBased()) {
+                discordChannel = {
+                  id: ch.id,
+                  name: (ch as any).name || 'unknown',
+                  type: ch.type,
+                  guildId: (ch as any).guildId,
+                };
+                if ((ch as any).guild) {
+                  const me = (ch as any).guild.members.me;
+                  if (me) {
+                    const perms = (ch as any).permissionsFor(me);
+                    botPerms = {
+                      viewChannel: perms.has(PermissionFlagsBits.ViewChannel),
+                      sendMessages: perms.has(PermissionFlagsBits.SendMessages),
+                      embedLinks: perms.has(PermissionFlagsBits.EmbedLinks),
+                      mentionEveryone: perms.has(PermissionFlagsBits.MentionEveryone),
+                    };
+                  }
+                }
+              }
+            } catch (err: any) {
+              discordChannel = { error: err.message };
+            }
+
+            let liveInfo: any = null;
+            let dispatchResult: any = null;
+            try {
+              liveInfo = await fetchStreamInfo(row.platform, row.channel_name);
+              if (query.dispatch === 'true' || query.dispatch === '1') {
+                dispatchResult = await dispatchStreamNotification(bot, row, liveInfo);
+                if (liveInfo.isLive) {
+                  await db.query(
+                    `UPDATE stream_trackers 
+                     SET is_live = TRUE, 
+                         last_stream_id = $1, 
+                         last_title = $2, 
+                         last_game = $3, 
+                         last_checked_at = NOW() 
+                     WHERE id = $4`,
+                    [liveInfo.streamId || null, liveInfo.title, liveInfo.game, row.id]
+                  );
+                }
+              }
+            } catch (err: any) {
+              liveInfo = { error: err.message };
+            }
+
+            return {
+              tracker: row,
+              discordChannel,
+              botPerms,
+              liveInfo,
+              dispatchResult
+            };
+          })
+        );
+
+        return reply.send({
+          count: res.rows.length,
+          botOnline: bot.isReady(),
+          trackers: details
+        });
+      } catch (err: any) {
+        return reply.status(500).send({ error: err.message });
+      }
     });
 
     if (typeof (db as any).connect === 'function') {

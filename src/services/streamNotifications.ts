@@ -36,6 +36,11 @@ export interface StreamTrackerRow {
   created_at: Date;
 }
 
+const KNOWN_CHANNEL_IDS: Record<string, string> = {
+  'jackalknightyt': 'UCIi1sRUljdH7wTdW8X_pp9g',
+  'srbtrollersyt': 'UCdKhGijZa4-K5QEQjxAX6yg',
+};
+
 /**
  * Fetch live status and stream metadata across Twitch, Kick, and YouTube
  */
@@ -156,7 +161,17 @@ export async function fetchStreamInfo(
       let liveViewerCount = 0;
       let liveThumbnail = '';
       let channelId = '';
-      let authorName = handle;
+      let authorName = '';
+
+      // Check known channel dictionary or direct UC channel ID
+      if (cleanName in KNOWN_CHANNEL_IDS) {
+        channelId = KNOWN_CHANNEL_IDS[cleanName];
+      } else if (rawChannel.match(/^(UC[a-zA-Z0-9_-]{22})$/)) {
+        channelId = rawChannel;
+      } else {
+        const directMatch = rawChannel.match(/\/channel\/(UC[a-zA-Z0-9_-]{22})/i);
+        if (directMatch) channelId = directMatch[1];
+      }
 
       const consentHeaders = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -164,23 +179,30 @@ export async function fetchStreamInfo(
         'Cookie': 'SOCS=CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjMwODI5LjA3X3AwGgJlbiIAEhkA; CONSENT=YES+'
       };
 
-      // Step 1: Check live broadcast endpoint
+      // Strategy 1: Check live broadcast endpoint
       try {
-        const liveCheck = await fetch(`https://www.youtube.com/${handle}/live`, {
-          headers: consentHeaders
+        const liveTarget = channelId ? `https://www.youtube.com/channel/${channelId}/live` : `https://www.youtube.com/${handle}/live`;
+        const liveCheck = await fetch(liveTarget, {
+          headers: consentHeaders,
+          redirect: 'follow',
+          signal: AbortSignal.timeout(6000)
         });
 
         if (liveCheck && liveCheck.ok) {
           const html = await liveCheck.text();
 
-          // Extract channel ID and Author
-          const chMatch = html.match(/"channelId":"(UC[a-zA-Z0-9_-]{22})"/);
+          // Extract channel ID and Author if not yet known
+          if (!channelId) {
+            const chMatch = html.match(/"channelId":"(UC[a-zA-Z0-9_-]{22})"/);
+            const extMatch = html.match(/"externalId":"(UC[a-zA-Z0-9_-]{22})"/);
+            if (chMatch) channelId = chMatch[1];
+            else if (extMatch) channelId = extMatch[1];
+          }
+
           const canonicalMatch = html.match(/<link rel="canonical" href="(.*?)"/);
           const canonical = canonicalMatch ? canonicalMatch[1] : '';
 
-          if (chMatch) {
-            channelId = chMatch[1];
-          } else if (canonical) {
+          if (!channelId && canonical) {
             const chFromCanonical = canonical.match(/\/(UC[a-zA-Z0-9_-]{22})/);
             if (chFromCanonical) channelId = chFromCanonical[1];
           }
@@ -201,10 +223,17 @@ export async function fetchStreamInfo(
               liveTitle = matchTitle[1].replace(' - YouTube', '').trim();
             }
             const vIdMatch = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+            const vFromCanonical = canonical.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
             if (vIdMatch) {
               liveVideoId = vIdMatch[1];
+            } else if (vFromCanonical) {
+              liveVideoId = vFromCanonical[1];
+            }
+
+            if (liveVideoId) {
               liveThumbnail = `https://i.ytimg.com/vi/${liveVideoId}/maxresdefault.jpg`;
             }
+
             const viewersMatch = html.match(/"viewCount":{"runs":\[{"text":"([0-9,]+)"}/) || html.match(/"originalViewCount":"([0-9]+)"/);
             if (viewersMatch && viewersMatch[1]) {
               liveViewerCount = parseInt(viewersMatch[1].replace(/,/g, ''), 10) || 0;
@@ -215,7 +244,27 @@ export async function fetchStreamInfo(
         logger.warn({ err, handle }, '[RADAR] Failed during YouTube live check');
       }
 
-      // Step 2: Fallback / Secondary RSS Feed Check
+      // Strategy 2: If channelId is still missing, resolve from channel about page
+      if (!channelId) {
+        try {
+          const chRes = await fetch(`https://www.youtube.com/${handle}`, {
+            headers: consentHeaders,
+            signal: AbortSignal.timeout(5000)
+          });
+          if (chRes.ok) {
+            const chHtml = await chRes.text();
+            const chMatch = chHtml.match(/"externalId":"(UC[a-zA-Z0-9_-]{22})"/);
+            const chUrlMatch = chHtml.match(/channel_id=(UC[a-zA-Z0-9_-]{22})/);
+            if (chMatch) channelId = chMatch[1];
+            else if (chUrlMatch) channelId = chUrlMatch[1];
+
+            const aMatch = chHtml.match(/<meta property="og:title" content="(.*?)"/);
+            if (aMatch && aMatch[1]) authorName = aMatch[1];
+          }
+        } catch {}
+      }
+
+      // Strategy 3: Fast Google RSS XML Feed Check
       let latestVideoId = '';
       let latestVideoTitle = '';
       let latestVideoUrl = `https://youtube.com/${handle}`;
@@ -224,7 +273,8 @@ export async function fetchStreamInfo(
       if (channelId) {
         try {
           const rssRes = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, {
-            headers: { 'User-Agent': 'SRB-NEXUS-Bot/1.0' }
+            headers: { 'User-Agent': 'Mozilla/5.0' },
+            signal: AbortSignal.timeout(6000)
           });
           if (rssRes.ok) {
             const xml = await rssRes.text();
@@ -240,10 +290,11 @@ export async function fetchStreamInfo(
               latestVideoUrl = `https://www.youtube.com/watch?v=${latestVideoId}`;
               latestThumbnail = `https://i.ytimg.com/vi/${latestVideoId}/hqdefault.jpg`;
 
-              // If /live didn't mark as live, test candidate video directly with consent headers
+              // If /live didn't mark as live, test candidate video directly
               if (!isLive) {
                 const vRes = await fetch(`https://www.youtube.com/watch?v=${candidateId}`, {
-                  headers: consentHeaders
+                  headers: consentHeaders,
+                  signal: AbortSignal.timeout(6000)
                 });
                 if (vRes.ok) {
                   const vHtml = await vRes.text();
@@ -459,7 +510,10 @@ export async function dispatchStreamNotification(
     await channel.send({
       content,
       embeds: [embed],
-      components: [row]
+      components: [row],
+      allowedMentions: {
+        parse: ['everyone', 'roles', 'users']
+      }
     });
 
     // Record in Dashboard Live Feed
@@ -481,7 +535,7 @@ export async function dispatchStreamNotification(
       }
     });
 
-    logger.info({ guildId: tracker.guild_id, streamer: info.channelName, platform: info.platform, type: info.eventType }, 'Content alert dispatched');
+    logger.info({ guildId: tracker.guild_id, streamer: info.channelName, channelId: channel.id, platform: info.platform, type: info.eventType }, '[RADAR] Stream notification dispatched to Discord successfully');
     return true;
   } catch (err) {
     logger.error({ err, trackerId: tracker.id }, 'Failed to dispatch stream notification');
@@ -551,20 +605,20 @@ export async function testStreamNotification(
 
 /**
  * Background Stream Radar Polling Loop
- * Runs every 60 seconds to detect streamers going live
+ * Runs every 45 seconds to detect streamers going live
  */
 export function startStreamWatcher(bot: Client) {
   logger.info('[RADAR] Initializing Multi-Platform Stream Radar watcher (Twitch, Kick, YouTube)...');
 
-  // Initial check after 20 seconds, then every 60 seconds
-  setTimeout(() => pollTrackedStreams(bot), 20000);
-  setInterval(() => pollTrackedStreams(bot), 60000);
+  // Initial check after 5 seconds, then every 45 seconds
+  setTimeout(() => pollTrackedStreams(bot), 5000);
+  setInterval(() => pollTrackedStreams(bot), 45000);
 }
 
 async function pollTrackedStreams(bot: Client) {
   try {
     const res = await db.query<StreamTrackerRow>(
-      `SELECT * FROM stream_trackers ORDER BY last_checked_at ASC LIMIT 25`
+      `SELECT * FROM stream_trackers ORDER BY last_checked_at ASC NULLS FIRST LIMIT 100`
     );
 
     if (res.rows.length === 0) return;
@@ -580,7 +634,8 @@ async function pollTrackedStreams(bot: Client) {
           const isNewStream = streamInfo.isLive && (!tracker.is_live || (streamInfo.streamId && tracker.last_stream_id !== streamInfo.streamId));
           if (isNewStream) {
             logger.info(`[RADAR] Streamer ${tracker.channel_name} (${tracker.platform}) went LIVE: ${streamInfo.title}`);
-            await dispatchStreamNotification(bot, tracker, streamInfo);
+            const sent = await dispatchStreamNotification(bot, tracker, streamInfo);
+            logger.info({ sent, trackerId: tracker.id }, '[RADAR] Stream live alert dispatched');
 
             await db.query(
               `UPDATE stream_trackers 
@@ -598,6 +653,12 @@ async function pollTrackedStreams(bot: Client) {
             await db.query(
               `UPDATE stream_trackers SET is_live = FALSE, last_checked_at = NOW() WHERE id = $1`,
               [tracker.id]
+            );
+            continue;
+          } else if (streamInfo.isLive && tracker.is_live) {
+            await db.query(
+              `UPDATE stream_trackers SET last_title = $1, last_checked_at = NOW() WHERE id = $2`,
+              [streamInfo.title, tracker.id]
             );
             continue;
           }
