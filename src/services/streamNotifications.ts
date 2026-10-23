@@ -150,86 +150,126 @@ export async function fetchStreamInfo(
     try {
       const handle = rawChannel.startsWith('@') ? rawChannel : `@${cleanName}`;
 
-      // Step A: Fetch latest uploaded video from DecAPI
-      let latestVideoTitle = '';
-      let latestVideoId = '';
-      let latestVideoUrl = `https://youtube.com/${handle}`;
-
-      try {
-        const res = await fetch(`https://decapi.me/youtube/latest_video?user=${cleanName}`, {
-          headers: { 'User-Agent': 'SRB-NEXUS-Bot/1.0' }
-        });
-        if (res.ok) {
-          const text = (await res.text()).trim();
-          const idMatch = text.match(/https?:\/\/(?:youtu\.be\/|www\.youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/);
-          if (idMatch && idMatch[1]) {
-            latestVideoId = idMatch[1];
-            latestVideoTitle = text.replace(idMatch[0], '').replace(/\s*-\s*$/, '').trim();
-            latestVideoUrl = `https://www.youtube.com/watch?v=${latestVideoId}`;
-          }
-        }
-      } catch {
-        // ignore DecAPI error
-      }
-
-      // Step B: Check live broadcast endpoint
       let isLive = false;
       let liveTitle = '';
+      let liveVideoId = '';
+      let liveViewerCount = 0;
+      let liveThumbnail = '';
+      let channelId = '';
+      let authorName = handle;
 
+      // Check live broadcast endpoint
       try {
         const liveCheck = await fetch(`https://www.youtube.com/${handle}/live`, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9'
           }
         });
 
         if (liveCheck && liveCheck.ok) {
           const html = await liveCheck.text();
-          const hasLiveNow = html.includes('"liveBroadcastDetails":{"isLiveNow":true');
+
+          // Extract channel ID and Author
+          const chMatch = html.match(/"channelId":"(UC[a-zA-Z0-9_-]{22})"/);
+          const canonicalMatch = html.match(/<link rel="canonical" href="(.*?)"/);
+          const canonical = canonicalMatch ? canonicalMatch[1] : '';
+
+          if (chMatch) {
+            channelId = chMatch[1];
+          } else if (canonical) {
+            const chFromCanonical = canonical.match(/\/(UC[a-zA-Z0-9_-]{22})/);
+            if (chFromCanonical) channelId = chFromCanonical[1];
+          }
+
+          const authorMatch = html.match(/<meta itemprop="name" content="(.*?)"/) || html.match(/"author":"(.*?)"/);
+          if (authorMatch && authorMatch[1]) authorName = authorMatch[1];
+
+          // Check if actively streaming live
+          const isCanonicalWatch = canonical.includes('/watch?v=');
+          const hasLiveNow = html.includes('"isLiveNow":true');
           const hasIsLive = html.includes('"isLive":true');
-          const hasWatching = html.includes(' watching') || html.includes('{"text":" watching"}');
           const isCompleted = html.includes('"status":"COMPLETED"') || html.includes('"status":"LIVE_STREAM_OFFLINE"') || html.includes('"wasLive":true');
 
-          if ((hasLiveNow || (hasIsLive && hasWatching)) && !isCompleted) {
+          if (isCanonicalWatch && (hasLiveNow || hasIsLive) && !isCompleted) {
             isLive = true;
             const matchTitle = html.match(/<title>(.*?)<\/title>/);
             if (matchTitle && matchTitle[1]) {
               liveTitle = matchTitle[1].replace(' - YouTube', '').trim();
             }
+            const vIdMatch = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+            if (vIdMatch) {
+              liveVideoId = vIdMatch[1];
+              liveThumbnail = `https://i.ytimg.com/vi/${liveVideoId}/maxresdefault.jpg`;
+            }
+            const viewersMatch = html.match(/"viewCount":{"runs":\[{"text":"([0-9,]+)"}/) || html.match(/"originalViewCount":"([0-9]+)"/);
+            if (viewersMatch && viewersMatch[1]) {
+              liveViewerCount = parseInt(viewersMatch[1].replace(/,/g, ''), 10) || 0;
+            }
           }
         }
-      } catch {
-        // ignore live check error
+      } catch (err) {
+        logger.warn({ err, handle }, '[RADAR] Failed during YouTube live check');
       }
 
       // If genuinely live right now, return active Live Stream
-      if (isLive) {
+      if (isLive && liveVideoId) {
         return {
           isLive: true,
           eventType: 'live',
           platform: 'youtube',
           channelName: cleanName,
-          displayName: handle,
+          displayName: authorName || handle,
           title: liveTitle || 'Live on YouTube',
           game: 'YouTube Live',
-          viewers: 100,
-          streamUrl: `https://youtube.com/${handle}/live`,
-          streamId: `${cleanName}_live`
+          viewers: liveViewerCount || 1,
+          thumbnailUrl: liveThumbnail || `https://i.ytimg.com/vi/${liveVideoId}/hqdefault.jpg`,
+          streamUrl: `https://www.youtube.com/watch?v=${liveVideoId}`,
+          streamId: liveVideoId
         };
       }
 
-      // If not live, but a recent video was detected, report as New Video Upload
+      // If not live, check latest video via official Google YouTube RSS Feed
+      let latestVideoId = '';
+      let latestVideoTitle = '';
+      let latestVideoUrl = `https://youtube.com/${handle}`;
+      let latestThumbnail = '';
+
+      if (channelId) {
+        try {
+          const rssRes = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, {
+            headers: { 'User-Agent': 'SRB-NEXUS-Bot/1.0' }
+          });
+          if (rssRes.ok) {
+            const xml = await rssRes.text();
+            const idMatch = xml.match(/<yt:videoId>(.*?)<\/yt:videoId>/);
+            const titleMatch = xml.match(/<media:title>(.*?)<\/media:title>/) || xml.match(/<title>(.*?)<\/title>/);
+            const authorTag = xml.match(/<author>\s*<name>(.*?)<\/name>/);
+            if (authorTag && authorTag[1]) authorName = authorTag[1];
+
+            if (idMatch && idMatch[1]) {
+              latestVideoId = idMatch[1];
+              latestVideoTitle = titleMatch ? titleMatch[1].trim() : 'New YouTube Video';
+              latestVideoUrl = `https://www.youtube.com/watch?v=${latestVideoId}`;
+              latestThumbnail = `https://i.ytimg.com/vi/${latestVideoId}/hqdefault.jpg`;
+            }
+          }
+        } catch (err) {
+          logger.warn({ err, channelId }, '[RADAR] Failed to fetch YouTube RSS feed');
+        }
+      }
+
       if (latestVideoId) {
         return {
           isLive: false,
           eventType: 'upload',
           platform: 'youtube',
           channelName: cleanName,
-          displayName: handle,
+          displayName: authorName || handle,
           title: latestVideoTitle || 'New YouTube Video',
           game: 'Video Upload',
           viewers: 0,
-          thumbnailUrl: `https://i.ytimg.com/vi/${latestVideoId}/hqdefault.jpg`,
+          thumbnailUrl: latestThumbnail,
           streamUrl: latestVideoUrl,
           streamId: latestVideoId
         };
@@ -240,7 +280,7 @@ export async function fetchStreamInfo(
         eventType: 'live',
         platform: 'youtube',
         channelName: cleanName,
-        displayName: handle,
+        displayName: authorName || handle,
         title: 'Offline',
         game: 'YouTube',
         streamUrl: `https://youtube.com/${handle}`,
@@ -538,7 +578,13 @@ async function pollTrackedStreams(bot: Client) {
 
         // 2. Video Upload Transition Check (for YouTube or upload-enabled trackers)
         if (eventMode !== 'live' && streamInfo.eventType === 'upload' && streamInfo.streamId) {
-          if (tracker.last_stream_id !== streamInfo.streamId) {
+          if (!tracker.last_stream_id) {
+            // Establish baseline so historical videos aren't blasted retroactively
+            await db.query(
+              `UPDATE stream_trackers SET last_stream_id = $1, last_title = $2, last_checked_at = NOW() WHERE id = $3`,
+              [streamInfo.streamId, streamInfo.title, tracker.id]
+            );
+          } else if (tracker.last_stream_id !== streamInfo.streamId) {
             logger.info(`[RADAR] Creator ${tracker.channel_name} (${tracker.platform}) published a new video: ${streamInfo.title}`);
             await dispatchStreamNotification(bot, tracker, streamInfo);
 
