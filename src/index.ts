@@ -19,6 +19,8 @@ import {
   Partials,
   VoiceState,
   PermissionFlagsBits,
+  ChannelType,
+  VoiceBasedChannel,
 } from 'discord.js';
 
 // Register cross-platform fonts for Canvas rendering on Linux/Docker/Render
@@ -64,6 +66,7 @@ import {
 } from './services/inviteTracker';
 import { handleTempVoiceStateUpdate } from './services/tempVoice';
 import { updateGuildVoiceStats } from './services/voiceStats';
+import { muteAllVoice, unmuteAllVoice, moveAllVoice } from './services/voiceManagement';
 
 dotenv.config();
 
@@ -709,6 +712,23 @@ bot.on(Events.VoiceStateUpdate, async (oldState: VoiceState, newState: VoiceStat
   await handleTempVoiceStateUpdate(oldState, newState);
 });
 
+
+function resolveVoiceChannel(guild: Guild, query?: string): VoiceBasedChannel | null {
+  if (!query) return null;
+  const cleanId = query.replace(/[<#@!&>]/g, '').trim();
+  const byId = guild.channels.cache.get(cleanId);
+  if (byId && (byId.type === ChannelType.GuildVoice || byId.type === ChannelType.GuildStageVoice)) {
+    return byId as VoiceBasedChannel;
+  }
+  const byName = guild.channels.cache.find(
+    (c) =>
+      (c.type === ChannelType.GuildVoice || c.type === ChannelType.GuildStageVoice) &&
+      c.name.toLowerCase() === query.toLowerCase()
+  );
+  if (byName) return byName as VoiceBasedChannel;
+  return null;
+}
+
 // 7. Message Create Listener (Auto-Mod, Leveling XP, Tags, and Modmail)
 bot.on(Events.MessageCreate, async (message: Message) => {
   if (message.author.bot) return;
@@ -738,6 +758,174 @@ bot.on(Events.MessageCreate, async (message: Message) => {
 
     if (commandName === 'ping') {
       await message.reply('Pong!');
+      return;
+    }
+
+    // Voice Mass Action: Mute All
+    if (commandName === 'muteall' || commandName === 'vmuteall') {
+      if (
+        !message.member?.permissions.has(PermissionFlagsBits.MuteMembers) &&
+        !message.member?.permissions.has(PermissionFlagsBits.Administrator)
+      ) {
+        await message.reply('❌ You require the **Mute Members** or **Administrator** permission to execute this command.');
+        return;
+      }
+
+      let targetChannelId: string | undefined = undefined;
+      let reasonStartIdx = 0;
+      if (args[0]) {
+        const chan = resolveVoiceChannel(message.guild, args[0]);
+        if (chan) {
+          targetChannelId = chan.id;
+          reasonStartIdx = 1;
+        }
+      }
+
+      const reason = args.slice(reasonStartIdx).join(' ') || `Mass mute executed by ${message.author.tag}`;
+
+      const result = await muteAllVoice(message.guild, {
+        channelId: targetChannelId,
+        moderator: { id: message.author.id, tag: message.author.tag },
+        reason,
+      });
+
+      const embed = new EmbedBuilder()
+        .setTitle(result.success ? '🔇 Voice Mass Mute' : '⚠️ Mass Mute Notice')
+        .setColor(result.success ? (result.affected > 0 ? 0xef4444 : 0xf59e0b) : 0xef4444)
+        .setDescription(result.message)
+        .addFields(
+          { name: 'Channel', value: `\`${result.channelName || 'N/A'}\``, inline: true },
+          { name: 'Muted', value: `**${result.affected}**`, inline: true },
+          { name: 'Skipped', value: `**${result.skipped}**`, inline: true }
+        )
+        .setFooter({ text: `Executed by ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
+        .setTimestamp();
+
+      if (result.failed > 0) {
+        embed.addFields({
+          name: 'Failed (Hierarchy)',
+          value: `**${result.failed}** (members have higher or equal role to bot)`,
+          inline: false,
+        });
+      }
+
+      await message.reply({ embeds: [embed] });
+      return;
+    }
+
+    // Voice Mass Action: Unmute All
+    if (commandName === 'unmuteall' || commandName === 'vunmuteall') {
+      if (
+        !message.member?.permissions.has(PermissionFlagsBits.MuteMembers) &&
+        !message.member?.permissions.has(PermissionFlagsBits.Administrator)
+      ) {
+        await message.reply('❌ You require the **Mute Members** or **Administrator** permission to execute this command.');
+        return;
+      }
+
+      let targetChannelId: string | undefined = undefined;
+      let reasonStartIdx = 0;
+      if (args[0]) {
+        const chan = resolveVoiceChannel(message.guild, args[0]);
+        if (chan) {
+          targetChannelId = chan.id;
+          reasonStartIdx = 1;
+        }
+      }
+
+      const reason = args.slice(reasonStartIdx).join(' ') || `Mass unmute executed by ${message.author.tag}`;
+
+      const result = await unmuteAllVoice(message.guild, {
+        channelId: targetChannelId,
+        moderator: { id: message.author.id, tag: message.author.tag },
+        reason,
+      });
+
+      const embed = new EmbedBuilder()
+        .setTitle(result.success ? '🔊 Voice Mass Unmute' : '⚠️ Mass Unmute Notice')
+        .setColor(result.success ? 0x10b981 : 0xef4444)
+        .setDescription(result.message)
+        .addFields(
+          { name: 'Channel', value: `\`${result.channelName || 'N/A'}\``, inline: true },
+          { name: 'Unmuted', value: `**${result.affected}**`, inline: true }
+        )
+        .setFooter({ text: `Executed by ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
+        .setTimestamp();
+
+      if (result.failed > 0) {
+        embed.addFields({
+          name: 'Failed (Hierarchy)',
+          value: `**${result.failed}** (members have higher or equal role to bot)`,
+          inline: false,
+        });
+      }
+
+      await message.reply({ embeds: [embed] });
+      return;
+    }
+
+    // Voice Mass Action: Move All
+    if (commandName === 'moveall' || commandName === 'vmoveall') {
+      if (
+        !message.member?.permissions.has(PermissionFlagsBits.MoveMembers) &&
+        !message.member?.permissions.has(PermissionFlagsBits.Administrator)
+      ) {
+        await message.reply('❌ You require the **Move Members** or **Administrator** permission to execute this command.');
+        return;
+      }
+
+      if (!args[0]) {
+        await message.reply(`❌ Usage: \`${prefix}moveall <target_channel> [source_channel]\`\nExample: \`${prefix}moveall #General-Voice #Gaming\``);
+        return;
+      }
+
+      const targetChan = resolveVoiceChannel(message.guild, args[0]);
+      if (!targetChan) {
+        await message.reply(`❌ Could not locate target voice channel \`${args[0]}\`. Please mention the channel, use its ID, or its exact name.`);
+        return;
+      }
+
+      let sourceChanId: string | undefined = undefined;
+      let reasonStartIdx = 1;
+      if (args[1]) {
+        const srcChan = resolveVoiceChannel(message.guild, args[1]);
+        if (srcChan) {
+          sourceChanId = srcChan.id;
+          reasonStartIdx = 2;
+        }
+      }
+
+      const reason = args.slice(reasonStartIdx).join(' ') || `Mass move executed by ${message.author.tag}`;
+
+      const result = await moveAllVoice(message.guild, {
+        targetChannelId: targetChan.id,
+        sourceChannelId: sourceChanId,
+        moderator: { id: message.author.id, tag: message.author.tag },
+        reason,
+      });
+
+      const embed = new EmbedBuilder()
+        .setTitle(result.success ? '🔀 Voice Mass Move' : '⚠️ Mass Move Notice')
+        .setColor(result.success ? 0x6366f1 : 0xef4444)
+        .setDescription(result.message)
+        .addFields(
+          { name: 'Source', value: `\`${result.channelName || 'N/A'}\``, inline: true },
+          { name: 'Destination', value: `\`${result.targetChannelName || targetChan.name}\``, inline: true },
+          { name: 'Moved', value: `**${result.affected}**`, inline: true }
+        )
+        .setFooter({ text: `Executed by ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
+        .setTimestamp();
+
+      if (result.failed > 0) {
+        embed.addFields({
+          name: 'Failed',
+          value: `**${result.failed}** (could not move member)`,
+          inline: false,
+        });
+      }
+
+      await message.reply({ embeds: [embed] });
+      return;
     }
   } catch (err) {
     app.log.error({ err }, '[BOT] Error in MessageCreate event handler');

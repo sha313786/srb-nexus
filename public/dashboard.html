@@ -414,6 +414,13 @@ body {
         <div>
           <p class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest px-3 mb-2">Engagement &amp; Utilities</p>
           <div class="space-y-1">
+                        <button onclick="switchTab('voicecontrol')" id="btn-voicecontrol" class="tab-btn w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
+              <div class="flex items-center gap-3">
+                <i class="fa-solid fa-volume-high w-5 text-center text-cyan-400"></i>
+                <span>Voice Controls</span>
+              </div>
+              <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 font-mono">LIVE</span>
+            </button>
             <button onclick="switchTab('tempvoice')" id="btn-tempvoice" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
               <i class="fa-solid fa-microphone-lines w-5 text-center text-purple-400"></i>
               <span>Temp Voice Rooms</span>
@@ -2641,6 +2648,91 @@ body {
       </div>
 
       <!-- ========================================================================= -->
+      <!-- ========================================================================= -->
+      <!-- PANEL: VOICE CONTROLS & MASS ACTIONS -->
+      <!-- ========================================================================= -->
+      <div id="panel-voicecontrol" class="module-panel space-y-6 hidden">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-dark-700/80">
+          <div>
+            <div class="flex items-center gap-3 mb-1">
+              <div class="w-10 h-10 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center text-lg">
+                <i class="fa-solid fa-volume-high"></i>
+              </div>
+              <div>
+                <h2 class="font-heading font-black text-xl text-white">Voice Controls &amp; Mass Operations</h2>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-mono">REAL-TIME VOICE</span>
+              </div>
+            </div>
+            <p class="text-xs text-slate-400">Mass-mute, unmute, or move connected members between voice rooms in real-time.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="loadVoiceControlPanel()" class="px-3 py-2 rounded-xl bg-dark-800 hover:bg-dark-750 text-slate-300 font-semibold text-xs transition flex items-center gap-1.5 border border-dark-700">
+              <i class="fa-solid fa-arrows-rotate"></i>
+              <span>Refresh</span>
+            </button>
+            <button onclick="triggerGlobalVoiceAction('mute')" id="btn-quick-muteall" class="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-lg shadow-red-600/25">
+              <i class="fa-solid fa-microphone-slash"></i>
+              <span>Mute All</span>
+            </button>
+            <button onclick="triggerGlobalVoiceAction('unmute')" id="btn-quick-unmuteall" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-lg shadow-emerald-600/25">
+              <i class="fa-solid fa-microphone"></i>
+              <span>Unmute All</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Mass Move Quick Tool -->
+        <div class="glass-panel p-6 rounded-3xl border border-dark-700 space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-dark-800">
+            <div>
+              <h3 class="font-heading font-bold text-sm text-white">Mass Move Members</h3>
+              <p class="text-[11px] text-slate-400">Transfer all connected members from one channel (or all rooms) into a destination room.</p>
+            </div>
+            <span class="text-xs font-mono text-cyan-400 px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20">MOVE ALL</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1.5">Source Channel</label>
+              <select id="select-voice-move-source" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-400">
+                <option value="ALL">All Connected Voice Rooms</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold uppercase text-slate-300 mb-1.5">Target Destination</label>
+              <select id="select-voice-move-target" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-400">
+                <option value="">Select target room...</option>
+              </select>
+            </div>
+            <div class="flex items-end">
+              <button onclick="triggerVoiceMoveAll()" id="btn-execute-moveall" class="w-full py-2 px-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-cyan-600/25">
+                <i class="fa-solid fa-arrows-split-up-and-left"></i>
+                <span>Execute Move All</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Voice Rooms Real-Time Monitor -->
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-heading font-bold text-sm text-white flex items-center gap-2">
+              <i class="fa-solid fa-network-wired text-cyan-400"></i>
+              <span>Active Voice Rooms</span>
+              <span id="badge-voice-rooms-count" class="text-xs font-mono text-slate-400 ml-1">(0 rooms)</span>
+            </h3>
+            <span class="text-[11px] text-slate-400" id="voice-total-connected">0 total connected</span>
+          </div>
+
+          <div id="voice-rooms-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="p-8 text-center text-slate-500 col-span-full border border-dark-800 rounded-2xl bg-dark-900/40">
+              <i class="fa-solid fa-spinner fa-spin text-xl mb-2 text-cyan-400"></i>
+              <p class="text-xs">Loading voice rooms...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- PANEL: TEMP VOICE ROOMS (JOIN-TO-CREATE) -->
       <!-- ========================================================================= -->
       <div id="panel-tempvoice" class="module-panel space-y-6 hidden">
@@ -3710,6 +3802,8 @@ body {
         loadVerificationSettings();
       } else if (tabName === 'voicestats') {
         loadVoiceStatsSettings();
+      } else if (tabName === 'voicecontrol') {
+        loadVoiceControlPanel();
       } else if (tabName === 'tempvoice') {
         loadTempVoiceSettings();
       } else if (tabName === 'tags') {
@@ -8483,6 +8577,251 @@ body {
         if (btn) {
           btn.disabled = false;
           btn.innerHTML = '<i class="fa-solid fa-vial"></i> <span>Test Detection</span>';
+        }
+      }
+    }
+
+
+    // ==========================================
+    // VOICE CONTROLS & MASS ACTIONS LOGIC
+    // ==========================================
+    let cachedVoiceRooms = [];
+
+    async function loadVoiceControlPanel() {
+      const container = document.getElementById('voice-rooms-container');
+      if (!container) return;
+
+      container.innerHTML = `
+        <div class="p-8 text-center text-slate-500 col-span-full border border-dark-800 rounded-2xl bg-dark-900/40">
+          <i class="fa-solid fa-spinner fa-spin text-xl mb-2 text-cyan-400"></i>
+          <p class="text-xs">Loading live voice rooms...</p>
+        </div>
+      `;
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/voice/rooms`);
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          container.innerHTML = `
+            <div class="p-8 text-center text-red-400 col-span-full border border-red-500/20 rounded-2xl bg-red-500/5">
+              <i class="fa-solid fa-circle-exclamation text-xl mb-2"></i>
+              <p class="text-xs font-semibold">${data.error || 'Failed to load voice rooms'}</p>
+            </div>
+          `;
+          return;
+        }
+
+        cachedVoiceRooms = data.rooms || [];
+        renderVoiceRooms(cachedVoiceRooms);
+        populateVoiceMoveDropdowns(cachedVoiceRooms);
+      } catch (err) {
+        container.innerHTML = `
+          <div class="p-8 text-center text-red-400 col-span-full border border-red-500/20 rounded-2xl bg-red-500/5">
+            <i class="fa-solid fa-circle-exclamation text-xl mb-2"></i>
+            <p class="text-xs font-semibold">Network error fetching voice rooms</p>
+          </div>
+        `;
+      }
+    }
+
+    function populateVoiceMoveDropdowns(rooms) {
+      const srcSelect = document.getElementById('select-voice-move-source');
+      const targetSelect = document.getElementById('select-voice-move-target');
+
+      if (srcSelect) {
+        srcSelect.innerHTML = '<option value="ALL">All Connected Voice Rooms</option>' +
+          rooms.map(r => `<option value="${r.id}">🔊 ${escapeHtml(r.name)} (${r.memberCount} users)</option>`).join('');
+      }
+
+      if (targetSelect) {
+        targetSelect.innerHTML = '<option value="">Select target room...</option>' +
+          rooms.map(r => `<option value="${r.id}">🔊 ${escapeHtml(r.name)} (${r.memberCount} connected)</option>`).join('');
+      }
+    }
+
+    function renderVoiceRooms(rooms) {
+      const container = document.getElementById('voice-rooms-container');
+      const countBadge = document.getElementById('badge-voice-rooms-count');
+      const totalConnectedEl = document.getElementById('voice-total-connected');
+
+      let totalMembers = 0;
+      rooms.forEach(r => { totalMembers += r.memberCount; });
+
+      if (countBadge) countBadge.innerText = `(${rooms.length} rooms)`;
+      if (totalConnectedEl) totalConnectedEl.innerText = `${totalMembers} total connected`;
+
+      if (rooms.length === 0) {
+        container.innerHTML = `
+          <div class="p-8 text-center text-slate-500 col-span-full border border-dark-800 rounded-2xl bg-dark-900/40">
+            <i class="fa-solid fa-microphone-slash text-2xl mb-2 text-slate-600"></i>
+            <p class="text-xs font-semibold">No voice channels discovered in this server.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = rooms.map(room => {
+        const hasMembers = room.memberCount > 0;
+        const memberListHtml = hasMembers
+          ? room.members.map(m => `
+              <div class="flex items-center justify-between p-2 rounded-xl bg-dark-900/80 border border-dark-800 text-xs">
+                <div class="flex items-center gap-2 min-w-0">
+                  <img src="${m.avatar}" class="w-6 h-6 rounded-full border border-dark-700 flex-shrink-0" onerror="this.src='/logo.png'">
+                  <div class="truncate">
+                    <span class="font-semibold text-white truncate block">${escapeHtml(m.displayName || m.username)}</span>
+                    <span class="text-[10px] text-slate-500 font-mono block">@${escapeHtml(m.username)}</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-1.5 flex-shrink-0">
+                  ${m.isBot ? '<span class="text-[9px] px-1 py-0.2 rounded bg-indigo-500/20 text-indigo-400 font-bold">BOT</span>' : ''}
+                  ${m.isServerMuted ? '<i class="fa-solid fa-microphone-slash text-red-400 text-xs" title="Server Muted"></i>' : (m.isMuted ? '<i class="fa-solid fa-microphone-slash text-yellow-500 text-xs" title="Self Muted"></i>' : '<i class="fa-solid fa-microphone text-emerald-400 text-xs" title="Unmuted"></i>')}
+                  ${m.isDeafened ? '<i class="fa-solid fa-headphones-simple text-amber-400 text-xs" title="Deafened"></i>' : ''}
+                </div>
+              </div>
+            `).join('')
+          : '<p class="text-[11px] text-slate-500 italic py-2 text-center">No members connected</p>';
+
+        return `
+          <div class="glass-panel p-5 rounded-2xl border border-dark-700/80 space-y-3.5 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between pb-2.5 border-b border-dark-800">
+                <div class="flex items-center gap-2 min-w-0">
+                  <i class="fa-solid fa-volume-high text-cyan-400"></i>
+                  <h4 class="font-heading font-bold text-sm text-white truncate">${escapeHtml(room.name)}</h4>
+                </div>
+                <span class="text-[10px] font-mono px-2 py-0.5 rounded-full ${hasMembers ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'bg-dark-800 text-slate-400'}">
+                  ${room.memberCount} ${room.userLimit > 0 ? `/ ${room.userLimit}` : ''} online
+                </span>
+              </div>
+              <div class="space-y-1.5 max-h-44 overflow-y-auto pr-1 mt-2.5">
+                ${memberListHtml}
+              </div>
+            </div>
+
+            <div class="pt-2 border-t border-dark-800 flex items-center justify-between gap-2">
+              <button onclick="triggerVoiceMuteChannel('${room.id}', '${escapeHtml(room.name)}')" ${!hasMembers ? 'disabled' : ''} class="flex-1 py-1.5 px-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-300 font-semibold text-[11px] transition flex items-center justify-center gap-1.5 border border-red-500/20 disabled:opacity-40 disabled:cursor-not-allowed">
+                <i class="fa-solid fa-microphone-slash"></i>
+                <span>Mute All</span>
+              </button>
+              <button onclick="triggerVoiceUnmuteChannel('${room.id}', '${escapeHtml(room.name)}')" ${!hasMembers ? 'disabled' : ''} class="flex-1 py-1.5 px-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 font-semibold text-[11px] transition flex items-center justify-center gap-1.5 border border-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed">
+                <i class="fa-solid fa-microphone"></i>
+                <span>Unmute</span>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function triggerVoiceMuteChannel(channelId, channelName) {
+      if (!confirm(`Server-mute all connected members in "${channelName}"?`)) return;
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/voice/mute-all`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channelId }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(data.message, 'success');
+          await loadVoiceControlPanel();
+        } else {
+          showToast(data.error || data.message || 'Failed to mute channel', 'error');
+        }
+      } catch (err) {
+        showToast('Network error muting voice channel', 'error');
+      }
+    }
+
+    async function triggerVoiceUnmuteChannel(channelId, channelName) {
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/voice/unmute-all`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channelId }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(data.message, 'success');
+          await loadVoiceControlPanel();
+        } else {
+          showToast(data.error || data.message || 'Failed to unmute channel', 'error');
+        }
+      } catch (err) {
+        showToast('Network error unmuting voice channel', 'error');
+      }
+    }
+
+    async function triggerGlobalVoiceAction(action) {
+      const isMute = action === 'mute';
+      const prompt = isMute
+        ? 'Are you sure you want to SERVER-MUTE all members across ALL voice channels?'
+        : 'Are you sure you want to SERVER-UNMUTE all members across ALL voice channels?';
+      if (!confirm(prompt)) return;
+
+      const endpoint = isMute ? 'mute-all' : 'unmute-all';
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/voice/${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channelId: 'ALL' }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(data.message, 'success');
+          await loadVoiceControlPanel();
+        } else {
+          showToast(data.error || data.message || `Failed to execute ${action} all`, 'error');
+        }
+      } catch (err) {
+        showToast(`Network error executing ${action} all`, 'error');
+      }
+    }
+
+    async function triggerVoiceMoveAll() {
+      const srcId = document.getElementById('select-voice-move-source')?.value;
+      const targetId = document.getElementById('select-voice-move-target')?.value;
+
+      if (!targetId) {
+        showToast('Please select a target destination voice room', 'error');
+        return;
+      }
+
+      if (srcId && srcId !== 'ALL' && srcId === targetId) {
+        showToast('Source and target voice channels cannot be the same', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('btn-execute-moveall');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Moving...</span>';
+      }
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/voice/move-all`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sourceChannelId: srcId,
+            targetChannelId: targetId,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(data.message, 'success');
+          await loadVoiceControlPanel();
+        } else {
+          showToast(data.error || data.message || 'Failed to move members', 'error');
+        }
+      } catch (err) {
+        showToast('Network error executing mass move', 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-arrows-split-up-and-left"></i> <span>Execute Move All</span>';
         }
       }
     }

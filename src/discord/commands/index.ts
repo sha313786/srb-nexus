@@ -58,6 +58,11 @@ import { modmailCommand } from './modmail';
 import { serverownerCommand } from './serverowner';
 import { spamcatcherCommand } from './spamcatcher';
 
+// Voice Management Commands
+import { muteallCommand, nexusMuteallCommand } from './muteall';
+import { unmuteallCommand, nexusUnmuteallCommand } from './unmuteall';
+import { moveallCommand, nexusMoveallCommand } from './moveall';
+
 export const commandRegistry = new Map<string, any>();
 
 const allCommands = [
@@ -114,6 +119,14 @@ const allCommands = [
   modmailCommand,
   serverownerCommand,
   spamcatcherCommand,
+
+  // Voice Management
+  muteallCommand,
+  nexusMuteallCommand,
+  unmuteallCommand,
+  nexusUnmuteallCommand,
+  moveallCommand,
+  nexusMoveallCommand,
 ];
 
 for (const cmd of allCommands) {

@@ -22,6 +22,7 @@ import { setupDefaultStatCounters, updateGuildVoiceStats } from '../../services/
 import { listGuildTags, upsertGuildTag, deleteGuildTag, getGuildTag } from '../../services/tagEngine';
 import { getSpamCatcherConfig, invalidateSpamCatcherCache } from '../../security/antiSpam';
 import { deploySpamCatcherHoneypot } from '../../services/spamCatcherDeployer';
+import { getVoiceRooms, muteAllVoice, unmuteAllVoice, moveAllVoice } from '../../services/voiceManagement';
 
 interface AuthUserPayload {
   id: string;
@@ -2842,6 +2843,145 @@ export async function guildRoutes(fastify: FastifyInstance) {
     } catch (err: any) {
       request.log.error({ err }, 'Failed to deploy spam catcher honeypot');
       return reply.status(500).send({ error: 'Failed to deploy spam catcher channel' });
+    }
+  });
+
+
+  // ==========================================
+  // VOICE MANAGEMENT MODULE ENDPOINTS
+  // ==========================================
+  fastify.get('/api/guilds/:id/voice/rooms', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) {
+      return reply.status(403).send({ error: 'You do not have permission to manage this server' });
+    }
+
+    const guild = bot.guilds.cache.get(id) || (await bot.guilds.fetch(id).catch(() => null));
+    if (!guild) {
+      return reply.status(404).send({ error: 'Bot is not connected to this guild' });
+    }
+
+    try {
+      const rooms = await getVoiceRooms(guild);
+      return reply.send({ success: true, rooms });
+    } catch (err: any) {
+      request.log.error({ err }, 'Failed to fetch voice rooms');
+      return reply.status(500).send({ error: 'Failed to retrieve voice channels' });
+    }
+  });
+
+  fastify.post('/api/guilds/:id/voice/mute-all', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) {
+      return reply.status(403).send({ error: 'You do not have permission to manage this server' });
+    }
+
+    const guild = bot.guilds.cache.get(id) || (await bot.guilds.fetch(id).catch(() => null));
+    if (!guild) {
+      return reply.status(404).send({ error: 'Bot is not connected to this guild' });
+    }
+
+    const body = (request.body as Record<string, any>) || {};
+
+    try {
+      const result = await muteAllVoice(guild, {
+        channelId: body.channelId || undefined,
+        moderator: { id: user.id, tag: user.username },
+        reason: body.reason || `Mass mute triggered via Web Dashboard by ${user.username}`,
+        excludeBots: body.excludeBots !== false,
+        excludeSelf: body.excludeSelf !== false,
+      });
+
+      return reply.send(result);
+    } catch (err: any) {
+      request.log.error({ err }, 'Failed to mass mute voice members');
+      return reply.status(500).send({ error: 'Failed to execute voice mute-all' });
+    }
+  });
+
+  fastify.post('/api/guilds/:id/voice/unmute-all', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) {
+      return reply.status(403).send({ error: 'You do not have permission to manage this server' });
+    }
+
+    const guild = bot.guilds.cache.get(id) || (await bot.guilds.fetch(id).catch(() => null));
+    if (!guild) {
+      return reply.status(404).send({ error: 'Bot is not connected to this guild' });
+    }
+
+    const body = (request.body as Record<string, any>) || {};
+
+    try {
+      const result = await unmuteAllVoice(guild, {
+        channelId: body.channelId || undefined,
+        moderator: { id: user.id, tag: user.username },
+        reason: body.reason || `Mass unmute triggered via Web Dashboard by ${user.username}`,
+      });
+
+      return reply.send(result);
+    } catch (err: any) {
+      request.log.error({ err }, 'Failed to mass unmute voice members');
+      return reply.status(500).send({ error: 'Failed to execute voice unmute-all' });
+    }
+  });
+
+  fastify.post('/api/guilds/:id/voice/move-all', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) {
+      return reply.status(403).send({ error: 'You do not have permission to manage this server' });
+    }
+
+    const guild = bot.guilds.cache.get(id) || (await bot.guilds.fetch(id).catch(() => null));
+    if (!guild) {
+      return reply.status(404).send({ error: 'Bot is not connected to this guild' });
+    }
+
+    const body = (request.body as Record<string, any>) || {};
+    if (!body.targetChannelId) {
+      return reply.status(400).send({ error: 'Target voice channel is required' });
+    }
+
+    try {
+      const result = await moveAllVoice(guild, {
+        targetChannelId: body.targetChannelId,
+        sourceChannelId: body.sourceChannelId || undefined,
+        moderator: { id: user.id, tag: user.username },
+        reason: body.reason || `Mass move triggered via Web Dashboard by ${user.username}`,
+      });
+
+      return reply.send(result);
+    } catch (err: any) {
+      request.log.error({ err }, 'Failed to mass move voice members');
+      return reply.status(500).send({ error: 'Failed to execute voice move-all' });
     }
   });
 

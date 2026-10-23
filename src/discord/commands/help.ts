@@ -26,7 +26,17 @@ export const helpCommand = {
             '`/nexus-clearwarn` • Remove warning records\n' +
             '`/nexus-lockdown` • Restrict channel writes\n' +
             '`/nexus-slowmode` • Adjust channel rate limit\n' +
-            '`/nexus-modlogs` • Fetch moderation history',
+            '`/nexus-modlogs` • Fetch moderation history\n' +
+            '`/spamcatcher` • Deploy defensive bot honeypots',
+          inline: false,
+        },
+        {
+          name: '🔊 Voice & Room Management',
+          value:
+            '`/muteall` (`/nexus-muteall`) • Server-mute all members in voice channel\n' +
+            '`/unmuteall` (`/nexus-unmuteall`) • Server-unmute all members in voice channel\n' +
+            '`/moveall` (`/nexus-moveall`) • Mass-move voice members between channels\n' +
+            '`/tempvoice` • Join-to-Create dynamic private voice rooms',
           inline: false,
         },
         {
@@ -63,11 +73,12 @@ export const helpCommand = {
             '`/nexus-poll` • Create interactive voting polls\n' +
             '`/nexus-ticketsetup` • Deploy support ticket panels\n' +
             '`/nexus-ticket` • Open a private support channel\n' +
+            '`/stream` • YouTube/Twitch live tracking\n' +
             '`/nexus-ping` • API & Gateway latency diagnostic',
           inline: false,
         }
       )
-      .setFooter({ text: 'Web Dashboard available at http://localhost:3000' })
+      .setFooter({ text: 'Web Dashboard available at https://srb-nexus-eyaj.onrender.com' })
       .setTimestamp();
 
     await interaction.reply({ embeds: [embed] });
