@@ -56,6 +56,17 @@ export const streamCommand = {
             .setDescription('Custom live message (Variables: {streamer}, {platform}, {game}, {url})')
             .setRequired(false)
         )
+        .addStringOption((opt) =>
+          opt
+            .setName('type')
+            .setDescription('Alert types to receive (default: Live Streams Only)')
+            .setRequired(false)
+            .addChoices(
+              { name: 'Live Streams Only (Default)', value: 'live' },
+              { name: 'Both (Live Streams & Videos)', value: 'all' },
+              { name: 'Videos Only', value: 'upload' }
+            )
+        )
     )
     .addSubcommand((sub) =>
       sub
@@ -126,6 +137,7 @@ export const streamCommand = {
       const channel = interaction.options.getChannel('channel', true) as TextChannel;
       const mention = interaction.options.getString('mention') || 'none';
       const message = interaction.options.getString('message') || '{streamer} is now LIVE on {platform}! 🔴';
+      const eventType = interaction.options.getString('type') || 'live';
 
       const cleanStreamer = rawStreamer
         .replace(/^https?:\/\/(www\.)?(twitch\.tv|kick\.com|youtube\.com)\//i, '')
@@ -147,9 +159,9 @@ export const streamCommand = {
       }
 
       await db.query(
-        `INSERT INTO stream_trackers (guild_id, platform, channel_name, display_name, discord_channel_id, custom_message, mention_role)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [interaction.guild.id, platform, cleanStreamer, rawStreamer, channel.id, message, mention]
+        `INSERT INTO stream_trackers (guild_id, platform, channel_name, display_name, discord_channel_id, custom_message, mention_role, event_type)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [interaction.guild.id, platform, cleanStreamer, rawStreamer, channel.id, message, mention, eventType]
       );
 
       const embed = new EmbedBuilder()
@@ -160,6 +172,7 @@ export const streamCommand = {
           { name: '🌐 Platform', value: platform.toUpperCase(), inline: true },
           { name: '📢 Notification Channel', value: `<#${channel.id}>`, inline: true },
           { name: '🔔 Mention', value: mention === 'none' ? 'None' : `@${mention}`, inline: true },
+          { name: '🔔 Alert Mode', value: eventType === 'live' ? '🔴 Live Streams Only' : (eventType === 'upload' ? '🎬 Videos Only' : '🔴 Live & 🎬 Videos'), inline: true },
           { name: '💬 Custom Message', value: `\`${message}\`` }
         )
         .setFooter({ text: 'SRB NEXUS Stream Radar' })
@@ -219,9 +232,10 @@ export const streamCommand = {
 
         const liveTag = t.is_live ? '`🔴 LIVE NOW`' : '`⚫ Offline`';
 
+        const modeLabel = t.event_type === 'live' ? '🔴 Live Only' : (t.event_type === 'upload' ? '🎬 Videos Only' : '🔴 Live & 🎬 Videos');
         embed.addFields({
           name: `${pIcon} ${t.display_name || t.channel_name} (${t.platform.toUpperCase()})`,
-          value: `Status: ${liveTag}\nChannel: <#${t.discord_channel_id}>\nMention: \`${t.mention_role || 'none'}\``,
+          value: `Status: ${liveTag}\nMode: \`${modeLabel}\`\nChannel: <#${t.discord_channel_id}>\nMention: \`${t.mention_role || 'none'}\``,
           inline: true,
         });
       }

@@ -225,6 +225,8 @@ export async function fetchStreamInfo(
       let latestVideoTitle = '';
       let latestVideoUrl = `https://youtube.com/${handle}`;
       let latestThumbnail = '';
+      let isCandidateStreamVOD = false;
+      let candidateStreamVODId = '';
 
       if (!isLive && channelId) {
         try {
@@ -240,10 +242,51 @@ export async function fetchStreamInfo(
             if (authorTag && authorTag[1]) authorName = authorTag[1];
 
             if (idMatch && idMatch[1]) {
-              latestVideoId = idMatch[1];
-              latestVideoTitle = titleMatch ? titleMatch[1].trim() : 'New YouTube Video';
-              latestVideoUrl = `https://www.youtube.com/watch?v=${latestVideoId}`;
-              latestThumbnail = `https://i.ytimg.com/vi/${latestVideoId}/hqdefault.jpg`;
+              const candidateId = idMatch[1];
+              const candidateTitle = titleMatch ? titleMatch[1].trim() : 'New YouTube Video';
+
+              // Inspect candidate video via InnerTube player API to distinguish live streams/VODs from true uploads
+              try {
+                const playerRes = await fetch('https://www.youtube.com/youtubei/v1/player', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    videoId: candidateId,
+                    context: { client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' } }
+                  }),
+                  signal: AbortSignal.timeout(5000)
+                });
+
+                if (playerRes.ok) {
+                  const pData: any = await playerRes.json();
+                  const vDetails = pData?.videoDetails;
+
+                  if (vDetails) {
+                    if (vDetails.isLive) {
+                      // Actively streaming live right now!
+                      isLive = true;
+                      liveVideoId = candidateId;
+                      liveTitle = vDetails.title || candidateTitle;
+                      liveThumbnail = `https://i.ytimg.com/vi/${candidateId}/maxresdefault.jpg`;
+                      if (vDetails.author) authorName = vDetails.author;
+                    } else if (vDetails.isLiveContent || vDetails.liveBroadcastDetails) {
+                      // Concluded live stream replay (VOD)! MUST NOT trigger a video upload notification.
+                      isCandidateStreamVOD = true;
+                      candidateStreamVODId = candidateId;
+                      logger.info({ candidateId, title: candidateTitle }, '[RADAR] Top RSS entry is a concluded stream VOD. Skipping as video upload.');
+                    } else {
+                      // Authentic pre-recorded video upload!
+                      latestVideoId = candidateId;
+                      latestVideoTitle = vDetails.title || candidateTitle;
+                      latestVideoUrl = `https://www.youtube.com/watch?v=${latestVideoId}`;
+                      latestThumbnail = `https://i.ytimg.com/vi/${latestVideoId}/hqdefault.jpg`;
+                      if (vDetails.author) authorName = vDetails.author;
+                    }
+                  }
+                }
+              } catch (playerErr) {
+                logger.warn({ playerErr, candidateId }, '[RADAR] Failed to verify candidate video via InnerTube player API');
+              }
             }
           }
         } catch (err) {
@@ -268,7 +311,7 @@ export async function fetchStreamInfo(
         };
       }
 
-      // If not live, but recent video was found
+      // If genuine pre-recorded video was found (NOT a live stream VOD)
       if (latestVideoId) {
         return {
           isLive: false,
@@ -285,6 +328,7 @@ export async function fetchStreamInfo(
         };
       }
 
+      // If top video is a concluded live stream VOD or channel is offline
       return {
         isLive: false,
         eventType: 'live',
@@ -294,6 +338,7 @@ export async function fetchStreamInfo(
         title: 'Offline',
         game: 'YouTube',
         streamUrl: `https://youtube.com/${handle}`,
+        streamId: candidateStreamVODId || undefined,
       };
     } catch (err) {
       logger.error({ err, cleanName }, 'Failed to check YouTube status');
@@ -587,8 +632,8 @@ async function pollTrackedStreams(bot: Client) {
           } else if (tracker.is_live && !streamInfo.isLive) {
             logger.info(`[RADAR] Streamer ${tracker.channel_name} (${tracker.platform}) concluded stream.`);
             await db.query(
-              `UPDATE stream_trackers SET is_live = FALSE, last_checked_at = NOW() WHERE id = $1`,
-              [tracker.id]
+              `UPDATE stream_trackers SET is_live = FALSE, last_stream_id = COALESCE($1, last_stream_id), last_checked_at = NOW() WHERE id = $2`,
+              [streamInfo.streamId || null, tracker.id]
             );
             continue;
           } else if (streamInfo.isLive && tracker.is_live) {
@@ -602,6 +647,25 @@ async function pollTrackedStreams(bot: Client) {
 
         // 2. Video Upload Transition Check (for YouTube or upload-enabled trackers)
         if (eventMode !== 'live' && streamInfo.eventType === 'upload' && streamInfo.streamId) {
+          // Extra guard: If video ID or title matches the recent live stream, ignore it completely
+          const isSameAsLive =
+            tracker.last_stream_id === streamInfo.streamId ||
+            (tracker.last_title &&
+              streamInfo.title &&
+              tracker.last_title.trim().toLowerCase() === streamInfo.title.trim().toLowerCase());
+
+          if (isSameAsLive) {
+            logger.info(
+              { trackerId: tracker.id, title: streamInfo.title },
+              '[RADAR] Video upload matches recent live stream. Skipping upload notification.'
+            );
+            await db.query(
+              `UPDATE stream_trackers SET last_stream_id = $1, last_checked_at = NOW() WHERE id = $2`,
+              [streamInfo.streamId, tracker.id]
+            );
+            continue;
+          }
+
           if (!tracker.last_stream_id) {
             // Establish baseline so historical videos aren't blasted retroactively
             await db.query(
