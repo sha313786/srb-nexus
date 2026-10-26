@@ -290,7 +290,7 @@ export function startPlayerProgressTicker(
   queue.metadata.lastPlayerMessage = msg;
   queue.metadata.progressActive = true;
 
-  logger.info({ guildId: queue.guild.id, track: track?.title }, '[MUSIC] Starting live player progress ticker (4s interval)');
+  logger.info({ guildId: queue.guild.id, track: track?.title }, '[MUSIC] Starting live player progress ticker (1s interval)');
 
   const tick = async () => {
     if (!queue.metadata?.progressActive) return;
@@ -314,15 +314,6 @@ export function startPlayerProgressTicker(
           embeds: [embed],
           components: [row],
         });
-
-        logger.info(
-          {
-            guildId: queue.guild.id,
-            playback: formatDurationMs(queue.node.playbackTime || 0),
-            track: current.title,
-          },
-          '[MUSIC] Progress card tick updated'
-        );
       }
     } catch (err: any) {
       // If message was deleted (10008) or channel missing (10003) or 404
@@ -337,8 +328,8 @@ export function startPlayerProgressTicker(
 
       // If rate limited (429), respect retry_after and back off gracefully
       if (err?.status === 429) {
-        const retryAfterSec = Number(err?.retry_after ?? 5);
-        const backoffMs = Math.max(6000, retryAfterSec * 1000);
+        const retryAfterSec = Number(err?.retry_after ?? 3);
+        const backoffMs = Math.max(3000, Math.ceil(retryAfterSec * 1000) + 500);
         logger.warn(
           { retryAfterSec, backoffMs, guildId: queue.guild.id },
           '[MUSIC] Rate limited updating player progress card, backing off'
@@ -355,14 +346,14 @@ export function startPlayerProgressTicker(
       );
     }
 
-    // Schedule next tick after 4 seconds (safe, responsive, avoids overlapping edits)
+    // Schedule next tick after 1000ms (1-second live duration cadence)
     if (queue.metadata?.progressActive) {
-      queue.metadata.progressTimer = setTimeout(tick, 4000);
+      queue.metadata.progressTimer = setTimeout(tick, 1000);
     }
   };
 
-  // Schedule initial tick after 4 seconds
-  queue.metadata.progressTimer = setTimeout(tick, 4000);
+  // Schedule initial tick after 1000ms
+  queue.metadata.progressTimer = setTimeout(tick, 1000);
 }
 
 export async function initMusicService(client: Client): Promise<Player> {
