@@ -23,10 +23,19 @@ export class DatabaseService {
         (process.env.NODE_ENV === 'production' && !isLocal) ||
         (process.env.DATABASE_URL?.includes('sslmode=require') ?? false);
 
-      // Initialize the database connection client/pool
+      // Initialize the database connection client/pool with idle connection reaping and error resilience
       this.client = new Pool({
         connectionString: process.env.DATABASE_URL,
         ssl: useSsl ? { rejectUnauthorized: false } : false,
+        max: 20,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 10000,
+      });
+
+      // Handle idle client connection errors (e.g. Neon serverless idle disconnects)
+      // to prevent unhandled EventEmitter error crashes
+      this.client.on('error', (err: Error) => {
+        logger.error({ err }, '[DATABASE] Unexpected error on idle database client in pool (auto-reconnected)');
       });
 
       // Verify connection with a ping

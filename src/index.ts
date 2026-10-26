@@ -156,6 +156,14 @@ bot.rest.on('rateLimited', (info: any) => {
   app.log.warn({ info }, `[BOT] Discord.js REST rate limited on ${info.route}. Retry after: ${info.timeToReset}ms`);
 });
 
+bot.on('error', (err: Error) => {
+  app.log.error({ err }, '[BOT] Discord client encountered a gateway/connection error');
+});
+
+bot.on('shardError', (err: Error, shardId: number) => {
+  app.log.error({ err, shardId }, `[BOT] Discord shard ${shardId} connection error`);
+});
+
 // Helper function to insert/sync guild
 async function registerGuild(guildId: string, guildName?: string) {
   await db.query(
