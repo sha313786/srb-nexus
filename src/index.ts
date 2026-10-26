@@ -97,12 +97,16 @@ import {
 } from './services/stickyService';
 
 // Global unhandled error guards to prevent unexpected background crash
-process.on('unhandledRejection', (reason) => {
-  logger.error({ reason }, '[PROCESS] Unhandled Promise Rejection');
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[PROCESS] Unhandled Promise Rejection:', reason);
 });
 
-process.on('uncaughtException', (err) => {
-  logger.error({ err }, '[PROCESS] Uncaught Exception');
+process.on('uncaughtException', (err, origin) => {
+  console.error('[PROCESS] Uncaught Exception:', origin, err);
+});
+
+process.on('exit', (code) => {
+  console.error(`[PROCESS] Process exiting with code: ${code}`);
 });
 
 dotenv.config();
