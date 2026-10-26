@@ -87,6 +87,23 @@ import {
   buildMusicControlRow,
 } from './services/musicService';
 import { QueueRepeatMode } from 'discord-player';
+import {
+  initStickyService,
+  handleStickyOnMessage,
+  setStickyMessage,
+  removeStickyMessage,
+  listGuildStickyMessages,
+  toggleStickyMessage,
+} from './services/stickyService';
+
+// Global unhandled error guards to prevent unexpected background crash
+process.on('unhandledRejection', (reason) => {
+  logger.error({ reason }, '[PROCESS] Unhandled Promise Rejection');
+});
+
+process.on('uncaughtException', (err) => {
+  logger.error({ err }, '[PROCESS] Uncaught Exception');
+});
 
 dotenv.config();
 
@@ -555,11 +572,23 @@ bot.once(Events.ClientReady, async () => {
   } catch (err) {
     app.log.error({ err }, '[BOT] Failed to initialize music service');
   }
+
+  // Initialize Sticky Messages Service
+  try {
+    await initStickyService(bot);
+    app.log.info('[STICKY] Sticky message engine initialized and ready.');
+  } catch (err) {
+    app.log.error({ err }, '[BOT] Failed to initialize sticky message service');
+  }
 });
 
 // 2. Slash Commands & Button Interactions Listener
 bot.on(Events.InteractionCreate, async (interaction) => {
-  await handleInteractionCreate(interaction);
+  try {
+    await handleInteractionCreate(interaction);
+  } catch (err) {
+    app.log.error({ err }, '[BOT] Unhandled error in interaction listener');
+  }
 });
 
 // 3. Guild join listener
@@ -759,6 +788,13 @@ function resolveVoiceChannel(guild: Guild, query?: string): VoiceBasedChannel | 
 // 7. Message Create Listener (Auto-Mod, Leveling XP, Tags, and Modmail)
 bot.on(Events.MessageCreate, async (message: Message) => {
   if (message.author.bot) return;
+
+  // Process Sticky Messages Repositioning
+  try {
+    await handleStickyOnMessage(message);
+  } catch (err) {
+    app.log.error({ err }, '[STICKY] Error in sticky message handler');
+  }
 
   // Process Anti-Spam, Modmail, and Tags Pipeline
   try {
@@ -1231,6 +1267,112 @@ bot.on(Events.MessageCreate, async (message: Message) => {
       }
 
       await message.reply({ embeds: [embed] });
+      return;
+    }
+
+    // Sticky Message Commands: !sticky, !stick, !unsticky, !stickies
+    if (commandName === 'sticky' || commandName === 'stick' || commandName === 'unsticky' || commandName === 'stickies') {
+      if (
+        !message.member?.permissions.has(PermissionFlagsBits.ManageMessages) &&
+        !message.member?.permissions.has(PermissionFlagsBits.Administrator)
+      ) {
+        await message.reply('❌ You require the **Manage Messages** or **Administrator** permission to configure sticky messages.');
+        return;
+      }
+
+      const sub = commandName === 'unsticky' ? 'remove' : (commandName === 'stickies' ? 'list' : (args[0]?.toLowerCase() || 'help'));
+
+      if (sub === 'set' || sub === 'add') {
+        let targetChannel: any = message.mentions.channels.first();
+        let messageText = '';
+
+        if (targetChannel) {
+          messageText = args.slice(2).join(' ');
+        } else {
+          const possibleChan = message.guild.channels.cache.get(args[1]);
+          if (possibleChan && (possibleChan.type === ChannelType.GuildText || possibleChan.type === ChannelType.GuildAnnouncement)) {
+            targetChannel = possibleChan;
+            messageText = args.slice(2).join(' ');
+          } else {
+            targetChannel = message.channel;
+            messageText = args.slice(1).join(' ');
+          }
+        }
+
+        if (!messageText.trim()) {
+          await message.reply('❌ Please provide the message content to stick. Usage: `!sticky set [#channel] <message>`');
+          return;
+        }
+
+        const res = await setStickyMessage({
+          guildId: message.guild.id,
+          channelId: targetChannel.id,
+          content: messageText.trim(),
+          channel: targetChannel,
+        });
+
+        await message.reply(res.message);
+        return;
+      }
+
+      if (sub === 'remove' || sub === 'delete' || sub === 'clear') {
+        let targetChannel: any = message.mentions.channels.first();
+        if (!targetChannel) {
+          const possibleChan = message.guild.channels.cache.get(args[1]);
+          if (possibleChan) targetChannel = possibleChan;
+          else targetChannel = message.channel;
+        }
+
+        const res = await removeStickyMessage(targetChannel.id, message.guild.id, targetChannel);
+        await message.reply(res.message);
+        return;
+      }
+
+      if (sub === 'list') {
+        const stickies = await listGuildStickyMessages(message.guild.id);
+        if (stickies.length === 0) {
+          await message.reply('ℹ️ No sticky messages are configured in this server. Use `!sticky set [#channel] <message>` to create one!');
+          return;
+        }
+        const embed = new EmbedBuilder()
+          .setTitle(`📌 Server Sticky Messages (${stickies.length})`)
+          .setColor(0x5865f2)
+          .setDescription('Active sticky messages configured across channels:')
+          .setTimestamp();
+        for (const s of stickies) {
+          embed.addFields({
+            name: `#${message.guild.channels.cache.get(s.channel_id)?.name || s.channel_id} (${s.is_active ? '🟢 Active' : '⏸️ Paused'})`,
+            value: `**Channel:** <#${s.channel_id}>\n**Content:** ${s.content.slice(0, 100)}`,
+            inline: false,
+          });
+        }
+        await message.reply({ embeds: [embed] });
+        return;
+      }
+
+      if (sub === 'pause') {
+        const targetChannel: any = message.mentions.channels.first() || message.channel;
+        const res = await toggleStickyMessage(targetChannel.id, message.guild.id, false, targetChannel);
+        await message.reply(res.message);
+        return;
+      }
+
+      if (sub === 'resume') {
+        const targetChannel: any = message.mentions.channels.first() || message.channel;
+        const res = await toggleStickyMessage(targetChannel.id, message.guild.id, true, targetChannel);
+        await message.reply(res.message);
+        return;
+      }
+
+      await message.reply(
+        '📌 **Sticky Message Commands:**\n' +
+        '• `!sticky set [#channel] <message>` — Pin sticky message to channel\n' +
+        '• `!sticky remove [#channel]` — Remove sticky message\n' +
+        '• `!sticky list` — List all server sticky messages\n' +
+        '• `!sticky pause [#channel]` — Temporarily pause sticky\n' +
+        '• `!sticky resume [#channel]` — Resume sticky message\n' +
+        '• Or use the slash command `/sticky`!'
+      );
       return;
     }
   } catch (err) {
@@ -1836,6 +1978,25 @@ async function start() {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
       CREATE INDEX IF NOT EXISTS idx_spam_catcher_guild ON guild_spam_catcher (guild_id);
+
+      -- Sticky Messages Table
+      CREATE TABLE IF NOT EXISTS guild_sticky_messages (
+        guild_id VARCHAR(32) NOT NULL,
+        channel_id VARCHAR(32) PRIMARY KEY,
+        content TEXT NOT NULL,
+        last_message_id VARCHAR(32),
+        embed BOOLEAN DEFAULT FALSE,
+        embed_title VARCHAR(256),
+        embed_color VARCHAR(16) DEFAULT '#5865F2',
+        is_active BOOLEAN DEFAULT TRUE,
+        cooldown_seconds INTEGER DEFAULT 3,
+        message_count_threshold INTEGER DEFAULT 1,
+        current_message_count INTEGER DEFAULT 0,
+        last_posted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_sticky_guild ON guild_sticky_messages (guild_id);
     `);
 
     app.log.info('Database connection established & all tables and security schemas initialized successfully');

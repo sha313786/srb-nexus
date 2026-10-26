@@ -27,7 +27,8 @@ export const helpCommand = {
             '`/nexus-lockdown` • Restrict channel writes\n' +
             '`/nexus-slowmode` • Adjust channel rate limit\n' +
             '`/nexus-modlogs` • Fetch moderation history\n' +
-            '`/spamcatcher` • Deploy defensive bot honeypots',
+            '`/spamcatcher` • Deploy defensive bot honeypots\n' +
+            '`/sticky` • Pin persistent messages to channel bottom',
           inline: false,
         },
         {

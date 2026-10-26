@@ -37,6 +37,8 @@ import { payCommand } from './pay';
 import { ticketCommand } from './ticket';
 import { ticketSetupCommand } from './ticketSetup';
 import { quotationCommand } from './quotation';
+import { createClientCommand } from './createClient';
+import { approveClientCommand } from './approveClient';
 
 // Advanced Multipurpose Commands
 import { reactionRoleCommand } from './reactionrole';
@@ -57,6 +59,7 @@ import { tagCommand } from './tag';
 import { modmailCommand } from './modmail';
 import { serverownerCommand } from './serverowner';
 import { spamcatcherCommand } from './spamcatcher';
+import { stickyCommand } from './sticky';
 
 // Voice Management Commands
 import { muteallCommand, nexusMuteallCommand } from './muteall';
@@ -119,6 +122,8 @@ const allCommands = [
   ticketCommand,
   ticketSetupCommand,
   quotationCommand,
+  createClientCommand,
+  approveClientCommand,
   reactionRoleCommand,
   giveawayCommand,
   giveawayRerollCommand,
@@ -130,6 +135,7 @@ const allCommands = [
   modmailCommand,
   serverownerCommand,
   spamcatcherCommand,
+  stickyCommand,
 
   // Voice Management
   muteallCommand,
@@ -174,8 +180,9 @@ export async function registerSlashCommands(clientId: string): Promise<void> {
   try {
     logger.info(`Registering ${commandsJSON.length} global slash commands...`);
     await rest.put(Routes.applicationCommands(clientId), { body: commandsJSON });
-    // Also register directly to SRB Studio for instant Discord UI update
+    // Also register directly to SRB Studio and Test server for instant Discord UI update
     await rest.put(Routes.applicationGuildCommands(clientId, '1525065834572021851'), { body: commandsJSON }).catch(() => {});
+    await rest.put(Routes.applicationGuildCommands(clientId, '1526864208011067433'), { body: commandsJSON }).catch(() => {});
     logger.info(`Successfully registered ${commandsJSON.length} slash commands with Discord API`);
   } catch (err) {
     logger.error({ err }, 'Failed to register slash commands');
