@@ -3,8 +3,16 @@ import {
   ChatInputCommandInteraction,
   GuildMember,
   EmbedBuilder,
+  Message,
 } from 'discord.js';
-import { playTrack, getSourceEmoji } from '../../services/musicService';
+import {
+  playTrack,
+  getSourceEmoji,
+  getMusicPlayer,
+  buildNowPlayingEmbed,
+  buildMusicControlRow,
+  startPlayerProgressTicker,
+} from '../../services/musicService';
 
 function createPlayBuilder(name: string) {
   return new SlashCommandBuilder()
@@ -51,9 +59,38 @@ export async function executePlay(interaction: ChatInputCommandInteraction) {
 
   const result = await playTrack(member, voiceChannel, textChannel as any, query);
 
-  if (!result.success) {
+  if (!result.success || !result.track) {
     await interaction.editReply({ content: result.message });
     return;
+  }
+
+  // If playback begins immediately (nothing was in queue before) and it's a single track,
+  // edit the interaction reply directly into the full Now Playing card.
+  // This prevents sending two duplicate messages ("Track Added to Queue" + "Now Playing") in the channel.
+  if (result.isStartingImmediately && !result.playlistTitle) {
+    try {
+      const player = getMusicPlayer();
+      const queue = player.nodes.get(interaction.guild.id);
+      if (queue && queue.currentTrack) {
+        const embed = buildNowPlayingEmbed(queue, queue.currentTrack);
+        const row = buildMusicControlRow(queue.node.isPaused(), queue.repeatMode);
+
+        const response = await interaction.editReply({
+          embeds: [embed],
+          components: [row],
+        });
+
+        if (queue.metadata) {
+          queue.metadata.lastPlayerMessage = response instanceof Message ? response : null;
+          queue.metadata.suppressPlayerStartMessage = true;
+        }
+
+        if (response instanceof Message) {
+          startPlayerProgressTicker(queue, queue.currentTrack, response);
+        }
+        return;
+      }
+    } catch {}
   }
 
   const embed = new EmbedBuilder()

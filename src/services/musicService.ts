@@ -393,6 +393,16 @@ export async function initMusicService(client: Client): Promise<Player> {
       const channel = queue.metadata?.channel as any;
       if (!channel || typeof channel.send !== 'function') return;
 
+      // If the initiating command (/play or !play) already rendered the player card for this track,
+      // suppress sending a duplicate card in the channel to prevent "double data"
+      if (queue.metadata?.suppressPlayerStartMessage) {
+        queue.metadata.suppressPlayerStartMessage = false;
+        if (queue.metadata?.lastPlayerMessage) {
+          startPlayerProgressTicker(queue, track, queue.metadata.lastPlayerMessage as Message);
+        }
+        return;
+      }
+
       // Clean up buttons on previous player card if one existed
       if (queue.metadata?.lastPlayerMessage) {
         try {
@@ -499,6 +509,7 @@ export async function playTrack(
   playlistTracksCount?: number;
   position?: number;
   queueSize: number;
+  isStartingImmediately: boolean;
   message: string;
 }> {
   const player = getMusicPlayer();
@@ -508,6 +519,7 @@ export async function playTrack(
     return {
       success: false,
       queueSize: 0,
+      isStartingImmediately: false,
       message: '❌ Music system is currently disabled in this server.',
     };
   }
@@ -518,6 +530,7 @@ export async function playTrack(
     return {
       success: false,
       queueSize: 0,
+      isStartingImmediately: false,
       message: `❌ SRB NEXUS lacks **Connect** permission in <#${voiceChannel.id}>.`,
     };
   }
@@ -525,6 +538,7 @@ export async function playTrack(
     return {
       success: false,
       queueSize: 0,
+      isStartingImmediately: false,
       message: `❌ SRB NEXUS lacks **Speak** permission in <#${voiceChannel.id}>.`,
     };
   }
@@ -551,12 +565,14 @@ export async function playTrack(
     return {
       success: false,
       queueSize: 0,
+      isStartingImmediately: false,
       message: `❌ No results or streamable audio found for: \`${query}\``,
     };
   }
 
   // Existing queue check
   const existingQueue = player.nodes.get(member.guild.id);
+  const wasPlaying = existingQueue && (existingQueue.isPlaying() || !!existingQueue.currentTrack);
   const currentSize = existingQueue ? existingQueue.tracks.size : 0;
   const incomingCount = searchResult.playlist ? searchResult.tracks.length : 1;
 
@@ -564,6 +580,7 @@ export async function playTrack(
     return {
       success: false,
       queueSize: currentSize,
+      isStartingImmediately: false,
       message: `❌ Adding this would exceed the maximum server queue limit of **${settings.max_queue_length}** songs (Current: ${currentSize}).`,
     };
   }
@@ -576,6 +593,7 @@ export async function playTrack(
           channel: textChannel,
           requestedBy: member.user,
           lastPlayerMessage: null,
+          suppressPlayerStartMessage: false,
         },
         volume: settings.default_volume,
         leaveOnEmpty: true,
@@ -593,6 +611,7 @@ export async function playTrack(
     const isPlaylist = !!searchResult.playlist;
     const addedTrack = playResult.track;
     const finalQueue = playResult.queue;
+    const isStartingImmediately = !wasPlaying;
 
     return {
       success: true,
@@ -601,6 +620,7 @@ export async function playTrack(
       playlistTracksCount: isPlaylist ? searchResult.tracks.length : undefined,
       position: finalQueue.tracks.size,
       queueSize: finalQueue.tracks.size,
+      isStartingImmediately,
       message: isPlaylist
         ? `✅ Enqueued playlist **${searchResult.playlist?.title}** (${searchResult.tracks.length} tracks).`
         : `✅ Added **[${addedTrack.title}](${addedTrack.url})** (\`${addedTrack.duration}\`) to queue.`,
@@ -610,6 +630,7 @@ export async function playTrack(
     return {
       success: false,
       queueSize: 0,
+      isStartingImmediately: false,
       message: `❌ Failed to initiate audio playback: ${err?.message || 'Unknown playback error'}`,
     };
   }

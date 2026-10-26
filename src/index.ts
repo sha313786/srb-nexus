@@ -43,6 +43,7 @@ try {
 }
 
 import { db } from './core/database';
+import { logger } from './core/logger';
 import { authRoutes } from './api/routes/auth';
 import { guildRoutes } from './api/routes/guilds';
 
@@ -81,6 +82,8 @@ import {
   shuffleQueue,
   getSourceEmoji,
   startPlayerProgressTicker,
+  buildNowPlayingEmbed,
+  buildMusicControlRow,
 } from './services/musicService';
 import { QueueRepeatMode } from 'discord-player';
 
@@ -855,9 +858,38 @@ bot.on(Events.MessageCreate, async (message: Message) => {
 
       const result = await playTrack(message.member!, voiceChannel as any, message.channel as any, query);
 
-      if (!result.success) {
+      if (!result.success || !result.track) {
         await loadingMsg.edit({ content: result.message });
         return;
+      }
+
+      // If playback starts immediately (no active queue before) and it's a single track,
+      // edit the loading message directly into the Now Playing card to prevent double messages.
+      if (result.isStartingImmediately && !result.playlistTitle) {
+        try {
+          const player = getMusicPlayer();
+          const queue = player.nodes.get(message.guild.id);
+          if (queue && queue.currentTrack) {
+            const embed = buildNowPlayingEmbed(queue, queue.currentTrack);
+            const row = buildMusicControlRow(queue.node.isPaused(), queue.repeatMode);
+
+            const editedMsg = await loadingMsg.edit({
+              content: null,
+              embeds: [embed],
+              components: [row],
+            });
+
+            if (queue.metadata) {
+              queue.metadata.lastPlayerMessage = editedMsg;
+              queue.metadata.suppressPlayerStartMessage = true;
+            }
+
+            startPlayerProgressTicker(queue, queue.currentTrack, editedMsg);
+            return;
+          }
+        } catch (err) {
+          logger.error({ err }, '[MUSIC] Error updating prefix play card to Now Playing');
+        }
       }
 
       const embed = new EmbedBuilder()
