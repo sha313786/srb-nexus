@@ -129,8 +129,10 @@ export const stickyCommand = {
     ),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+    await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
     if (!interaction.guild) {
-      await interaction.reply({ content: '❌ This command can only be used in servers.', ephemeral: true });
+      await interaction.editReply({ content: '❌ This command can only be used in servers.' });
       return;
     }
 
@@ -141,9 +143,8 @@ export const stickyCommand = {
       !permissions?.has(PermissionFlagsBits.ManageMessages) &&
       !permissions?.has(PermissionFlagsBits.Administrator)
     ) {
-      await interaction.reply({
+      await interaction.editReply({
         content: '❌ You require the **Manage Messages** permission to configure sticky messages.',
-        ephemeral: true,
       });
       return;
     }
@@ -165,19 +166,12 @@ export const stickyCommand = {
       if (botMember) {
         const channelPerms = channel.permissionsFor(botMember);
         if (!channelPerms.has(PermissionFlagsBits.ViewChannel) || !channelPerms.has(PermissionFlagsBits.SendMessages)) {
-          await interaction.reply({
+          await interaction.editReply({
             content: `❌ I do not have permission to view or send messages in ${channel}. Please adjust channel permissions.`,
-            ephemeral: true,
           });
           return;
         }
-
-        if (!channelPerms.has(PermissionFlagsBits.ManageMessages)) {
-          // Warning notice
-        }
       }
-
-      await interaction.deferReply({ ephemeral: true });
 
       const result = await setStickyMessage({
         guildId: interaction.guild.id,
@@ -230,8 +224,6 @@ export const stickyCommand = {
     // 2. REMOVE SUBCOMMAND
     if (subcommand === 'remove') {
       const channel = interaction.options.getChannel('channel', true) as TextChannel;
-      await interaction.deferReply({ ephemeral: true });
-
       const result = await removeStickyMessage(channel.id, interaction.guild.id, channel);
       await interaction.editReply({ content: result.message });
       return;
@@ -239,8 +231,6 @@ export const stickyCommand = {
 
     // 3. LIST SUBCOMMAND
     if (subcommand === 'list') {
-      await interaction.deferReply({ ephemeral: true });
-
       const stickies = await listGuildStickyMessages(interaction.guild.id);
       if (stickies.length === 0) {
         await interaction.editReply({
@@ -273,8 +263,6 @@ export const stickyCommand = {
     // 4. PAUSE SUBCOMMAND
     if (subcommand === 'pause') {
       const channel = interaction.options.getChannel('channel', true) as TextChannel;
-      await interaction.deferReply({ ephemeral: true });
-
       const result = await toggleStickyMessage(channel.id, interaction.guild.id, false, channel);
       await interaction.editReply({ content: result.message });
       return;
@@ -283,8 +271,6 @@ export const stickyCommand = {
     // 5. RESUME SUBCOMMAND
     if (subcommand === 'resume') {
       const channel = interaction.options.getChannel('channel', true) as TextChannel;
-      await interaction.deferReply({ ephemeral: true });
-
       const result = await toggleStickyMessage(channel.id, interaction.guild.id, true, channel);
       await interaction.editReply({ content: result.message });
       return;
@@ -296,18 +282,16 @@ export const stickyCommand = {
       const config = getStickyConfig(channel.id);
 
       if (!config) {
-        await interaction.reply({
+        await interaction.editReply({
           content: `❌ No sticky message configured for ${channel}.`,
-          ephemeral: true,
         });
         return;
       }
 
       const payload = buildStickyPayload(config);
-      await interaction.reply({
+      await interaction.editReply({
         content: `**Preview of sticky message for ${channel}:**\n\n${payload.content}`,
         embeds: payload.embeds || [],
-        ephemeral: true,
       });
       return;
     }

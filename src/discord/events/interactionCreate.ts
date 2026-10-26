@@ -15,6 +15,7 @@ import { logger } from '../../core/logger';
 import { db } from '../../core/database';
 import { broadcastLiveNotification } from '../../services/liveNotifications';
 import { archiveAndSendTicketTranscript } from '../../services/transcriptService';
+import { approveTicketAndCreateWorkspace } from '../../services/clientWorkspaceService';
 import { handleVerificationButton, handleVerificationModal } from '../../services/verification';
 import {
   getMusicPlayer,
@@ -25,6 +26,31 @@ import {
   toggleLoopMode,
   canControlPlayback,
 } from '../../services/musicService';
+
+function getTicketCategoryId(guild: any, configuredCatId?: string): string | undefined {
+  if (configuredCatId && guild.channels.cache.has(configuredCatId)) {
+    const cat = guild.channels.cache.get(configuredCatId);
+    if (cat && !/upi/i.test(cat.name)) {
+      return configuredCatId;
+    }
+  }
+
+  const supportCenter = guild.channels.cache.find(
+    (c: any) =>
+      c.type === ChannelType.GuildCategory &&
+      !/upi/i.test(c.name) &&
+      (/support center/i.test(c.name) || c.id === '1525114945568768131' || /ticket/i.test(c.name))
+  );
+  if (supportCenter) return supportCenter.id;
+
+  const fallbackCat = guild.channels.cache.find(
+    (c: any) =>
+      c.type === ChannelType.GuildCategory &&
+      !/upi/i.test(c.name) &&
+      /support/i.test(c.name)
+  );
+  return fallbackCat ? fallbackCat.id : undefined;
+}
 
 async function createUniversalTicket(
   interaction: any,
@@ -70,8 +96,8 @@ async function createUniversalTicket(
       'Welcome to your private support channel! Our staff team has been notified. Please describe your question or issue in detail below.';
 
     // 3. Resolve category
-    let targetCategoryId: string | undefined = undefined;
-    if (configuredCatId && guild.channels.cache.has(configuredCatId)) {
+    let targetCategoryId = getTicketCategoryId(guild, configuredCatId);
+    if (false && configuredCatId) {
       targetCategoryId = configuredCatId;
     } else {
       const found = guild.channels.cache.find(
@@ -198,6 +224,11 @@ async function createUniversalTicket(
         .setStyle(ButtonStyle.Primary)
         .setEmoji('🙋‍♂️'),
       new ButtonBuilder()
+        .setCustomId('nexus_approve_ticket')
+        .setLabel('Approve Client')
+        .setStyle(ButtonStyle.Success)
+        .setEmoji('🤝'),
+      new ButtonBuilder()
         .setCustomId('nexus_close_ticket')
         .setLabel('Close Ticket')
         .setStyle(ButtonStyle.Danger)
@@ -260,14 +291,19 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
 
     try {
       await command.execute(interaction);
-    } catch (err) {
+    } catch (err: any) {
       logger.error({ err, commandName: interaction.commandName }, 'Error executing slash command');
-      const errorMessage = 'An error occurred while executing this command.';
-      if (interaction.replied || interaction.deferred) {
-        await interaction.followUp({ content: errorMessage, ephemeral: true });
-      } else {
-        await interaction.reply({ content: errorMessage, ephemeral: true });
+      if (err?.code === 10062 || err?.code === 40060 || err?.status === 404) {
+        return;
       }
+      const errorMessage = 'An error occurred while executing this command.';
+      try {
+        if (interaction.replied || interaction.deferred) {
+          await interaction.followUp({ content: errorMessage, ephemeral: true }).catch(() => {});
+        } else {
+          await interaction.reply({ content: errorMessage, ephemeral: true }).catch(() => {});
+        }
+      } catch {}
     }
     return;
   }
@@ -311,7 +347,7 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
       ).catch(() => null);
 
       const supportRoleId = settingsRes?.rows?.[0]?.support_role_id;
-      const categoryId = settingsRes?.rows?.[0]?.ticket_category_id;
+      const categoryId = getTicketCategoryId(guild, settingsRes?.rows?.[0]?.category_id);
 
       const permissionOverwrites: any[] = [
         {
@@ -361,7 +397,7 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
       const ticketChannel = await guild.channels.create({
         name: channelName,
         type: ChannelType.GuildText,
-        parent: categoryId && guild.channels.cache.has(categoryId) ? categoryId : undefined,
+        parent: categoryId,
         permissionOverwrites,
       });
 
@@ -373,6 +409,11 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
       ).catch(() => {});
 
       const closeRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId('nexus_approve_ticket')
+          .setLabel('Approve Client')
+          .setStyle(ButtonStyle.Success)
+          .setEmoji('🤝'),
         new ButtonBuilder()
           .setCustomId('nexus_close_ticket')
           .setLabel('Close Ticket')
@@ -877,8 +918,8 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         const configuredCatId = settingsRes?.rows?.[0]?.category_id || settingsRes?.rows?.[0]?.ticket_category_id;
 
         // Auto-resolve Support Center category
-        let targetCategoryId: string | undefined = undefined;
-        if (configuredCatId && guild.channels.cache.has(configuredCatId)) {
+        let targetCategoryId = getTicketCategoryId(guild, configuredCatId);
+        if (false && configuredCatId) {
           targetCategoryId = configuredCatId;
         } else {
           const found = guild.channels.cache.find(
@@ -969,6 +1010,11 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
           .setLabel('Create Quotation')
           .setStyle(ButtonStyle.Success)
           .setEmoji('💼'),
+        new ButtonBuilder()
+          .setCustomId('nexus_approve_ticket')
+          .setLabel('Approve Client')
+          .setStyle(ButtonStyle.Success)
+          .setEmoji('🤝'),
         new ButtonBuilder()
           .setCustomId('nexus_close_ticket')
           .setLabel('Close Ticket')
@@ -1077,8 +1123,8 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         const configuredCatId = settingsRes?.rows?.[0]?.category_id || settingsRes?.rows?.[0]?.ticket_category_id;
 
         // Auto-resolve Support Center category
-        let targetCategoryId: string | undefined = undefined;
-        if (configuredCatId && guild.channels.cache.has(configuredCatId)) {
+        let targetCategoryId = getTicketCategoryId(guild, configuredCatId);
+        if (false && configuredCatId) {
           targetCategoryId = configuredCatId;
         } else {
           const found = guild.channels.cache.find(
@@ -1171,6 +1217,11 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
           .setLabel('Create Formal Quotation')
           .setStyle(ButtonStyle.Success)
           .setEmoji('💼'),
+        new ButtonBuilder()
+          .setCustomId('nexus_approve_ticket')
+          .setLabel('Approve Client')
+          .setStyle(ButtonStyle.Success)
+          .setEmoji('🤝'),
         new ButtonBuilder()
           .setCustomId('nexus_close_ticket')
           .setLabel('Close Ticket')
@@ -1266,8 +1317,8 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
       const configuredCatId = settingsRes?.rows?.[0]?.category_id || settingsRes?.rows?.[0]?.ticket_category_id;
 
       // Auto-resolve Support Center category
-      let targetCategoryId: string | undefined = undefined;
-      if (configuredCatId && guild.channels.cache.has(configuredCatId)) {
+      let targetCategoryId = getTicketCategoryId(guild, configuredCatId);
+      if (false && configuredCatId) {
         targetCategoryId = configuredCatId;
       } else {
         const found = guild.channels.cache.find(
@@ -1743,6 +1794,11 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         .setStyle(ButtonStyle.Primary)
         .setEmoji('💬'),
       new ButtonBuilder()
+        .setCustomId('nexus_approve_ticket')
+        .setLabel('Approve Client')
+        .setStyle(ButtonStyle.Success)
+        .setEmoji('🤝'),
+      new ButtonBuilder()
         .setCustomId('nexus_close_ticket')
         .setLabel('Close Ticket')
         .setStyle(ButtonStyle.Danger)
@@ -1831,6 +1887,99 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
       content: `@here 🔔 Client has requested a revision on quotation **${quoteId}**.`,
       embeds: [revEmbed],
     });
+    return;
+  }
+
+  // 3h. HANDLE APPROVE TICKET BUTTON
+  if (interaction.isButton() && interaction.customId === 'nexus_approve_ticket') {
+    if (!interaction.guild || !interaction.channel || !interaction.channel.isTextBased()) return;
+
+    const member = interaction.member as any;
+    const isStaff =
+      member?.permissions?.has(PermissionFlagsBits.Administrator) ||
+      member?.permissions?.has(PermissionFlagsBits.ManageChannels) ||
+      [
+        '1525076160990543892', // Founder
+        '1525076232247705711', // Administrator
+        '1525111469056987268', // Project Manager
+        '1525111410651041973', // Support Team
+        '1525095643972894730', // Developer
+        '1525076321854685305', // Designer
+      ].some((r) => member?.roles?.cache?.has(r));
+
+    if (!isStaff) {
+      await interaction.reply({
+        content: '❌ Only designated staff members can approve clients and create workspaces.',
+        ephemeral: true,
+      });
+      return;
+    }
+
+    const channelName = (interaction.channel as any).name || '';
+    const defaultName = channelName.replace(/^(ticket|quote|report|inquiry)-/i, '').replace(/-[0-9]+$/, '') || 'Client';
+
+    const modal = new ModalBuilder()
+      .setCustomId('nexus_approve_client_modal')
+      .setTitle('Approve Client & Launch Workspace');
+
+    const nameInput = new TextInputBuilder()
+      .setCustomId('client_project_name')
+      .setLabel('Client or Project Name')
+      .setPlaceholder('e.g. Jesse Bridals')
+      .setValue(defaultName)
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+
+    const notesInput = new TextInputBuilder()
+      .setCustomId('project_scope_notes')
+      .setLabel('Agreed Scope & Details Discussed')
+      .setPlaceholder('Enter summary of deliverables, agreed scope, deadlines, or pricing discussed...')
+      .setStyle(TextInputStyle.Paragraph)
+      .setRequired(false);
+
+    modal.addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(nameInput),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(notesInput)
+    );
+
+    await interaction.showModal(modal);
+    return;
+  }
+
+  // 3i. HANDLE APPROVE CLIENT MODAL SUBMIT
+  if (interaction.isModalSubmit() && interaction.customId === 'nexus_approve_client_modal') {
+    if (!interaction.guild || !interaction.channel || !interaction.channel.isTextBased()) return;
+
+    try {
+      await interaction.deferReply();
+
+      const clientName = interaction.fields.getTextInputValue('client_project_name').trim();
+      const projectNotes = interaction.fields.getTextInputValue('project_scope_notes')?.trim() || '';
+
+      const { clientChannel } = await approveTicketAndCreateWorkspace({
+        guild: interaction.guild,
+        ticketChannel: interaction.channel as any,
+        approvedBy: interaction.user,
+        clientName,
+        projectNotes,
+        withVoice: true,
+      });
+
+      await interaction.editReply({
+        content: `🎉 **Client Approved!** Dedicated private workspace created at <#${clientChannel.id}>.\n*(This ticket channel will automatically close and delete in 5 seconds...)*`,
+      });
+
+      setTimeout(async () => {
+        await interaction.channel?.delete().catch(() => {});
+      }, 5000);
+    } catch (err) {
+      logger.error({ err }, 'Error executing nexus_approve_client_modal');
+      if (interaction.deferred) {
+        await interaction.editReply({
+          content: '❌ An error occurred while creating client workspace. Please check bot permissions.',
+        });
+      }
+    }
     return;
   }
 
