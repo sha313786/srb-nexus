@@ -88,6 +88,11 @@ import {
 } from './services/musicService';
 import { QueueRepeatMode } from 'discord-player';
 import {
+  initStaffNicknameTable,
+  handleStaffNicknameUpdate,
+  syncAllSupportStaffNicknames,
+} from './services/staffNicknameService';
+import {
   initStickyService,
   handleStickyOnMessage,
   setStickyMessage,
@@ -97,16 +102,28 @@ import {
 } from './services/stickyService';
 
 // Global unhandled error guards to prevent unexpected background crash
+function logCrashSync(type: string, detail: any) {
+  try {
+    const timestamp = new Date().toISOString();
+    const str = `[${timestamp}] [${type}] ${detail instanceof Error ? (detail.stack || detail.message) : (typeof detail === 'object' ? JSON.stringify(detail) : String(detail))}\n`;
+    fs.appendFileSync(path.join(process.cwd(), 'crash.log'), str);
+    fs.writeSync(2, str);
+  } catch {}
+}
+
 process.on('unhandledRejection', (reason, promise) => {
   console.error('[PROCESS] Unhandled Promise Rejection:', reason);
+  logCrashSync('UnhandledRejection', reason);
 });
 
 process.on('uncaughtException', (err, origin) => {
   console.error('[PROCESS] Uncaught Exception:', origin, err);
+  logCrashSync(`UncaughtException (${origin})`, err);
 });
 
 process.on('exit', (code) => {
   console.error(`[PROCESS] Process exiting with code: ${code}`);
+  logCrashSync('ProcessExit', `Exit code: ${code}`);
 });
 
 dotenv.config();
@@ -591,6 +608,18 @@ bot.once(Events.ClientReady, async () => {
     app.log.info('[STICKY] Sticky message engine initialized and ready.');
   } catch (err) {
     app.log.error({ err }, '[BOT] Failed to initialize sticky message service');
+  }
+
+  // Initialize Staff Nickname Anonymization Service
+  try {
+    await initStaffNicknameTable();
+    const srbGuild = bot.guilds.cache.get('1525065834572021851');
+    if (srbGuild) {
+      syncAllSupportStaffNicknames(srbGuild).catch(() => {});
+    }
+    app.log.info('[STAFF NICKNAME] Staff uniform nickname engine initialized and ready.');
+  } catch (err) {
+    app.log.error({ err }, '[STAFF NICKNAME] Failed to initialize staff nickname engine');
   }
 });
 
@@ -1414,7 +1443,7 @@ async function start() {
       prefix: '/',
     });
 
-    app.get('/health', async (request, reply) => {
+    const healthHandler = async (request: any, reply: any) => {
       const authHeader = (request.headers['x-admin-key'] || request.headers['authorization']) as string | undefined;
       const isAdmin = !!(process.env.ADMIN_SECRET_KEY && authHeader === process.env.ADMIN_SECRET_KEY);
 
@@ -1444,7 +1473,10 @@ async function start() {
       }
 
       return publicHealth;
-    });
+    };
+
+    app.get('/health', healthHandler);
+    app.get('/api/health', healthHandler);
 
     await app.register(authRoutes);
     await app.register(guildRoutes);
