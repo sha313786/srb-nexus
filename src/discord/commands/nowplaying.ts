@@ -1,8 +1,13 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
+  Message,
 } from 'discord.js';
-import { getNowPlayingData } from '../../services/musicService';
+import {
+  getNowPlayingData,
+  getMusicPlayer,
+  startPlayerProgressTicker,
+} from '../../services/musicService';
 
 function createNowPlayingBuilder(name: string) {
   return new SlashCommandBuilder()
@@ -26,10 +31,19 @@ export async function executeNowPlaying(interaction: ChatInputCommandInteraction
     return;
   }
 
-  await interaction.reply({
+  const response = await interaction.reply({
     embeds: [data.embed],
     components: [data.row],
+    fetchReply: true,
   });
+
+  try {
+    const player = getMusicPlayer();
+    const queue = player.nodes.get(interaction.guild.id);
+    if (queue && queue.currentTrack && response instanceof Message) {
+      startPlayerProgressTicker(queue, queue.currentTrack, response);
+    }
+  } catch {}
 }
 
 export const nowplayingCommand = {

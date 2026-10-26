@@ -227,6 +227,57 @@ export function buildNowPlayingEmbed(queue: GuildQueue, track: Track): EmbedBuil
   return embed;
 }
 
+export function stopPlayerProgressTicker(queue: GuildQueue<any>): void {
+  if (queue.metadata?.progressInterval) {
+    clearInterval(queue.metadata.progressInterval);
+    queue.metadata.progressInterval = null;
+  }
+}
+
+export function startPlayerProgressTicker(
+  queue: GuildQueue<any>,
+  track: Track,
+  msg: Message
+): void {
+  stopPlayerProgressTicker(queue);
+
+  const interval = setInterval(async () => {
+    try {
+      // If queue deleted or current track no longer matches, terminate ticker
+      if (queue.deleted || !queue.currentTrack || queue.currentTrack.id !== track.id) {
+        stopPlayerProgressTicker(queue);
+        return;
+      }
+
+      // If playback is paused, skip progress updates
+      if (queue.node.isPaused()) {
+        return;
+      }
+
+      const embed = buildNowPlayingEmbed(queue, track);
+      const row = buildMusicControlRow(false, queue.repeatMode);
+
+      await msg.edit({
+        embeds: [embed],
+        components: [row],
+      });
+    } catch (err: any) {
+      // If message was deleted or channel not found, stop ticking
+      if (err?.code === 10008 || err?.status === 404) {
+        stopPlayerProgressTicker(queue);
+        if (queue.metadata?.lastPlayerMessage?.id === msg.id) {
+          queue.metadata.lastPlayerMessage = null;
+        }
+      }
+    }
+  }, 5000);
+
+  if (queue.metadata) {
+    queue.metadata.progressInterval = interval;
+    queue.metadata.lastPlayerMessage = msg;
+  }
+}
+
 export async function initMusicService(client: Client): Promise<Player> {
   if (musicPlayer) {
     return musicPlayer;
@@ -268,16 +319,23 @@ export async function initMusicService(client: Client): Promise<Player> {
         components: [row],
       });
 
-      // Keep reference to last card in metadata
-      if (queue.metadata) {
-        queue.metadata.lastPlayerMessage = msg;
-      }
+      // Start live progress ticker (updates progress bar & elapsed duration every 5s)
+      startPlayerProgressTicker(queue, track, msg);
     } catch (err) {
       logger.error({ err }, '[MUSIC] Error broadcasting playerStart event');
     }
   });
 
+  player.events.on('playerFinish', (queue: GuildQueue<any>) => {
+    stopPlayerProgressTicker(queue);
+  });
+
+  player.events.on('disconnect', (queue: GuildQueue<any>) => {
+    stopPlayerProgressTicker(queue);
+  });
+
   player.events.on('emptyChannel', async (queue: GuildQueue<any>) => {
+    stopPlayerProgressTicker(queue);
     try {
       const channel = queue.metadata?.channel as any;
       if (channel && typeof channel.send === 'function') {
@@ -294,6 +352,7 @@ export async function initMusicService(client: Client): Promise<Player> {
   });
 
   player.events.on('emptyQueue', async (queue: GuildQueue<any>) => {
+    stopPlayerProgressTicker(queue);
     // Only broadcast if playback has truly finished and no track is actively playing
     if (queue.isPlaying() || queue.currentTrack) return;
     try {
@@ -312,10 +371,12 @@ export async function initMusicService(client: Client): Promise<Player> {
   });
 
   player.events.on('error', (queue: GuildQueue<any>, error: Error) => {
+    stopPlayerProgressTicker(queue);
     logger.error({ err: error, guildId: queue.guild.id }, '[MUSIC] General queue error');
   });
 
   player.events.on('playerError', (queue: GuildQueue<any>, error: Error) => {
+    stopPlayerProgressTicker(queue);
     logger.error({ err: error, guildId: queue.guild.id }, '[MUSIC] Player stream audio error');
     const channel = queue.metadata?.channel as any;
     if (channel && typeof channel.send === 'function') {
@@ -479,6 +540,7 @@ export async function skipTrack(member: GuildMember): Promise<{
   const currentTrackTitle = queue.currentTrack?.title || 'Unknown Track';
   const nextTrackTitle = queue.tracks.at(0)?.title;
 
+  stopPlayerProgressTicker(queue);
   queue.node.skip();
 
   return {
@@ -542,6 +604,8 @@ export async function stopPlayback(member: GuildMember): Promise<{
   if (!perm.allowed) {
     return { success: false, message: perm.reason || '❌ You lack permission to stop playback.' };
   }
+
+  stopPlayerProgressTicker(queue);
 
   if (queue.metadata?.lastPlayerMessage) {
     const msg = queue.metadata.lastPlayerMessage as Message;

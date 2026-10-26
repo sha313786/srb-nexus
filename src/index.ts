@@ -69,6 +69,7 @@ import { updateGuildVoiceStats } from './services/voiceStats';
 import { muteAllVoice, unmuteAllVoice, moveAllVoice } from './services/voiceManagement';
 import {
   initMusicService,
+  getMusicPlayer,
   playTrack,
   skipTrack,
   stopPlayback,
@@ -79,6 +80,7 @@ import {
   toggleLoopMode,
   shuffleQueue,
   getSourceEmoji,
+  startPlayerProgressTicker,
 } from './services/musicService';
 import { QueueRepeatMode } from 'discord-player';
 
@@ -977,7 +979,14 @@ bot.on(Events.MessageCreate, async (message: Message) => {
         return;
       }
 
-      await message.reply({ embeds: [data.embed], components: [data.row] });
+      const replyMsg = await message.reply({ embeds: [data.embed], components: [data.row] });
+      try {
+        const player = getMusicPlayer();
+        const queue = player.nodes.get(message.guild.id);
+        if (queue && queue.currentTrack && replyMsg) {
+          startPlayerProgressTicker(queue, queue.currentTrack, replyMsg);
+        }
+      } catch {}
       return;
     }
 
