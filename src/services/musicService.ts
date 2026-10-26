@@ -180,15 +180,51 @@ export function buildMusicControlRow(isPaused: boolean, repeatMode: QueueRepeatM
   return row;
 }
 
+export function formatDurationMs(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+export function renderProgressBar(queue: GuildQueue, track: Track): string {
+  const isPaused = queue.node.isPaused();
+  const currentMs = Math.max(0, queue.node.playbackTime || 0);
+  const totalMs = Math.max(0, track.durationMS || 0);
+  const isLive = track.live || totalMs <= 0;
+
+  if (isLive) {
+    return `\`${formatDurationMs(currentMs)}\` | 🔴 **LIVE STREAM**`;
+  }
+
+  const length = 12;
+  const ratio = totalMs > 0 ? Math.min(Math.max(currentMs / totalMs, 0), 1) : 0;
+  const index = Math.round(ratio * length);
+  const left = '▬'.repeat(index);
+  const right = '▬'.repeat(Math.max(0, length - index));
+  const bar = `${left}🔘${right}`;
+
+  const currentStr = formatDurationMs(currentMs);
+  const totalStr = track.duration || formatDurationMs(totalMs);
+
+  if (isPaused) {
+    return `\`${currentStr}\` | ${bar} | \`${totalStr}\` • ⏸️ *Paused*`;
+  }
+
+  const remainingMs = Math.max(0, totalMs - currentMs);
+  const endUnix = Math.floor((Date.now() + remainingMs) / 1000);
+
+  return `\`${currentStr}\` | ${bar} | \`${totalStr}\` • Ends <t:${endUnix}:R>`;
+}
+
 export function buildNowPlayingEmbed(queue: GuildQueue, track: Track): EmbedBuilder {
   const isPaused = queue.node.isPaused();
-  const progressBar = queue.node.createProgressBar({
-    length: 14,
-    timecodes: true,
-    indicator: '🔘',
-    leftChar: '▬',
-    rightChar: '▬',
-  });
+  const progressText = renderProgressBar(queue, track);
 
   const nextTrack = queue.tracks.at(0);
   const upNextStr = nextTrack
@@ -205,7 +241,7 @@ export function buildNowPlayingEmbed(queue: GuildQueue, track: Track): EmbedBuil
     .setURL(track.url || 'https://discord.com')
     .setDescription(
       `**Artist / Author:** \`${track.author || 'Unknown'}\`\n` +
-      `**Duration & Progress:**\n${progressBar || `\`[${track.duration}]\``}\n\n` +
+      `**Duration & Progress:**\n${progressText}\n\n` +
       `**Platform:** ${getSourceEmoji(track.raw?.source || track.source || 'youtube')}\n` +
       `**Requested By:** <@${track.requestedBy?.id || 'Unknown'}>\n\n` +
       `${upNextStr}`
@@ -228,6 +264,10 @@ export function buildNowPlayingEmbed(queue: GuildQueue, track: Track): EmbedBuil
 }
 
 export function stopPlayerProgressTicker(queue: GuildQueue<any>): void {
+  if (queue.metadata?.progressTimer) {
+    clearTimeout(queue.metadata.progressTimer);
+    queue.metadata.progressTimer = null;
+  }
   if (queue.metadata?.progressInterval) {
     clearInterval(queue.metadata.progressInterval);
     queue.metadata.progressInterval = null;
@@ -241,41 +281,83 @@ export function startPlayerProgressTicker(
 ): void {
   stopPlayerProgressTicker(queue);
 
-  const interval = setInterval(async () => {
+  if (!queue.metadata) {
+    queue.metadata = {} as any;
+  }
+  queue.metadata.lastPlayerMessage = msg;
+
+  let active = true;
+
+  const tick = async () => {
+    if (!active) return;
+
     try {
-      // If queue deleted or current track no longer matches, terminate ticker
-      if (queue.deleted || !queue.currentTrack || queue.currentTrack.id !== track.id) {
+      // If queue is deleted or has stopped playing or has no track, cease ticker
+      if (queue.deleted || !queue.isPlaying() || !queue.currentTrack) {
         stopPlayerProgressTicker(queue);
         return;
       }
 
-      // If playback is paused, skip progress updates
-      if (queue.node.isPaused()) {
+      // Check that the currently playing track matches
+      const current = queue.currentTrack;
+      if (
+        current.id !== track.id &&
+        current.url !== track.url &&
+        current.title !== track.title
+      ) {
+        stopPlayerProgressTicker(queue);
         return;
       }
 
-      const embed = buildNowPlayingEmbed(queue, track);
-      const row = buildMusicControlRow(false, queue.repeatMode);
+      // If not paused, update the embed card with current progress and fresh end timestamp
+      if (!queue.node.isPaused()) {
+        const embed = buildNowPlayingEmbed(queue, current);
+        const row = buildMusicControlRow(false, queue.repeatMode);
 
-      await msg.edit({
-        embeds: [embed],
-        components: [row],
-      });
+        await msg.edit({
+          embeds: [embed],
+          components: [row],
+        });
+      }
     } catch (err: any) {
-      // If message was deleted or channel not found, stop ticking
-      if (err?.code === 10008 || err?.status === 404) {
+      // If message was deleted (10008) or channel missing (10003) or 404
+      if (err?.code === 10008 || err?.code === 10003 || err?.status === 404) {
+        active = false;
         stopPlayerProgressTicker(queue);
         if (queue.metadata?.lastPlayerMessage?.id === msg.id) {
           queue.metadata.lastPlayerMessage = null;
         }
+        return;
       }
-    }
-  }, 5000);
 
-  if (queue.metadata) {
-    queue.metadata.progressInterval = interval;
-    queue.metadata.lastPlayerMessage = msg;
-  }
+      // If rate limited (429), respect retry_after and back off gracefully
+      if (err?.status === 429) {
+        const retryAfterSec = Number(err?.retry_after ?? 6);
+        const backoffMs = Math.max(7000, retryAfterSec * 1000);
+        logger.warn(
+          { retryAfterSec, backoffMs, guildId: queue.guild.id },
+          '[MUSIC] Rate limited updating player progress card, backing off'
+        );
+        if (active && queue.metadata) {
+          queue.metadata.progressTimer = setTimeout(tick, backoffMs);
+        }
+        return;
+      }
+
+      logger.debug(
+        { err: err?.message, guildId: queue.guild.id },
+        '[MUSIC] Non-fatal error while updating player progress card'
+      );
+    }
+
+    // Schedule next tick after 6 seconds
+    if (active && queue.metadata) {
+      queue.metadata.progressTimer = setTimeout(tick, 6000);
+    }
+  };
+
+  // Schedule initial tick after 6 seconds
+  queue.metadata.progressTimer = setTimeout(tick, 6000);
 }
 
 export async function initMusicService(client: Client): Promise<Player> {
@@ -311,6 +393,14 @@ export async function initMusicService(client: Client): Promise<Player> {
       const channel = queue.metadata?.channel as any;
       if (!channel || typeof channel.send !== 'function') return;
 
+      // Clean up buttons on previous player card if one existed
+      if (queue.metadata?.lastPlayerMessage) {
+        try {
+          const oldMsg = queue.metadata.lastPlayerMessage as Message;
+          oldMsg.edit({ components: [] }).catch(() => {});
+        } catch {}
+      }
+
       const embed = buildNowPlayingEmbed(queue, track);
       const row = buildMusicControlRow(queue.node.isPaused(), queue.repeatMode);
 
@@ -319,7 +409,7 @@ export async function initMusicService(client: Client): Promise<Player> {
         components: [row],
       });
 
-      // Start live progress ticker (updates progress bar & elapsed duration every 5s)
+      // Start live progress ticker (updates progress bar & elapsed duration every 6s)
       startPlayerProgressTicker(queue, track, msg);
     } catch (err) {
       logger.error({ err }, '[MUSIC] Error broadcasting playerStart event');
@@ -328,6 +418,12 @@ export async function initMusicService(client: Client): Promise<Player> {
 
   player.events.on('playerFinish', (queue: GuildQueue<any>) => {
     stopPlayerProgressTicker(queue);
+    if (queue.metadata?.lastPlayerMessage) {
+      try {
+        const oldMsg = queue.metadata.lastPlayerMessage as Message;
+        oldMsg.edit({ components: [] }).catch(() => {});
+      } catch {}
+    }
   });
 
   player.events.on('disconnect', (queue: GuildQueue<any>) => {
@@ -642,6 +738,14 @@ export async function setVolume(
 
   const safeVol = Math.max(1, Math.min(100, Math.round(volume)));
   queue.node.setVolume(safeVol);
+
+  // Update existing card if available
+  if (queue.metadata?.lastPlayerMessage && queue.currentTrack) {
+    const msg = queue.metadata.lastPlayerMessage as Message;
+    const embed = buildNowPlayingEmbed(queue, queue.currentTrack);
+    const row = buildMusicControlRow(queue.node.isPaused(), queue.repeatMode);
+    msg.edit({ embeds: [embed], components: [row] }).catch(() => {});
+  }
 
   return {
     success: true,

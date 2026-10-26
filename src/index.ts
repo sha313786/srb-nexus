@@ -984,6 +984,12 @@ bot.on(Events.MessageCreate, async (message: Message) => {
         const player = getMusicPlayer();
         const queue = player.nodes.get(message.guild.id);
         if (queue && queue.currentTrack && replyMsg) {
+          if (queue.metadata?.lastPlayerMessage && queue.metadata.lastPlayerMessage.id !== replyMsg.id) {
+            try {
+              const oldMsg = queue.metadata.lastPlayerMessage as Message;
+              oldMsg.edit({ components: [] }).catch(() => {});
+            } catch {}
+          }
           startPlayerProgressTicker(queue, queue.currentTrack, replyMsg);
         }
       } catch {}
