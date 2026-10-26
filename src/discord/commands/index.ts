@@ -39,6 +39,7 @@ import { ticketSetupCommand } from './ticketSetup';
 import { quotationCommand } from './quotation';
 import { createClientCommand } from './createClient';
 import { approveClientCommand } from './approveClient';
+import { syncStaffNamesCommand } from './syncStaffNames';
 
 // Advanced Multipurpose Commands
 import { reactionRoleCommand } from './reactionrole';
@@ -124,6 +125,7 @@ const allCommands = [
   quotationCommand,
   createClientCommand,
   approveClientCommand,
+  syncStaffNamesCommand,
   reactionRoleCommand,
   giveawayCommand,
   giveawayRerollCommand,
