@@ -1,3 +1,4 @@
+import './dnsFallback';
 import { Pool } from 'pg';
 import { logger } from './logger';
 

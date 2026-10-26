@@ -9,7 +9,9 @@
     "build": "npm run build:css && tsc && copyfiles -u 0 public/* dist/ && copyfiles -u 0 assets/**/* dist/",
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "deploy:commands": "node -e \"const { registerSlashCommands } = require('./dist/discord/commands/index.js'); require('dotenv').config(); registerSlashCommands(process.env.DISCORD_CLIENT_ID || '1526885301736177705');\""
+    "deploy:commands": "node -e \"const { registerSlashCommands } = require('./dist/discord/commands/index.js'); require('dotenv').config(); registerSlashCommands(process.env.DISCORD_CLIENT_ID || '1526885301736177705');\"",
+    "deploy:client-portal": "ts-node src/scripts/deployClientPortal.ts",
+    "create:client": "ts-node src/scripts/createClientSpace.ts"
   },
   "dependencies": {
     "@discord-player/extractor": "^7.2.0",

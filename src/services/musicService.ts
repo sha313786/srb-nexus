@@ -597,6 +597,7 @@ export async function playTrack(
         leaveOnEnd: true,
         leaveOnEndCooldown: 300_000,
         selfDeaf: true,
+        pauseOnEmpty: false,
         maxSize: settings.max_queue_length,
         skipFFmpeg: false,
         bufferingTimeout: 10_000,

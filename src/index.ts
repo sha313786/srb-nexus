@@ -1,3 +1,4 @@
+import './core/dnsFallback';
 import Fastify from 'fastify';
 import fastifyCookie from '@fastify/cookie';
 import fastifyJwt from '@fastify/jwt';
