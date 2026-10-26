@@ -40,7 +40,7 @@ export async function executeNowPlaying(interaction: ChatInputCommandInteraction
   try {
     const player = getMusicPlayer();
     const queue = player.nodes.get(interaction.guild.id);
-    if (queue && queue.currentTrack && response instanceof Message) {
+    if (queue && queue.currentTrack && response && typeof (response as any).edit === 'function') {
       if (queue.metadata?.lastPlayerMessage && queue.metadata.lastPlayerMessage.id !== response.id) {
         try {
           const oldMsg = queue.metadata.lastPlayerMessage as Message;

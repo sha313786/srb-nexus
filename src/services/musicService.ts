@@ -213,13 +213,13 @@ export function renderProgressBar(queue: GuildQueue, track: Track): string {
   const totalStr = track.duration || formatDurationMs(totalMs);
 
   if (isPaused) {
-    return `\`${currentStr}\` | ${bar} | \`${totalStr}\` • ⏸️ *Paused*`;
+    return `\`${currentStr}\` ${bar} \`${totalStr}\` • ⏸️ *Paused*`;
   }
 
   const remainingMs = Math.max(0, totalMs - currentMs);
   const endUnix = Math.floor((Date.now() + remainingMs) / 1000);
 
-  return `\`${currentStr}\` | ${bar} | \`${totalStr}\` • Ends <t:${endUnix}:R>`;
+  return `\`${currentStr}\` ${bar} \`${totalStr}\`\n⏱️ **Finishes:** <t:${endUnix}:R> (<t:${endUnix}:t>)`;
 }
 
 export function buildNowPlayingEmbed(queue: GuildQueue, track: Track): EmbedBuilder {
@@ -240,7 +240,7 @@ export function buildNowPlayingEmbed(queue: GuildQueue, track: Track): EmbedBuil
     .setTitle(track.title.length > 100 ? track.title.slice(0, 97) + '...' : track.title)
     .setURL(track.url || 'https://discord.com')
     .setDescription(
-      `**Artist / Author:** \`${track.author || 'Unknown'}\`\n` +
+      `**Artist / Author:** \`${track.author || 'Unknown'}\`\n\n` +
       `**Duration & Progress:**\n${progressText}\n\n` +
       `**Platform:** ${getSourceEmoji(track.raw?.source || track.source || 'youtube')}\n` +
       `**Requested By:** <@${track.requestedBy?.id || 'Unknown'}>\n\n` +
@@ -272,12 +272,15 @@ export function stopPlayerProgressTicker(queue: GuildQueue<any>): void {
     clearInterval(queue.metadata.progressInterval);
     queue.metadata.progressInterval = null;
   }
+  if (queue.metadata) {
+    queue.metadata.progressActive = false;
+  }
 }
 
 export function startPlayerProgressTicker(
   queue: GuildQueue<any>,
   track: Track,
-  msg: Message
+  msg: any
 ): void {
   stopPlayerProgressTicker(queue);
 
@@ -285,32 +288,25 @@ export function startPlayerProgressTicker(
     queue.metadata = {} as any;
   }
   queue.metadata.lastPlayerMessage = msg;
+  queue.metadata.progressActive = true;
 
-  let active = true;
+  logger.info({ guildId: queue.guild.id, track: track?.title }, '[MUSIC] Starting live player progress ticker (4s interval)');
 
   const tick = async () => {
-    if (!active) return;
+    if (!queue.metadata?.progressActive) return;
 
     try {
-      // If queue is deleted or has stopped playing or has no track, cease ticker
-      if (queue.deleted || !queue.isPlaying() || !queue.currentTrack) {
+      // If queue is deleted or has no track left, cease ticker
+      if (queue.deleted || !queue.currentTrack) {
+        logger.info({ guildId: queue.guild.id }, '[MUSIC] Playback concluded or queue deleted, stopping ticker');
         stopPlayerProgressTicker(queue);
         return;
       }
 
-      // Check that the currently playing track matches
       const current = queue.currentTrack;
-      if (
-        current.id !== track.id &&
-        current.url !== track.url &&
-        current.title !== track.title
-      ) {
-        stopPlayerProgressTicker(queue);
-        return;
-      }
 
-      // If not paused, update the embed card with current progress and fresh end timestamp
-      if (!queue.node.isPaused()) {
+      // If not paused, update the embed card with current progress
+      if (!queue.node.isPaused() && msg && typeof msg.edit === 'function') {
         const embed = buildNowPlayingEmbed(queue, current);
         const row = buildMusicControlRow(false, queue.repeatMode);
 
@@ -318,13 +314,22 @@ export function startPlayerProgressTicker(
           embeds: [embed],
           components: [row],
         });
+
+        logger.info(
+          {
+            guildId: queue.guild.id,
+            playback: formatDurationMs(queue.node.playbackTime || 0),
+            track: current.title,
+          },
+          '[MUSIC] Progress card tick updated'
+        );
       }
     } catch (err: any) {
       // If message was deleted (10008) or channel missing (10003) or 404
       if (err?.code === 10008 || err?.code === 10003 || err?.status === 404) {
-        active = false;
+        logger.info({ guildId: queue.guild.id, code: err?.code }, '[MUSIC] Player card message deleted, stopping ticker');
         stopPlayerProgressTicker(queue);
-        if (queue.metadata?.lastPlayerMessage?.id === msg.id) {
+        if (queue.metadata?.lastPlayerMessage?.id === msg?.id) {
           queue.metadata.lastPlayerMessage = null;
         }
         return;
@@ -332,32 +337,32 @@ export function startPlayerProgressTicker(
 
       // If rate limited (429), respect retry_after and back off gracefully
       if (err?.status === 429) {
-        const retryAfterSec = Number(err?.retry_after ?? 6);
-        const backoffMs = Math.max(7000, retryAfterSec * 1000);
+        const retryAfterSec = Number(err?.retry_after ?? 5);
+        const backoffMs = Math.max(6000, retryAfterSec * 1000);
         logger.warn(
           { retryAfterSec, backoffMs, guildId: queue.guild.id },
           '[MUSIC] Rate limited updating player progress card, backing off'
         );
-        if (active && queue.metadata) {
+        if (queue.metadata?.progressActive) {
           queue.metadata.progressTimer = setTimeout(tick, backoffMs);
         }
         return;
       }
 
-      logger.debug(
+      logger.warn(
         { err: err?.message, guildId: queue.guild.id },
-        '[MUSIC] Non-fatal error while updating player progress card'
+        '[MUSIC] Error while updating player progress card'
       );
     }
 
-    // Schedule next tick after 6 seconds
-    if (active && queue.metadata) {
-      queue.metadata.progressTimer = setTimeout(tick, 6000);
+    // Schedule next tick after 4 seconds (safe, responsive, avoids overlapping edits)
+    if (queue.metadata?.progressActive) {
+      queue.metadata.progressTimer = setTimeout(tick, 4000);
     }
   };
 
-  // Schedule initial tick after 6 seconds
-  queue.metadata.progressTimer = setTimeout(tick, 6000);
+  // Schedule initial tick after 4 seconds
+  queue.metadata.progressTimer = setTimeout(tick, 4000);
 }
 
 export async function initMusicService(client: Client): Promise<Player> {

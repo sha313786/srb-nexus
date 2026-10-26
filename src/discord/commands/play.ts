@@ -81,12 +81,12 @@ export async function executePlay(interaction: ChatInputCommandInteraction) {
         });
 
         if (queue.metadata) {
-          queue.metadata.lastPlayerMessage = response instanceof Message ? response : null;
+          queue.metadata.lastPlayerMessage = response;
           queue.metadata.suppressPlayerStartMessage = true;
         }
 
-        if (response instanceof Message) {
-          startPlayerProgressTicker(queue, queue.currentTrack, response);
+        if (response && typeof (response as any).edit === 'function') {
+          startPlayerProgressTicker(queue, queue.currentTrack, response as any);
         }
         return;
       }
