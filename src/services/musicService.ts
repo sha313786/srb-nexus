@@ -4,6 +4,7 @@ import {
   Track,
   QueueRepeatMode,
   SearchResult,
+  QueryType,
 } from 'discord-player';
 import { DefaultExtractors } from '@discord-player/extractor';
 import { YoutubeExtractor } from 'discord-player-youtubei';
@@ -233,7 +234,9 @@ export async function initMusicService(client: Client): Promise<Player> {
 
   logger.info('[MUSIC] Initializing Discord Player music engine...');
 
-  const player = new Player(client as any);
+  const player = new Player(client as any, {
+    skipFFmpeg: false,
+  });
 
   // Register DefaultExtractors (SoundCloud, Spotify, Apple Music, Attachments, Vimeo)
   try {
@@ -291,6 +294,8 @@ export async function initMusicService(client: Client): Promise<Player> {
   });
 
   player.events.on('emptyQueue', async (queue: GuildQueue<any>) => {
+    // Only broadcast if playback has truly finished and no track is actively playing
+    if (queue.isPlaying() || queue.currentTrack) return;
     try {
       const channel = queue.metadata?.channel as any;
       if (channel && typeof channel.send === 'function') {
@@ -367,10 +372,23 @@ export async function playTrack(
     };
   }
 
+  // Detect if query is an explicit URL (Spotify, SoundCloud, YouTube, direct link) or search keywords
+  const isUrl = /^https?:\/\//i.test(query.trim());
+  const searchEngine = isUrl ? QueryType.AUTO : QueryType.YOUTUBE_SEARCH;
+
   // Pre-search to check results and queue capacity
-  const searchResult: SearchResult = await player.search(query, {
+  let searchResult: SearchResult = await player.search(query, {
     requestedBy: member.user,
+    searchEngine,
   });
+
+  if (!searchResult.hasTracks() && !isUrl) {
+    // Fallback to auto search if YouTube search had no match
+    searchResult = await player.search(query, {
+      requestedBy: member.user,
+      searchEngine: QueryType.AUTO,
+    });
+  }
 
   if (!searchResult.hasTracks()) {
     return {
@@ -393,7 +411,7 @@ export async function playTrack(
     };
   }
 
-  // Play or enqueue via player.play
+  // Play or enqueue via player.play with robust ffmpeg transcoding
   try {
     const playResult = await player.play(voiceChannel, searchResult, {
       nodeOptions: {
@@ -409,7 +427,9 @@ export async function playTrack(
         leaveOnEndCooldown: 300_000,
         selfDeaf: true,
         maxSize: settings.max_queue_length,
-      },
+        skipFFmpeg: false,
+        bufferingTimeout: 10_000,
+      } as any,
       requestedBy: member.user,
     });
 
