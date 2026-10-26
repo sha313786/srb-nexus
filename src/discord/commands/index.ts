@@ -182,10 +182,10 @@ export async function registerSlashCommands(clientId: string): Promise<void> {
   try {
     logger.info(`Registering ${commandsJSON.length} global slash commands...`);
     await rest.put(Routes.applicationCommands(clientId), { body: commandsJSON });
-    // Also register directly to SRB Studio and Test server for instant Discord UI update
-    await rest.put(Routes.applicationGuildCommands(clientId, '1525065834572021851'), { body: commandsJSON }).catch(() => {});
-    await rest.put(Routes.applicationGuildCommands(clientId, '1526864208011067433'), { body: commandsJSON }).catch(() => {});
-    logger.info(`Successfully registered ${commandsJSON.length} slash commands with Discord API`);
+    // Clear guild-scoped commands to prevent duplicate entries in Discord's slash command list
+    await rest.put(Routes.applicationGuildCommands(clientId, '1525065834572021851'), { body: [] }).catch(() => {});
+    await rest.put(Routes.applicationGuildCommands(clientId, '1526864208011067433'), { body: [] }).catch(() => {});
+    logger.info(`Successfully registered ${commandsJSON.length} global slash commands with Discord API`);
   } catch (err) {
     logger.error({ err }, 'Failed to register slash commands');
   }
