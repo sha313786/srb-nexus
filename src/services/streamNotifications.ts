@@ -42,6 +42,31 @@ const KNOWN_CHANNEL_IDS: Record<string, string> = {
 };
 
 /**
+ * Safe fetch helpers that always consume response bodies to prevent
+ * unhandled socket leaks and Windows libuv UV_HANDLE_CLOSING assertion crashes.
+ */
+async function fetchSafeText(url: string | URL | Request, init?: RequestInit): Promise<string | null> {
+  try {
+    const res = await fetch(url, init);
+    const bodyText = await res.text().catch(() => '');
+    return res.ok ? bodyText.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchSafeJson<T = any>(url: string | URL | Request, init?: RequestInit): Promise<T | null> {
+  try {
+    const res = await fetch(url, init);
+    const bodyText = await res.text().catch(() => '');
+    if (!res.ok || !bodyText) return null;
+    return JSON.parse(bodyText) as T;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fetch live status and stream metadata across Twitch, Kick, and YouTube
  */
 export async function fetchStreamInfo(
@@ -57,26 +82,18 @@ export async function fetchStreamInfo(
   // 1. TWITCH STREAM CHECK
   if (platform === 'twitch') {
     try {
-      const uptimeRes = await fetch(`https://decapi.me/twitch/uptime/${cleanName}`, {
+      const uptimeText = (await fetchSafeText(`https://decapi.me/twitch/uptime/${cleanName}`, {
         headers: { 'User-Agent': 'SRB-NEXUS-Bot/1.0' }
-      });
-      const uptimeText = (await uptimeRes.text()).trim();
+      })) || '';
 
       const isOffline = uptimeText.toLowerCase().includes('offline') ||
                         uptimeText.toLowerCase().includes('not found') ||
                         uptimeText.length === 0;
 
-      const avatarRes = await fetch(`https://decapi.me/twitch/avatar/${cleanName}`).catch(() => null);
-      const avatarUrl = avatarRes?.ok ? (await avatarRes.text()).trim() : undefined;
-
-      const titleRes = await fetch(`https://decapi.me/twitch/title/${cleanName}`).catch(() => null);
-      const title = titleRes?.ok ? (await titleRes.text()).trim() : 'Live Stream';
-
-      const gameRes = await fetch(`https://decapi.me/twitch/game/${cleanName}`).catch(() => null);
-      const game = gameRes?.ok ? (await gameRes.text()).trim() : 'Just Chatting';
-
-      const viewersRes = await fetch(`https://decapi.me/twitch/viewercount/${cleanName}`).catch(() => null);
-      const viewersStr = viewersRes?.ok ? (await viewersRes.text()).trim() : '0';
+      const avatarUrl = await fetchSafeText(`https://decapi.me/twitch/avatar/${cleanName}`);
+      const title = (await fetchSafeText(`https://decapi.me/twitch/title/${cleanName}`)) || 'Live Stream';
+      const game = (await fetchSafeText(`https://decapi.me/twitch/game/${cleanName}`)) || 'Just Chatting';
+      const viewersStr = (await fetchSafeText(`https://decapi.me/twitch/viewercount/${cleanName}`)) || '0';
       const viewers = parseInt(viewersStr, 10) || 0;
 
       return {
@@ -109,15 +126,14 @@ export async function fetchStreamInfo(
   // 2. KICK STREAM CHECK
   if (platform === 'kick') {
     try {
-      const res = await fetch(`https://kick.com/api/v1/channels/${cleanName}`, {
+      const data = await fetchSafeJson<any>(`https://kick.com/api/v1/channels/${cleanName}`, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'Accept': 'application/json'
         }
       });
 
-      if (res.ok) {
-        const data: any = await res.json();
+      if (data) {
         const livestream = data.livestream;
         const isLive = Boolean(livestream && livestream.is_live !== false);
 
@@ -173,7 +189,7 @@ export async function fetchStreamInfo(
       // Step 1: Query YouTube InnerTube resolve_url API for active live stream
       try {
         const resolveTarget = `https://www.youtube.com/@${cleanName}/live`;
-        const resolveRes = await fetch('https://www.youtube.com/youtubei/v1/navigation/resolve_url', {
+        const resolveData = await fetchSafeJson<any>('https://www.youtube.com/youtubei/v1/navigation/resolve_url', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -183,8 +199,7 @@ export async function fetchStreamInfo(
           signal: AbortSignal.timeout(6000)
         });
 
-        if (resolveRes.ok) {
-          const resolveData: any = await resolveRes.json();
+        if (resolveData) {
           const endpoint = resolveData.endpoint;
           const candidateVideoId = endpoint?.watchEndpoint?.videoId;
           const pageType = endpoint?.commandMetadata?.webCommandMetadata?.webPageType;
@@ -202,11 +217,10 @@ export async function fetchStreamInfo(
 
             // Enrich metadata via official YouTube oEmbed API
             try {
-              const oeRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${candidateVideoId}&format=json`, {
+              const oeData = await fetchSafeJson<any>(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${candidateVideoId}&format=json`, {
                 signal: AbortSignal.timeout(5000)
               });
-              if (oeRes.ok) {
-                const oeData: any = await oeRes.json();
+              if (oeData) {
                 if (oeData.title) liveTitle = oeData.title;
                 if (oeData.author_name) authorName = oeData.author_name;
                 if (oeData.thumbnail_url) liveThumbnail = oeData.thumbnail_url;
@@ -230,12 +244,11 @@ export async function fetchStreamInfo(
 
       if (!isLive && channelId) {
         try {
-          const rssRes = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, {
+          const xml = await fetchSafeText(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, {
             headers: { 'User-Agent': 'Mozilla/5.0' },
             signal: AbortSignal.timeout(6000)
           });
-          if (rssRes.ok) {
-            const xml = await rssRes.text();
+          if (xml) {
             const idMatch = xml.match(/<yt:videoId>(.*?)<\/yt:videoId>/);
             const titleMatch = xml.match(/<media:title>(.*?)<\/media:title>/) || xml.match(/<title>(.*?)<\/title>/);
             const authorTag = xml.match(/<author>\s*<name>(.*?)<\/name>/);
@@ -247,7 +260,7 @@ export async function fetchStreamInfo(
 
               // Inspect candidate video via InnerTube player API to distinguish live streams/VODs from true uploads
               try {
-                const playerRes = await fetch('https://www.youtube.com/youtubei/v1/player', {
+                const pData = await fetchSafeJson<any>('https://www.youtube.com/youtubei/v1/player', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
@@ -257,8 +270,7 @@ export async function fetchStreamInfo(
                   signal: AbortSignal.timeout(5000)
                 });
 
-                if (playerRes.ok) {
-                  const pData: any = await playerRes.json();
+                if (pData) {
                   const vDetails = pData?.videoDetails;
 
                   if (vDetails) {

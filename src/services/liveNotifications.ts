@@ -317,9 +317,15 @@ export async function startFreeGamesWatcher(bot: Client) {
 async function checkFreeGames(bot: Client) {
   try {
     const response = await fetch('https://www.gamerpower.com/api/giveaways?type=game&platform=pc');
-    if (!response.ok) return;
+    const text = await response.text().catch(() => '');
+    if (!response.ok || !text) return;
 
-    const games: any[] = await response.json();
+    let games: any[];
+    try {
+      games = JSON.parse(text);
+    } catch {
+      return;
+    }
     if (!Array.isArray(games) || games.length === 0) return;
 
     // Look at top 3 newest active giveaways
