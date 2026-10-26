@@ -129,7 +129,15 @@ export const stickyCommand = {
     ),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.deferReply({ ephemeral: true }).catch(() => {});
+    try {
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ ephemeral: true });
+      }
+    } catch {
+      if (!interaction.deferred && !interaction.replied) {
+        return;
+      }
+    }
 
     if (!interaction.guild) {
       await interaction.editReply({ content: '❌ This command can only be used in servers.' });

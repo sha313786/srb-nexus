@@ -28,6 +28,14 @@ import {
 } from '../../services/musicService';
 
 function getTicketCategoryId(guild: any, configuredCatId?: string): string | undefined {
+  const SUPPORT_CENTER_ID = '1525114945568768131';
+
+  // 1. If guild is SRB Studio, always prioritize 🎫 SUPPORT CENTER
+  if (guild.id === '1525065834572021851') {
+    return SUPPORT_CENTER_ID;
+  }
+
+  // 2. If configuredCatId is valid and NOT UPI
   if (configuredCatId && guild.channels.cache.has(configuredCatId)) {
     const cat = guild.channels.cache.get(configuredCatId);
     if (cat && !/upi/i.test(cat.name)) {
@@ -35,14 +43,16 @@ function getTicketCategoryId(guild: any, configuredCatId?: string): string | und
     }
   }
 
+  // 3. Search for Support Center or Tickets (excluding UPI)
   const supportCenter = guild.channels.cache.find(
     (c: any) =>
       c.type === ChannelType.GuildCategory &&
       !/upi/i.test(c.name) &&
-      (/support center/i.test(c.name) || c.id === '1525114945568768131' || /ticket/i.test(c.name))
+      (/support center/i.test(c.name) || c.id === SUPPORT_CENTER_ID || /ticket/i.test(c.name))
   );
   if (supportCenter) return supportCenter.id;
 
+  // 4. Fallback to any category with 'support' that is NOT UPI
   const fallbackCat = guild.channels.cache.find(
     (c: any) =>
       c.type === ChannelType.GuildCategory &&
@@ -86,28 +96,17 @@ async function createUniversalTicket(
 
     // 2. Query guild ticket settings
     const settingsRes = await db.query(
-      `SELECT support_role_id, category_id, ticket_category_id, ticket_welcome_msg FROM guild_settings WHERE guild_id = $1`,
+      `SELECT support_role_id, category_id, ticket_welcome_msg FROM guild_settings WHERE guild_id = $1`,
       [guild.id]
     ).catch(() => null);
 
     const supportRoleId = settingsRes?.rows?.[0]?.support_role_id;
-    const configuredCatId = settingsRes?.rows?.[0]?.category_id || settingsRes?.rows?.[0]?.ticket_category_id;
+    const configuredCatId = settingsRes?.rows?.[0]?.category_id;
     const welcomeMsg = settingsRes?.rows?.[0]?.ticket_welcome_msg ||
       'Welcome to your private support channel! Our staff team has been notified. Please describe your question or issue in detail below.';
 
     // 3. Resolve category
-    let targetCategoryId = getTicketCategoryId(guild, configuredCatId);
-    if (false && configuredCatId) {
-      targetCategoryId = configuredCatId;
-    } else {
-      const found = guild.channels.cache.find(
-        (c: any) => c.type === ChannelType.GuildCategory && (/support/i.test(c.name) || /ticket/i.test(c.name))
-      );
-      if (found) {
-        targetCategoryId = found.id;
-        db.query(`UPDATE guild_settings SET category_id = $1 WHERE guild_id = $2`, [found.id, guild.id]).catch(() => {});
-      }
-    }
+    const targetCategoryId = getTicketCategoryId(guild, configuredCatId);
 
     // 4. Permission overwrites
     const permissionOverwrites: any[] = [
@@ -293,7 +292,7 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
       await command.execute(interaction);
     } catch (err: any) {
       logger.error({ err, commandName: interaction.commandName }, 'Error executing slash command');
-      if (err?.code === 10062 || err?.code === 40060 || err?.status === 404) {
+      if (err?.code === 10062 || err?.code === 40060 || err?.status === 404 || err?.code === 'InteractionNotReplied' || err?.name === 'InteractionNotReplied' || err?.message?.includes('InteractionNotReplied')) {
         return;
       }
       const errorMessage = 'An error occurred while executing this command.';
@@ -342,7 +341,7 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
 
       // Query guild ticket settings
       const settingsRes = await db.query(
-        `SELECT support_role_id, ticket_category_id FROM guild_settings WHERE guild_id = $1`,
+        `SELECT support_role_id, category_id FROM guild_settings WHERE guild_id = $1`,
         [guild.id]
       ).catch(() => null);
 
@@ -910,26 +909,15 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         const channelName = `enquiry-${cleanName}-${userTag}`;
 
         const settingsRes = await db.query(
-          `SELECT support_role_id, category_id, ticket_category_id FROM guild_settings WHERE guild_id = $1`,
+          `SELECT support_role_id, category_id FROM guild_settings WHERE guild_id = $1`,
           [guild.id]
         ).catch(() => null);
 
         const supportRoleId = settingsRes?.rows?.[0]?.support_role_id;
-        const configuredCatId = settingsRes?.rows?.[0]?.category_id || settingsRes?.rows?.[0]?.ticket_category_id;
+        const configuredCatId = settingsRes?.rows?.[0]?.category_id;
 
         // Auto-resolve Support Center category
-        let targetCategoryId = getTicketCategoryId(guild, configuredCatId);
-        if (false && configuredCatId) {
-          targetCategoryId = configuredCatId;
-        } else {
-          const found = guild.channels.cache.find(
-            (c) => c.type === ChannelType.GuildCategory && (/support/i.test(c.name) || /ticket/i.test(c.name))
-          );
-          if (found) {
-            targetCategoryId = found.id;
-            db.query(`UPDATE guild_settings SET category_id = $1 WHERE guild_id = $2`, [found.id, guild.id]).catch(() => {});
-          }
-        }
+        const targetCategoryId = getTicketCategoryId(guild, configuredCatId);
 
         const permissionOverwrites: any[] = [
           { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
@@ -1115,26 +1103,15 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         const channelName = `quote-${cleanName}-${userTag}`;
 
         const settingsRes = await db.query(
-          `SELECT support_role_id, category_id, ticket_category_id FROM guild_settings WHERE guild_id = $1`,
+          `SELECT support_role_id, category_id FROM guild_settings WHERE guild_id = $1`,
           [guild.id]
         ).catch(() => null);
 
         const supportRoleId = settingsRes?.rows?.[0]?.support_role_id;
-        const configuredCatId = settingsRes?.rows?.[0]?.category_id || settingsRes?.rows?.[0]?.ticket_category_id;
+        const configuredCatId = settingsRes?.rows?.[0]?.category_id;
 
         // Auto-resolve Support Center category
-        let targetCategoryId = getTicketCategoryId(guild, configuredCatId);
-        if (false && configuredCatId) {
-          targetCategoryId = configuredCatId;
-        } else {
-          const found = guild.channels.cache.find(
-            (c) => c.type === ChannelType.GuildCategory && (/support/i.test(c.name) || /ticket/i.test(c.name))
-          );
-          if (found) {
-            targetCategoryId = found.id;
-            db.query(`UPDATE guild_settings SET category_id = $1 WHERE guild_id = $2`, [found.id, guild.id]).catch(() => {});
-          }
-        }
+        const targetCategoryId = getTicketCategoryId(guild, configuredCatId);
 
         const permissionOverwrites: any[] = [
           { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
@@ -1309,26 +1286,15 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
       const channelName = `meeting-${cleanName}-${userTag}`;
 
       const settingsRes = await db.query(
-        `SELECT support_role_id, category_id, ticket_category_id FROM guild_settings WHERE guild_id = $1`,
+        `SELECT support_role_id, category_id FROM guild_settings WHERE guild_id = $1`,
         [guild.id]
       ).catch(() => null);
 
       const supportRoleId = settingsRes?.rows?.[0]?.support_role_id;
-      const configuredCatId = settingsRes?.rows?.[0]?.category_id || settingsRes?.rows?.[0]?.ticket_category_id;
+      const configuredCatId = settingsRes?.rows?.[0]?.category_id;
 
       // Auto-resolve Support Center category
-      let targetCategoryId = getTicketCategoryId(guild, configuredCatId);
-      if (false && configuredCatId) {
-        targetCategoryId = configuredCatId;
-      } else {
-        const found = guild.channels.cache.find(
-          (c) => c.type === ChannelType.GuildCategory && (/support/i.test(c.name) || /ticket/i.test(c.name))
-        );
-        if (found) {
-          targetCategoryId = found.id;
-          db.query(`UPDATE guild_settings SET category_id = $1 WHERE guild_id = $2`, [found.id, guild.id]).catch(() => {});
-        }
-      }
+      const targetCategoryId = getTicketCategoryId(guild, configuredCatId);
 
       const permissionOverwrites: any[] = [
         { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
@@ -1836,9 +1802,23 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
       .setFooter({ text: 'SRB NEXUS Web Development Solutions' })
       .setTimestamp();
 
+    const acceptRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId('nexus_approve_ticket')
+        .setLabel('Approve Client & Launch Workspace')
+        .setStyle(ButtonStyle.Success)
+        .setEmoji('🤝'),
+      new ButtonBuilder()
+        .setCustomId('nexus_close_ticket')
+        .setLabel('Close Ticket')
+        .setStyle(ButtonStyle.Danger)
+        .setEmoji('🔒')
+    );
+
     await interaction.reply({
-      content: `@here 🎉 Quotation **${quoteId}** has been accepted by the client!`,
+      content: `@here 🎉 Quotation **${quoteId}** has been accepted by the client! Staff can click below to approve and launch the client workspace.`,
       embeds: [acceptEmbed],
+      components: [acceptRow],
     });
     return;
   }
