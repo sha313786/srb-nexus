@@ -16,6 +16,15 @@ import { db } from '../../core/database';
 import { broadcastLiveNotification } from '../../services/liveNotifications';
 import { archiveAndSendTicketTranscript } from '../../services/transcriptService';
 import { handleVerificationButton, handleVerificationModal } from '../../services/verification';
+import {
+  getMusicPlayer,
+  pauseResumeTrack,
+  skipTrack,
+  stopPlayback,
+  shuffleQueue,
+  toggleLoopMode,
+  canControlPlayback,
+} from '../../services/musicService';
 
 async function createUniversalTicket(
   interaction: any,
@@ -414,6 +423,84 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
   if (interaction.isButton()) {
     const cid = interaction.customId;
     const chanName = (interaction.channel as any)?.name || '';
+    // Music Player Control Buttons
+    if (cid.startsWith('music_')) {
+      const member = interaction.member as any;
+      if (!member?.voice?.channel) {
+        await interaction.reply({
+          content: '❌ You must be connected to a voice channel to use music controls.',
+          ephemeral: true,
+        });
+        return;
+      }
+
+      try {
+        const player = getMusicPlayer();
+        const queue = player.nodes.get(interaction.guildId!);
+        if (!queue || !queue.isPlaying()) {
+          await interaction.reply({
+            content: '❌ No active music playback is currently occurring in this server.',
+            ephemeral: true,
+          });
+          return;
+        }
+
+        if (queue.channel && member.voice.channel.id !== queue.channel.id) {
+          await interaction.reply({
+            content: `❌ You must be in the same voice channel as SRB NEXUS (<#${queue.channel.id}>) to control music.`,
+            ephemeral: true,
+          });
+          return;
+        }
+
+        const perm = await canControlPlayback(member, queue);
+        if (!perm.allowed) {
+          await interaction.reply({
+            content: perm.reason || '❌ You lack permission / DJ role to control playback.',
+            ephemeral: true,
+          });
+          return;
+        }
+
+        if (cid === 'music_pause_resume') {
+          const res = await pauseResumeTrack(member);
+          await interaction.reply({ content: res.message, ephemeral: true });
+          return;
+        }
+
+        if (cid === 'music_skip') {
+          const res = await skipTrack(member);
+          await interaction.reply({ content: res.message });
+          return;
+        }
+
+        if (cid === 'music_stop') {
+          const res = await stopPlayback(member);
+          await interaction.reply({ content: res.message });
+          return;
+        }
+
+        if (cid === 'music_shuffle') {
+          const res = await shuffleQueue(member);
+          await interaction.reply({ content: res.message });
+          return;
+        }
+
+        if (cid === 'music_loop') {
+          const res = await toggleLoopMode(member);
+          await interaction.reply({ content: res.message });
+          return;
+        }
+      } catch (err: any) {
+        logger.error({ err, cid, guildId: interaction.guildId }, '[MUSIC] Error handling music button');
+        await interaction.reply({
+          content: `⚠️ Failed to process music control: ${err?.message || 'Internal error'}`,
+          ephemeral: true,
+        }).catch(() => {});
+        return;
+      }
+    }
+
 
     // A. Project Inquiry Button
     if (

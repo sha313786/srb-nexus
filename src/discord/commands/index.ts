@@ -63,6 +63,17 @@ import { muteallCommand, nexusMuteallCommand } from './muteall';
 import { unmuteallCommand, nexusUnmuteallCommand } from './unmuteall';
 import { moveallCommand, nexusMoveallCommand } from './moveall';
 
+// Music & Audio Streaming Commands
+import { playCommand, nexusPlayCommand } from './play';
+import { skipCommand, nexusSkipCommand } from './skip';
+import { stopCommand, nexusStopCommand } from './stop';
+import { pauseCommand, resumeCommand, nexusPauseCommand, nexusResumeCommand } from './pause';
+import { queueCommand, nexusQueueCommand } from './queue';
+import { nowplayingCommand, npCommand, nexusNowPlayingCommand } from './nowplaying';
+import { volumeCommand, nexusVolumeCommand } from './volume';
+import { loopCommand, nexusLoopCommand } from './loop';
+import { shuffleCommand, nexusShuffleCommand } from './shuffle';
+
 export const commandRegistry = new Map<string, any>();
 
 const allCommands = [
@@ -127,6 +138,29 @@ const allCommands = [
   nexusUnmuteallCommand,
   moveallCommand,
   nexusMoveallCommand,
+
+  // Music & Audio Streaming
+  playCommand,
+  nexusPlayCommand,
+  skipCommand,
+  nexusSkipCommand,
+  stopCommand,
+  nexusStopCommand,
+  pauseCommand,
+  resumeCommand,
+  nexusPauseCommand,
+  nexusResumeCommand,
+  queueCommand,
+  nexusQueueCommand,
+  nowplayingCommand,
+  npCommand,
+  nexusNowPlayingCommand,
+  volumeCommand,
+  nexusVolumeCommand,
+  loopCommand,
+  nexusLoopCommand,
+  shuffleCommand,
+  nexusShuffleCommand,
 ];
 
 for (const cmd of allCommands) {

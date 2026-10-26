@@ -67,6 +67,20 @@ import {
 import { handleTempVoiceStateUpdate } from './services/tempVoice';
 import { updateGuildVoiceStats } from './services/voiceStats';
 import { muteAllVoice, unmuteAllVoice, moveAllVoice } from './services/voiceManagement';
+import {
+  initMusicService,
+  playTrack,
+  skipTrack,
+  stopPlayback,
+  pauseResumeTrack,
+  getQueueEmbed,
+  getNowPlayingData,
+  setVolume,
+  toggleLoopMode,
+  shuffleQueue,
+  getSourceEmoji,
+} from './services/musicService';
+import { QueueRepeatMode } from 'discord-player';
 
 dotenv.config();
 
@@ -492,8 +506,8 @@ bot.once(Events.ClientReady, async () => {
     });
   }
 
-  // REGISTER SLASH COMMANDS WITH DISCORD API (Only on demand or manual trigger to avoid Discord IP rate limits)
-  if (bot.user && process.env.SYNC_SLASH_COMMANDS === 'true') {
+  // REGISTER SLASH COMMANDS WITH DISCORD API (Runs on startup unless SYNC_SLASH_COMMANDS=false)
+  if (bot.user && process.env.SYNC_SLASH_COMMANDS !== 'false') {
     try {
       await registerSlashCommands(bot.user.id);
       app.log.info('[BOT] Slash commands successfully registered with Discord API.');
@@ -527,6 +541,13 @@ bot.once(Events.ClientReady, async () => {
     app.log.info('[BOT] Invite tracker initialized and invites cached.');
   } catch (err) {
     app.log.error({ err }, '[BOT] Failed to initialize invite tracker');
+  }
+  // Initialize Discord Player Music Engine
+  try {
+    await initMusicService(bot);
+    app.log.info('[BOT] Discord Player music engine initialized and ready.');
+  } catch (err) {
+    app.log.error({ err }, '[BOT] Failed to initialize music service');
   }
 });
 
@@ -808,6 +829,243 @@ bot.on(Events.MessageCreate, async (message: Message) => {
           inline: false,
         });
       }
+
+      await message.reply({ embeds: [embed] });
+      return;
+    }
+
+    // --- Music System Prefix Commands ---
+    // Play: !play <query> or !p <query>
+    if (commandName === 'play' || commandName === 'p') {
+      const voiceChannel = message.member?.voice.channel;
+      if (!voiceChannel) {
+        await message.reply('❌ You must be connected to a voice channel to play music.');
+        return;
+      }
+
+      const query = args.join(' ').trim();
+      if (!query) {
+        await message.reply(`❌ Usage: \`${prefix}play <song title or URL>\`\nExample: \`${prefix}play Alan Walker Faded\``);
+        return;
+      }
+
+      const loadingMsg = await message.reply('🔍 Searching and loading audio stream...');
+
+      const result = await playTrack(message.member!, voiceChannel as any, message.channel as any, query);
+
+      if (!result.success) {
+        await loadingMsg.edit({ content: result.message });
+        return;
+      }
+
+      const embed = new EmbedBuilder()
+        .setColor(0x5865f2)
+        .setAuthor({
+          name: result.playlistTitle ? '🎶 Playlist Added to Queue' : '🎵 Track Added to Queue',
+          iconURL: bot.user?.displayAvatarURL(),
+        })
+        .setTitle(result.playlistTitle ? result.playlistTitle : result.track?.title || 'Unknown Track')
+        .setURL(result.track?.url || 'https://discord.com')
+        .setDescription(result.message)
+        .addFields(
+          { name: '⏱️ Duration', value: `\`${result.track?.duration || 'N/A'}\``, inline: true },
+          { name: '📑 Position in Queue', value: `\`#${result.position || 1}\``, inline: true },
+          { name: '🌐 Source', value: getSourceEmoji(result.track?.raw?.source || result.track?.source || 'youtube'), inline: true }
+        )
+        .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
+        .setTimestamp();
+
+      if (result.track?.thumbnail) {
+        embed.setThumbnail(result.track.thumbnail);
+      }
+
+      await loadingMsg.edit({ content: null, embeds: [embed] });
+      return;
+    }
+
+    // Skip: !skip or !s
+    if (commandName === 'skip' || commandName === 's') {
+      if (!message.member?.voice.channel) {
+        await message.reply('❌ You must be connected to a voice channel to skip music.');
+        return;
+      }
+
+      const result = await skipTrack(message.member!);
+      if (!result.success) {
+        await message.reply(result.message);
+        return;
+      }
+
+      const embed = new EmbedBuilder()
+        .setColor(0x5865f2)
+        .setTitle('⏭️ Track Skipped')
+        .setDescription(result.message)
+        .setFooter({ text: `Skipped by ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
+        .setTimestamp();
+
+      await message.reply({ embeds: [embed] });
+      return;
+    }
+
+    // Stop: !stop
+    if (commandName === 'stop') {
+      if (!message.member?.voice.channel) {
+        await message.reply('❌ You must be connected to a voice channel to stop music.');
+        return;
+      }
+
+      const result = await stopPlayback(message.member!);
+      if (!result.success) {
+        await message.reply(result.message);
+        return;
+      }
+
+      const embed = new EmbedBuilder()
+        .setColor(0xef4444)
+        .setTitle('⏹️ Playback Terminated')
+        .setDescription(result.message)
+        .setFooter({ text: `Stopped by ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
+        .setTimestamp();
+
+      await message.reply({ embeds: [embed] });
+      return;
+    }
+
+    // Pause / Resume: !pause / !resume
+    if (commandName === 'pause' || commandName === 'resume') {
+      if (!message.member?.voice.channel) {
+        await message.reply('❌ You must be connected to a voice channel to pause/resume music.');
+        return;
+      }
+
+      const result = await pauseResumeTrack(message.member!);
+      if (!result.success) {
+        await message.reply(result.message);
+        return;
+      }
+
+      const embed = new EmbedBuilder()
+        .setColor(result.isPaused ? 0xf59e0b : 0x10b981)
+        .setTitle(result.isPaused ? '⏸️ Playback Paused' : '▶️ Playback Resumed')
+        .setDescription(result.message)
+        .setFooter({ text: `Actioned by ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
+        .setTimestamp();
+
+      await message.reply({ embeds: [embed] });
+      return;
+    }
+
+    // Queue: !queue or !q
+    if (commandName === 'queue' || commandName === 'q') {
+      const page = parseInt(args[0], 10) || 1;
+      const embed = getQueueEmbed(message.guild.id, page);
+
+      if (!embed) {
+        await message.reply('❌ No songs are currently queued or playing. Use \`!play\` to start music!');
+        return;
+      }
+
+      await message.reply({ embeds: [embed] });
+      return;
+    }
+
+    // Now Playing: !np or !nowplaying
+    if (commandName === 'np' || commandName === 'nowplaying') {
+      const data = getNowPlayingData(message.guild.id);
+      if (!data) {
+        await message.reply('❌ Nothing is currently playing in this server.');
+        return;
+      }
+
+      await message.reply({ embeds: [data.embed], components: [data.row] });
+      return;
+    }
+
+    // Volume: !volume <1-100> or !vol <1-100>
+    if (commandName === 'volume' || commandName === 'vol') {
+      if (!message.member?.voice.channel) {
+        await message.reply('❌ You must be connected to a voice channel to adjust volume.');
+        return;
+      }
+
+      if (!args[0]) {
+        await message.reply(`❌ Usage: \`${prefix}volume <1-100>\``);
+        return;
+      }
+
+      const level = parseInt(args[0], 10);
+      if (isNaN(level) || level < 1 || level > 100) {
+        await message.reply('❌ Please specify a valid volume between 1 and 100.');
+        return;
+      }
+
+      const result = await setVolume(message.member!, level);
+      if (!result.success) {
+        await message.reply(result.message);
+        return;
+      }
+
+      const embed = new EmbedBuilder()
+        .setColor(0x5865f2)
+        .setTitle('🔊 Volume Adjusted')
+        .setDescription(result.message)
+        .setFooter({ text: `Adjusted by ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
+        .setTimestamp();
+
+      await message.reply({ embeds: [embed] });
+      return;
+    }
+
+    // Loop: !loop [mode]
+    if (commandName === 'loop') {
+      if (!message.member?.voice.channel) {
+        await message.reply('❌ You must be connected to a voice channel to configure repeat modes.');
+        return;
+      }
+
+      let explicitMode: QueueRepeatMode | undefined = undefined;
+      const modeStr = args[0]?.toLowerCase();
+      if (modeStr === 'track') explicitMode = QueueRepeatMode.TRACK;
+      else if (modeStr === 'queue') explicitMode = QueueRepeatMode.QUEUE;
+      else if (modeStr === 'autoplay') explicitMode = QueueRepeatMode.AUTOPLAY;
+      else if (modeStr === 'off') explicitMode = QueueRepeatMode.OFF;
+
+      const result = await toggleLoopMode(message.member!, explicitMode);
+      if (!result.success) {
+        await message.reply(result.message);
+        return;
+      }
+
+      const embed = new EmbedBuilder()
+        .setColor(result.mode !== QueueRepeatMode.OFF ? 0x10b981 : 0x5865f2)
+        .setTitle('🔁 Repeat Mode Configured')
+        .setDescription(result.message)
+        .setFooter({ text: `Updated by ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
+        .setTimestamp();
+
+      await message.reply({ embeds: [embed] });
+      return;
+    }
+
+    // Shuffle: !shuffle
+    if (commandName === 'shuffle') {
+      if (!message.member?.voice.channel) {
+        await message.reply('❌ You must be connected to a voice channel to shuffle the queue.');
+        return;
+      }
+
+      const result = await shuffleQueue(message.member!);
+      if (!result.success) {
+        await message.reply(result.message);
+        return;
+      }
+
+      const embed = new EmbedBuilder()
+        .setColor(0x5865f2)
+        .setTitle('🔀 Queue Shuffled')
+        .setDescription(result.message)
+        .setFooter({ text: `Shuffled by ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
+        .setTimestamp();
 
       await message.reply({ embeds: [embed] });
       return;

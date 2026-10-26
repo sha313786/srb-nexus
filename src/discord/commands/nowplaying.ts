@@ -1,0 +1,48 @@
+import {
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+} from 'discord.js';
+import { getNowPlayingData } from '../../services/musicService';
+
+function createNowPlayingBuilder(name: string) {
+  return new SlashCommandBuilder()
+    .setName(name)
+    .setDescription('Display the currently playing song with interactive playback buttons');
+}
+
+export async function executeNowPlaying(interaction: ChatInputCommandInteraction) {
+  if (!interaction.guild) {
+    await interaction.reply({ content: '❌ This command can only be used in a server.', ephemeral: true });
+    return;
+  }
+
+  const data = getNowPlayingData(interaction.guild.id);
+
+  if (!data) {
+    await interaction.reply({
+      content: '❌ Nothing is currently playing in this server. Use `/play` to start music!',
+      ephemeral: true,
+    });
+    return;
+  }
+
+  await interaction.reply({
+    embeds: [data.embed],
+    components: [data.row],
+  });
+}
+
+export const nowplayingCommand = {
+  data: createNowPlayingBuilder('nowplaying'),
+  execute: executeNowPlaying,
+};
+
+export const npCommand = {
+  data: createNowPlayingBuilder('np'),
+  execute: executeNowPlaying,
+};
+
+export const nexusNowPlayingCommand = {
+  data: createNowPlayingBuilder('nexus-nowplaying'),
+  execute: executeNowPlaying,
+};

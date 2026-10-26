@@ -40,6 +40,20 @@ export const helpCommand = {
           inline: false,
         },
         {
+          name: '🎵 Music & High-Fidelity Audio',
+          value:
+            '`/play` (`/nexus-play`) • Stream YouTube, Spotify, SoundCloud, or direct audio\n' +
+            '`/skip` (`/nexus-skip`) • Skip to next song in queue\n' +
+            '`/pause` / `/resume` • Pause or unpause audio stream\n' +
+            '`/stop` (`/nexus-stop`) • Stop playback and clear queue\n' +
+            '`/queue` (`/nexus-queue`) • View current songs and queue pages\n' +
+            '`/nowplaying` (`/np`) • Rich interactive player card with clickable controls\n' +
+            '`/volume` (`/nexus-volume`) • Set volume level (1-100%)\n' +
+            '`/loop` (`/nexus-loop`) • Toggle repeat mode (Track, Queue, Autoplay, Off)\n' +
+            '`/shuffle` (`/nexus-shuffle`) • Randomize songs in queue',
+          inline: false,
+        },
+        {
           name: '🌟 Leveling & Progression',
           value:
             '`/nexus-rank` • View level progress & rank card\n' +
