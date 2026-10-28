@@ -14,7 +14,7 @@ body {
   width: 100vw;
   height: 100vh;
   pointer-events: none;
-  z-index: 0;
+  z-index: -1;
   overflow: hidden;
   background-color: #06080d;
   contain: strict;
