@@ -416,6 +416,7 @@ export async function guildRoutes(fastify: FastifyInstance) {
             notif_security_alerts: true,
             notif_ticket_alerts: true,
             notif_milestones: true,
+            notif_stream_alerts: true,
             verification_enabled: false,
             verification_channel_id: null,
             verification_role_id: null,
@@ -594,8 +595,9 @@ export async function guildRoutes(fastify: FastifyInstance) {
                notif_security_alerts = $5,
                notif_ticket_alerts = $6,
                notif_milestones = $7,
+               notif_stream_alerts = $8,
                updated_at = NOW()
-           WHERE guild_id = $8`,
+           WHERE guild_id = $9`,
           [
             Boolean(body.notifications_enabled ?? true),
             Boolean(body.free_games_enabled ?? true),
@@ -604,6 +606,7 @@ export async function guildRoutes(fastify: FastifyInstance) {
             Boolean(body.notif_security_alerts ?? true),
             Boolean(body.notif_ticket_alerts ?? true),
             Boolean(body.notif_milestones ?? true),
+            Boolean(body.notif_stream_alerts ?? true),
             id,
           ]
         );

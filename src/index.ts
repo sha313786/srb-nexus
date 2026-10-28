@@ -1887,6 +1887,7 @@ async function start() {
       ADD COLUMN IF NOT EXISTS notif_security_alerts BOOLEAN DEFAULT TRUE,
       ADD COLUMN IF NOT EXISTS notif_ticket_alerts BOOLEAN DEFAULT TRUE,
       ADD COLUMN IF NOT EXISTS notif_milestones BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS notif_stream_alerts BOOLEAN DEFAULT TRUE,
       ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
 
       ALTER TABLE guild_tickets

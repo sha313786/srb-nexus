@@ -48,8 +48,8 @@ const KNOWN_CHANNEL_IDS: Record<string, string> = {
 async function fetchSafeText(url: string | URL | Request, init?: RequestInit): Promise<string | null> {
   try {
     const res = await fetch(url, init);
-    const bodyText = await res.text().catch(() => '');
-    return res.ok ? bodyText.trim() : null;
+    const body = await res.text();
+    return res.ok ? body : null;
   } catch {
     return null;
   }
@@ -58,32 +58,65 @@ async function fetchSafeText(url: string | URL | Request, init?: RequestInit): P
 async function fetchSafeJson<T = any>(url: string | URL | Request, init?: RequestInit): Promise<T | null> {
   try {
     const res = await fetch(url, init);
-    const bodyText = await res.text().catch(() => '');
-    if (!res.ok || !bodyText) return null;
-    return JSON.parse(bodyText) as T;
+    const text = await res.text();
+    if (!res.ok || !text) return null;
+    return JSON.parse(text) as T;
   } catch {
     return null;
   }
 }
 
 /**
- * Fetch live status and stream metadata across Twitch, Kick, and YouTube
+ * Clean and normalize streamer channel inputs across Twitch, Kick, and YouTube
+ */
+export function normalizeChannelInput(platform: 'twitch' | 'youtube' | 'kick', rawInput: string): { cleanName: string; channelId?: string } {
+  let trimmed = rawInput.trim();
+
+  if (platform === 'youtube') {
+    // 1. Direct channel ID match
+    const directUc = trimmed.match(/^(UC[a-zA-Z0-9_-]{22})$/i);
+    if (directUc) return { cleanName: directUc[1], channelId: directUc[1] };
+
+    // 2. URL parsing (youtube.com/channel/UC..., youtube.com/@handle, etc.)
+    const urlChannel = trimmed.match(/(?:youtube\.com\/channel\/)(UC[a-zA-Z0-9_-]{22})/i);
+    if (urlChannel) return { cleanName: urlChannel[1], channelId: urlChannel[1] };
+
+    const urlHandle = trimmed.match(/(?:youtube\.com\/@|youtu\.be\/|youtube\.com\/c\/|youtube\.com\/user\/)([\w.-]+)/i);
+    if (urlHandle) {
+      const h = urlHandle[1].toLowerCase();
+      return { cleanName: h, channelId: KNOWN_CHANNEL_IDS[h] };
+    }
+
+    // 3. Raw handle or name
+    const cleaned = trimmed.replace(/^@/, '').replace(/[\/@]/g, '').trim().toLowerCase();
+    return { cleanName: cleaned, channelId: KNOWN_CHANNEL_IDS[cleaned] };
+  }
+
+  // Twitch & Kick
+  const clean = trimmed
+    .replace(/^https?:\/\/(www\.)?(twitch\.tv|kick\.com)\//i, '')
+    .replace(/[\/@]/g, '')
+    .trim()
+    .toLowerCase();
+
+  return { cleanName: clean };
+}
+
+/**
+ * Multi-Platform Stream & Upload Status Fetcher
+ * Inspects Twitch, Kick, and YouTube for live streams and recent video uploads
  */
 export async function fetchStreamInfo(
   platform: 'twitch' | 'youtube' | 'kick',
   rawChannel: string
 ): Promise<StreamInfo> {
-  const cleanName = rawChannel
-    .replace(/^https?:\/\/(www\.)?(twitch\.tv|kick\.com|youtube\.com)\//i, '')
-    .replace(/[\/@]/g, '')
-    .trim()
-    .toLowerCase();
+  const { cleanName, channelId: knownId } = normalizeChannelInput(platform, rawChannel);
 
   // 1. TWITCH STREAM CHECK
   if (platform === 'twitch') {
     try {
       const uptimeText = (await fetchSafeText(`https://decapi.me/twitch/uptime/${cleanName}`, {
-        headers: { 'User-Agent': 'SRB-NEXUS-Bot/1.0' }
+        headers: { 'User-Agent': 'SRB-NEXUS-Bot/2.5' }
       })) || '';
 
       const isOffline = uptimeText.toLowerCase().includes('offline') ||
@@ -105,7 +138,7 @@ export async function fetchStreamInfo(
         game: game || 'Just Chatting',
         viewers: isOffline ? 0 : viewers,
         avatarUrl: avatarUrl?.startsWith('http') ? avatarUrl : undefined,
-        thumbnailUrl: !isOffline ? `https://static-cdn.jtvnw.net/previews-ttv/live_user_${cleanName}-1280x720.jpg?t=${Date.now()}` : undefined,
+        thumbnailUrl: !isOffline ? `https://static-cdn.jtvnw.net/previews-ttv/live_user_${cleanName}-1920x1080.jpg?t=${Date.now()}` : undefined,
         streamUrl: `https://twitch.tv/${cleanName}`,
         streamId: isOffline ? undefined : `${cleanName}_${Date.now()}`
       };
@@ -126,9 +159,10 @@ export async function fetchStreamInfo(
   // 2. KICK STREAM CHECK
   if (platform === 'kick') {
     try {
+      // First try v1 channels API
       const data = await fetchSafeJson<any>(`https://kick.com/api/v1/channels/${cleanName}`, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
           'Accept': 'application/json'
         }
       });
@@ -151,6 +185,30 @@ export async function fetchStreamInfo(
           streamId: livestream?.id ? String(livestream.id) : undefined
         };
       }
+
+      // Secondary fallback to v2 livestream endpoint
+      const v2Data = await fetchSafeJson<any>(`https://kick.com/api/v2/channels/${cleanName}/livestream`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept': 'application/json'
+        }
+      });
+      if (v2Data && v2Data.data) {
+        const ls = v2Data.data;
+        return {
+          isLive: Boolean(ls.is_live),
+          platform: 'kick',
+          channelName: cleanName,
+          displayName: cleanName,
+          title: ls.session_title || 'Live on Kick',
+          game: ls.category?.name || 'Just Chatting',
+          viewers: ls.viewer_count || 0,
+          avatarUrl: ls.channel?.user?.profile_pic || undefined,
+          thumbnailUrl: ls.thumbnail?.url || undefined,
+          streamUrl: `https://kick.com/${cleanName}`,
+          streamId: ls.id ? String(ls.id) : undefined
+        };
+      }
     } catch (err) {
       logger.error({ err, cleanName }, 'Failed to fetch Kick stream status');
     }
@@ -169,26 +227,23 @@ export async function fetchStreamInfo(
   // 3. YOUTUBE STREAM & VIDEO CHECK
   if (platform === 'youtube') {
     try {
-      const handle = rawChannel.startsWith('@') ? rawChannel : `@${cleanName}`;
-
       let isLive = false;
       let liveTitle = '';
       let liveVideoId = '';
-      let liveViewerCount = 0;
       let liveThumbnail = '';
-      let channelId = '';
+      let channelId = knownId || '';
       let authorName = '';
 
-      // Check known channel dictionary or direct UC channel ID
-      if (cleanName in KNOWN_CHANNEL_IDS) {
-        channelId = KNOWN_CHANNEL_IDS[cleanName];
-      } else if (rawChannel.match(/^(UC[a-zA-Z0-9_-]{22})$/)) {
-        channelId = rawChannel;
+      if (cleanName.startsWith('uc') && cleanName.length === 24) {
+        channelId = cleanName;
       }
 
       // Step 1: Query YouTube InnerTube resolve_url API for active live stream
       try {
-        const resolveTarget = `https://www.youtube.com/@${cleanName}/live`;
+        const resolveTarget = channelId
+          ? `https://www.youtube.com/channel/${channelId}/live`
+          : `https://www.youtube.com/@${cleanName}/live`;
+
         const resolveData = await fetchSafeJson<any>('https://www.youtube.com/youtubei/v1/navigation/resolve_url', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -208,7 +263,6 @@ export async function fetchStreamInfo(
             channelId = endpoint.browseEndpoint.browseId;
           }
 
-          // If /live resolved to a watch page with a video ID, the creator is actively LIVE NOW!
           if (candidateVideoId && pageType === 'WEB_PAGE_TYPE_WATCH') {
             isLive = true;
             liveVideoId = candidateVideoId;
@@ -231,20 +285,19 @@ export async function fetchStreamInfo(
           }
         }
       } catch (err) {
-        logger.warn({ err, handle }, '[RADAR] Failed during YouTube InnerTube live resolve');
+        logger.warn({ err, cleanName }, '[RADAR] Failed during YouTube InnerTube live resolve');
       }
 
       // Step 2: Fallback / Secondary RSS Check for recent video upload
       let latestVideoId = '';
       let latestVideoTitle = '';
-      let latestVideoUrl = `https://youtube.com/${handle}`;
+      let latestVideoUrl = `https://youtube.com/@${cleanName}`;
       let latestThumbnail = '';
       let isCandidateStreamVOD = false;
-      let candidateStreamVODId = '';
 
       if (!isLive && channelId) {
         try {
-          const xml = await fetchSafeText(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, {
+          const xml = await fetchSafeText(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}&t=${Date.now()}`, {
             headers: { 'User-Agent': 'Mozilla/5.0' },
             signal: AbortSignal.timeout(6000)
           });
@@ -271,103 +324,92 @@ export async function fetchStreamInfo(
                 });
 
                 if (pData) {
-                  const vDetails = pData?.videoDetails;
-
-                  if (vDetails) {
-                    if (vDetails.isLive) {
-                      // Actively streaming live right now!
-                      isLive = true;
-                      liveVideoId = candidateId;
-                      liveTitle = vDetails.title || candidateTitle;
-                      liveThumbnail = `https://i.ytimg.com/vi/${candidateId}/maxresdefault.jpg`;
-                      if (vDetails.author) authorName = vDetails.author;
-                    } else if (vDetails.isLiveContent || vDetails.liveBroadcastDetails) {
-                      // Concluded live stream replay (VOD)! MUST NOT trigger a video upload notification.
-                      isCandidateStreamVOD = true;
-                      candidateStreamVODId = candidateId;
-                      logger.info({ candidateId, title: candidateTitle }, '[RADAR] Top RSS entry is a concluded stream VOD. Skipping as video upload.');
-                    } else {
-                      // Authentic pre-recorded video upload!
-                      latestVideoId = candidateId;
-                      latestVideoTitle = vDetails.title || candidateTitle;
-                      latestVideoUrl = `https://www.youtube.com/watch?v=${latestVideoId}`;
-                      latestThumbnail = `https://i.ytimg.com/vi/${latestVideoId}/hqdefault.jpg`;
-                      if (vDetails.author) authorName = vDetails.author;
-                    }
+                  const vr = pData.videoDetails;
+                  if (vr?.isLiveContent || vr?.isLive || pData.playabilityStatus?.liveStreamability) {
+                    isCandidateStreamVOD = true;
                   }
                 }
-              } catch (playerErr) {
-                logger.warn({ playerErr, candidateId }, '[RADAR] Failed to verify candidate video via InnerTube player API');
+              } catch (pErr) {
+                logger.warn({ pErr, candidateId }, '[RADAR] Failed checking candidate video player API');
+              }
+
+              if (!isCandidateStreamVOD) {
+                latestVideoId = candidateId;
+                latestVideoTitle = candidateTitle;
+                latestVideoUrl = `https://www.youtube.com/watch?v=${candidateId}`;
+                latestThumbnail = `https://i.ytimg.com/vi/${candidateId}/maxresdefault.jpg`;
               }
             }
           }
-        } catch (err) {
-          logger.warn({ err, channelId }, '[RADAR] Failed during YouTube RSS check');
+        } catch (rssErr) {
+          logger.warn({ rssErr, channelId }, '[RADAR] Failed to fetch YouTube RSS feed');
         }
       }
 
-      // If genuinely live right now, return active Live Stream
+      // Step 3: Package final StreamInfo
       if (isLive && liveVideoId) {
         return {
           isLive: true,
-          eventType: 'live',
           platform: 'youtube',
+          eventType: 'live',
           channelName: cleanName,
-          displayName: authorName || handle,
-          title: liveTitle || 'Live on YouTube',
+          displayName: authorName || cleanName,
+          title: liveTitle || 'Live Stream on YouTube',
           game: 'YouTube Live',
-          viewers: liveViewerCount || 1,
-          thumbnailUrl: liveThumbnail || `https://i.ytimg.com/vi/${liveVideoId}/hqdefault.jpg`,
+          avatarUrl: 'https://cdn.discordapp.com/embed/avatars/0.png',
+          thumbnailUrl: liveThumbnail,
           streamUrl: `https://www.youtube.com/watch?v=${liveVideoId}`,
           streamId: liveVideoId
         };
-      }
-
-      // If genuine pre-recorded video was found (NOT a live stream VOD)
-      if (latestVideoId) {
+      } else if (latestVideoId) {
         return {
           isLive: false,
-          eventType: 'upload',
           platform: 'youtube',
+          eventType: 'upload',
           channelName: cleanName,
-          displayName: authorName || handle,
+          displayName: authorName || cleanName,
           title: latestVideoTitle || 'New YouTube Video',
           game: 'Video Upload',
-          viewers: 0,
+          avatarUrl: 'https://cdn.discordapp.com/embed/avatars/0.png',
           thumbnailUrl: latestThumbnail,
           streamUrl: latestVideoUrl,
           streamId: latestVideoId
         };
       }
 
-      // If top video is a concluded live stream VOD or channel is offline
       return {
         isLive: false,
-        eventType: 'live',
         platform: 'youtube',
+        eventType: 'live',
         channelName: cleanName,
-        displayName: authorName || handle,
+        displayName: authorName || cleanName,
         title: 'Offline',
-        game: 'YouTube',
-        streamUrl: `https://youtube.com/${handle}`,
-        streamId: candidateStreamVODId || undefined,
+        game: 'Offline',
+        streamUrl: `https://youtube.com/@${cleanName}`
       };
     } catch (err) {
-      logger.error({ err, cleanName }, 'Failed to check YouTube status');
+      logger.error({ err, cleanName }, 'Failed to fetch YouTube channel status');
       return {
         isLive: false,
-        eventType: 'live',
         platform: 'youtube',
         channelName: cleanName,
         displayName: cleanName,
         title: 'Offline',
-        game: 'YouTube',
+        game: 'Offline',
         streamUrl: `https://youtube.com/@${cleanName}`,
       };
     }
   }
 
-  throw new Error(`Unsupported streaming platform: ${platform}`);
+  return {
+    isLive: false,
+    platform,
+    channelName: cleanName,
+    displayName: cleanName,
+    title: 'Offline',
+    game: 'Offline',
+    streamUrl: `https://${platform}.com/${cleanName}`
+  };
 }
 
 /**
@@ -383,16 +425,19 @@ export function buildStreamEmbed(tracker: Partial<StreamTrackerRow>, info: Strea
 
   let color: `#${string}` = '#9146FF';
   let badge = '🟣 TWITCH';
-  let btnLabel = 'Watch on Twitch';
+  let btnLabel = '🔴 Watch Live on Twitch';
+  let platformIcon = 'https://assets.help.twitch.tv/Glitch_Purple_RGB.png';
 
   if (info.platform === 'kick') {
     color = '#53FC18';
     badge = '🟢 KICK';
-    btnLabel = 'Watch on Kick';
+    btnLabel = '🔴 Watch Live on Kick';
+    platformIcon = 'https://files.kick.com/images/user/62/profile_image/conversion/300.webp';
   } else if (info.platform === 'youtube') {
     color = '#FF0000';
     badge = '🔴 YOUTUBE';
-    btnLabel = isVideoUpload ? 'Watch New Video' : (isPremiere ? 'Watch Premiere' : 'Watch on YouTube');
+    btnLabel = isVideoUpload ? '🎬 Watch New Video' : (isPremiere ? '⭐ Watch Premiere' : '🔴 Watch Live on YouTube');
+    platformIcon = 'https://www.youtube.com/s/desktop/f7be2d12/img/favicon_144x144.png';
   }
 
   const alertTypeLabel = isVideoUpload
@@ -400,21 +445,23 @@ export function buildStreamEmbed(tracker: Partial<StreamTrackerRow>, info: Strea
     : (isPremiere ? 'VIDEO PREMIERE' : 'LIVE STREAM ALERT');
 
   const titleHeader = isVideoUpload
-    ? `🎬 ${info.displayName || info.channelName} uploaded a new video!`
+    ? `🎬 ${info.displayName || info.channelName} published a new video!`
     : (isPremiere
         ? `⭐ ${info.displayName || info.channelName} is premiering a video!`
         : `🔴 ${info.displayName || info.channelName} is now LIVE!`);
+
+  const startedTimestamp = Math.floor(Date.now() / 1000);
 
   const embed = new EmbedBuilder()
     .setColor(color)
     .setAuthor({
       name: `${badge} • ${alertTypeLabel}`,
-      iconURL: info.avatarUrl || undefined,
+      iconURL: info.avatarUrl || platformIcon,
       url: info.streamUrl
     })
     .setTitle(titleHeader)
     .setURL(info.streamUrl)
-    .setDescription(`**${info.title || (isVideoUpload ? 'New Video' : 'Untitled Stream')}**`)
+    .setDescription(`### [${info.title || (isVideoUpload ? 'New Video' : 'Live Broadcast')}](${info.streamUrl})`)
     .addFields(
       {
         name: isVideoUpload ? '📂 Content Type' : '🎮 Category / Game',
@@ -422,13 +469,21 @@ export function buildStreamEmbed(tracker: Partial<StreamTrackerRow>, info: Strea
         inline: true
       },
       {
-        name: isVideoUpload ? '🕒 Status' : '👥 Viewers',
-        value: isVideoUpload ? '`Uploaded & Ready`' : `\`${info.viewers ? info.viewers.toLocaleString() : 'Live'}\``,
+        name: isVideoUpload ? '🕒 Status' : '👥 Live Viewers',
+        value: isVideoUpload ? '`Uploaded & Ready`' : `\`${info.viewers ? info.viewers.toLocaleString() : 'Live Now'}\``,
+        inline: true
+      },
+      {
+        name: isVideoUpload ? '🕒 Published' : '⏱️ Started',
+        value: `<t:${startedTimestamp}:R>`,
         inline: true
       },
       { name: '🌐 Platform', value: `**${info.platform.toUpperCase()}**`, inline: true }
     )
-    .setFooter({ text: 'SRB NEXUS Stream Radar' })
+    .setFooter({
+      text: 'SRB NEXUS Stream Radar • Real-Time Alert',
+      iconURL: 'https://srb-nexus-awgm.onrender.com/nexus-logo.png'
+    })
     .setTimestamp();
 
   if (info.thumbnailUrl) {
@@ -438,12 +493,31 @@ export function buildStreamEmbed(tracker: Partial<StreamTrackerRow>, info: Strea
     embed.setThumbnail(info.avatarUrl);
   }
 
+  // Primary Watch Button
   const watchBtn = new ButtonBuilder()
     .setLabel(btnLabel)
     .setStyle(ButtonStyle.Link)
     .setURL(info.streamUrl);
 
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(watchBtn);
+  // Secondary Creator Channel Profile Button
+  let channelUrl = info.streamUrl;
+  if (info.platform === 'twitch') {
+    channelUrl = `https://twitch.tv/${info.channelName}`;
+  } else if (info.platform === 'kick') {
+    channelUrl = `https://kick.com/${info.channelName}`;
+  } else if (info.platform === 'youtube') {
+    channelUrl = info.channelName.startsWith('UC')
+      ? `https://youtube.com/channel/${info.channelName}`
+      : `https://youtube.com/@${info.channelName.replace(/^@/, '')}`;
+  }
+
+  const channelBtn = new ButtonBuilder()
+    .setLabel('Creator Channel')
+    .setEmoji('📺')
+    .setStyle(ButtonStyle.Link)
+    .setURL(channelUrl);
+
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(watchBtn, channelBtn);
 
   // Formulate mention text
   let mention = '';
@@ -479,6 +553,7 @@ export function buildStreamEmbed(tracker: Partial<StreamTrackerRow>, info: Strea
     .replace(/{game}/g, info.game || 'Streaming')
     .replace(/{type}/g, typeDisplay)
     .replace(/{url}/g, info.streamUrl)
+    .replace(/{viewers}/g, info.viewers ? String(info.viewers) : 'Live')
     .replace(/\bnew new\b/gi, 'new');
 
   const content = `${mention}${customText}`;
@@ -567,7 +642,7 @@ export async function testStreamNotification(
     title: isUploadTest
       ? `🎬 [TEST VIDEO] Brand New Gaming Guide & Full Walkthrough!`
       : `🔥 [TEST BROADCAST] Epic Gaming & Community Hangout!`,
-    game: isUploadTest ? 'Video Upload' : (platform === 'kick' ? 'Grand Theft Auto V' : (platform === 'youtube' ? 'Valorant' : 'AION 2')),
+    game: isUploadTest ? 'Video Upload' : (platform === 'kick' ? 'Grand Theft Auto V' : (platform === 'youtube' ? 'Valorant' : 'Just Chatting')),
     viewers: isUploadTest ? undefined : 1337,
     avatarUrl: platform === 'twitch'
       ? 'https://static-cdn.jtvnw.net/jtv_user_pictures/c754eebf-745b-4e0a-814a-10bcaecaabbc-profile_image-300x300.png'
@@ -598,20 +673,24 @@ export async function testStreamNotification(
 
 /**
  * Background Stream Radar Polling Loop
- * Runs every 45 seconds to detect streamers going live
+ * Runs every 25 seconds for sub-minute live detection
  */
 export function startStreamWatcher(bot: Client) {
-  logger.info('[RADAR] Initializing Multi-Platform Stream Radar watcher (Twitch, Kick, YouTube)...');
+  logger.info('[RADAR] Initializing Multi-Platform Stream Radar watcher (Twitch, Kick, YouTube at 25s polling frequency)...');
 
-  // Initial check after 5 seconds, then every 45 seconds
-  setTimeout(() => pollTrackedStreams(bot), 5000);
-  setInterval(() => pollTrackedStreams(bot), 45000);
+  // Initial check after 3 seconds, then every 25 seconds
+  setTimeout(() => pollTrackedStreams(bot), 3000);
+  setInterval(() => pollTrackedStreams(bot), 25000);
 }
 
 async function pollTrackedStreams(bot: Client) {
   try {
-    const res = await db.query<StreamTrackerRow>(
-      `SELECT * FROM stream_trackers ORDER BY last_checked_at ASC NULLS FIRST LIMIT 100`
+    // Select tracked streamers with guild settings to check if stream notifications are enabled
+    const res = await db.query<StreamTrackerRow & { notif_stream_alerts?: boolean }>(
+      `SELECT st.*, COALESCE(gs.notif_stream_alerts, TRUE) as notif_stream_alerts
+       FROM stream_trackers st
+       LEFT JOIN guild_settings gs ON st.guild_id = gs.guild_id
+       ORDER BY st.last_checked_at ASC NULLS FIRST LIMIT 100`
     );
 
     if (res.rows.length === 0) return;
@@ -621,14 +700,20 @@ async function pollTrackedStreams(bot: Client) {
         const streamInfo = await fetchStreamInfo(tracker.platform, tracker.channel_name);
 
         const eventMode = tracker.event_type || 'all';
+        const streamAlertsGloballyEnabled = tracker.notif_stream_alerts !== false;
 
         // 1. Live Stream Transition Check
         if (eventMode !== 'upload') {
           const isNewStream = streamInfo.isLive && (!tracker.is_live || (streamInfo.streamId && tracker.last_stream_id !== streamInfo.streamId));
           if (isNewStream) {
             logger.info(`[RADAR] Streamer ${tracker.channel_name} (${tracker.platform}) went LIVE: ${streamInfo.title}`);
-            const sent = await dispatchStreamNotification(bot, tracker, streamInfo);
-            logger.info({ sent, trackerId: tracker.id }, '[RADAR] Stream live alert dispatched');
+
+            if (streamAlertsGloballyEnabled) {
+              const sent = await dispatchStreamNotification(bot, tracker, streamInfo);
+              logger.info({ sent, trackerId: tracker.id }, '[RADAR] Stream live alert dispatched');
+            } else {
+              logger.info({ trackerId: tracker.id }, '[RADAR] Stream alerts disabled in guild settings. Skipping dispatch.');
+            }
 
             await db.query(
               `UPDATE stream_trackers 
@@ -659,7 +744,6 @@ async function pollTrackedStreams(bot: Client) {
 
         // 2. Video Upload Transition Check (for YouTube or upload-enabled trackers)
         if (eventMode !== 'live' && streamInfo.eventType === 'upload' && streamInfo.streamId) {
-          // Extra guard: If video ID or title matches the recent live stream, ignore it completely
           const isSameAsLive =
             tracker.last_stream_id === streamInfo.streamId ||
             (tracker.last_title &&
@@ -678,38 +762,37 @@ async function pollTrackedStreams(bot: Client) {
             continue;
           }
 
-          if (!tracker.last_stream_id) {
-            // Establish baseline so historical videos aren't blasted retroactively
-            await db.query(
-              `UPDATE stream_trackers SET last_stream_id = $1, last_title = $2, last_checked_at = NOW() WHERE id = $3`,
-              [streamInfo.streamId, streamInfo.title, tracker.id]
-            );
-          } else if (tracker.last_stream_id !== streamInfo.streamId) {
-            logger.info(`[RADAR] Creator ${tracker.channel_name} (${tracker.platform}) published a new video: ${streamInfo.title}`);
-            await dispatchStreamNotification(bot, tracker, streamInfo);
+          const isNewUpload = tracker.last_stream_id !== streamInfo.streamId;
+          if (isNewUpload) {
+            logger.info(`[RADAR] New video upload detected for ${tracker.channel_name} (YouTube): ${streamInfo.title}`);
+
+            if (streamAlertsGloballyEnabled) {
+              const sent = await dispatchStreamNotification(bot, tracker, streamInfo);
+              logger.info({ sent, trackerId: tracker.id }, '[RADAR] Video upload alert dispatched');
+            } else {
+              logger.info({ trackerId: tracker.id }, '[RADAR] Stream alerts disabled in guild settings. Skipping dispatch.');
+            }
 
             await db.query(
               `UPDATE stream_trackers 
                SET last_stream_id = $1, 
                    last_title = $2, 
+                   last_game = $3, 
                    last_checked_at = NOW() 
-               WHERE id = $3`,
-              [streamInfo.streamId, streamInfo.title, tracker.id]
+               WHERE id = $4`,
+              [streamInfo.streamId, streamInfo.title, streamInfo.game, tracker.id]
             );
             continue;
           }
         }
 
-        // Update last checked timestamp
-        await db.query(
-          `UPDATE stream_trackers SET last_checked_at = NOW() WHERE id = $1`,
-          [tracker.id]
-        );
-      } catch (err) {
-        logger.error({ err, trackerId: tracker.id }, '[RADAR] Error checking tracker');
+        // Touch last_checked_at
+        await db.query(`UPDATE stream_trackers SET last_checked_at = NOW() WHERE id = $1`, [tracker.id]);
+      } catch (trackerErr) {
+        logger.warn({ trackerErr, trackerId: tracker.id }, '[RADAR] Error polling specific streamer');
       }
     }
   } catch (err) {
-    logger.error({ err }, '[RADAR] Failed to poll tracked streams');
+    logger.error({ err }, '[RADAR] Error in pollTrackedStreams batch query');
   }
 }

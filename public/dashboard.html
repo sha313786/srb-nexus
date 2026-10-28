@@ -1872,6 +1872,26 @@
                 </label>
               </div>
 
+              <!-- Trigger 5: Live Stream & Video Radar -->
+              <div class="bg-dark-900/60 border border-dark-700/80 rounded-2xl p-5 flex items-start justify-between gap-4">
+                <div class="space-y-1">
+                  <div class="flex items-center gap-2">
+                    <span class="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs">
+                      <i class="fa-solid fa-satellite-dish"></i>
+                    </span>
+                    <span class="text-sm font-bold text-white">Live Stream &amp; Video Radar Alerts</span>
+                  </div>
+                  <p class="text-xs text-slate-400">Automated instant Discord embeds when your tracked Twitch, Kick, and YouTube creators go live or upload.</p>
+                  <button type="button" onclick="switchTab('streams')" class="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 font-semibold pt-1 transition">
+                    Configure Tracked Streamers in Stream Radar <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                  </button>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                  <input type="checkbox" id="check-notif-streams" class="sr-only peer" checked>
+                  <div class="w-11 h-6 bg-dark-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
+
               <!-- Trigger 4: Milestones -->
               <div class="bg-dark-900/60 border border-dark-700/80 rounded-2xl p-5 flex items-start justify-between gap-4">
                 <div class="space-y-1">
@@ -4181,6 +4201,8 @@
 
           const notifMil = document.getElementById('check-notif-milestones');
           if (notifMil) notifMil.checked = s.notif_milestones ?? true;
+          const notifStreams = document.getElementById('check-notif-streams');
+          if (notifStreams) notifStreams.checked = s.notif_stream_alerts ?? true;
 
           const nChanObj = serverChannels.find(c => c.id === s.notifications_channel_id);
           const headerChanEl = document.getElementById('header-notif-channel');
@@ -4300,6 +4322,7 @@
           notif_security_alerts: document.getElementById('check-notif-security')?.checked ?? true,
           notif_ticket_alerts: document.getElementById('check-notif-tickets')?.checked ?? true,
           notif_milestones: document.getElementById('check-notif-milestones')?.checked ?? true,
+          notif_stream_alerts: document.getElementById('check-notif-streams')?.checked ?? true,
         };
       }
 
@@ -6319,18 +6342,18 @@
           pBadge = `<span class="px-2.5 py-1 rounded-lg bg-[#FF0000]/15 text-[#ff4e4e] border border-[#FF0000]/30 font-bold inline-flex items-center gap-1.5"><i class="fa-brands fa-youtube"></i> YouTube</span>`;
         }
 
-        let modeBadge = `<span class="px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold">🔴 &amp; 🎬 All</span>`;
+        let modeBadge = '<span class="px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold">📡 All Events</span>';
         if (s.event_type === 'live') {
-          modeBadge = `<span class="px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/30 text-[10px] font-bold">🔴 Live Only</span>`;
+          modeBadge = '<span class="px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/30 text-[10px] font-bold">🔴 Live Only</span>';
         } else if (s.event_type === 'upload') {
-          modeBadge = `<span class="px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold">🎬 Videos Only</span>`;
+          modeBadge = '<span class="px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold">🎬 Videos Only</span>';
         }
 
         const statusBadge = s.is_live
           ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-black"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> LIVE NOW</span>`
           : (s.event_type === 'upload'
-              ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[10px] font-semibold">🎬 Active Radar</span>`
-              : `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-500/10 text-slate-400 border border-slate-500/20 text-[10px] font-semibold">⚫ Offline</span>`);
+              ? '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[10px] font-semibold">🎬 Active Radar</span>'
+              : '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-500/10 text-slate-400 border border-slate-500/20 text-[10px] font-semibold">⚫ Offline</span>');
 
         const chan = serverChannels.find(c => c.id === s.discord_channel_id);
         const chanName = chan ? `#${chan.name}` : `<#${s.discord_channel_id}>`;
