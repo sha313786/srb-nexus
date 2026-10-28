@@ -14,7 +14,7 @@
     let height = 0;
     let particles = [];
     const isMobile = window.innerWidth < 768;
-    const particleCount = isMobile ? 22 : 44;
+    const particleCount = isMobile ? 16 : 30;
     const connectionDistance = isMobile ? 85 : 115;
     const connDistSq = connectionDistance * connectionDistance;
     const mouse = { x: -9999, y: -9999, active: false };
@@ -23,6 +23,14 @@
     let currentGlowX = -9999;
     let currentGlowY = -9999;
     let isVisible = true;
+    let isScrolling = false;
+    let scrollTimeout = null;
+    window.addEventListener('scroll', () => {
+      isScrolling = true;
+      if (scrollTimeout) clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => { isScrolling = false; }, 120);
+    }, { passive: true });
+
     let animFrameId = null;
 
     function resize() {
@@ -140,12 +148,16 @@
 
       ctx.clearRect(0, 0, width, height);
 
-      // 1. Smoothly interpolate mouse glow without layout recalculation
-      if (mouseGlow && mouse.active) {
-        currentGlowX += (targetMouseX - currentGlowX) * 0.35;
-        currentGlowY += (targetMouseY - currentGlowY) * 0.35;
-        mouseGlow.style.transform = `translate3d(${currentGlowX - 250}px, ${currentGlowY - 250}px, 0)`;
-        if (mouseGlow.style.opacity !== '1') mouseGlow.style.opacity = '1';
+      // 1. Smoothly interpolate mouse glow only when active and moved
+      if (mouseGlow && mouse.active && !isScrolling) {
+        const dx = targetMouseX - currentGlowX;
+        const dy = targetMouseY - currentGlowY;
+        if (Math.abs(dx) > 0.4 || Math.abs(dy) > 0.4) {
+          currentGlowX += dx * 0.35;
+          currentGlowY += dy * 0.35;
+          mouseGlow.style.transform = `translate3d(${(currentGlowX - 250) | 0}px, ${(currentGlowY - 250) | 0}px, 0)`;
+          if (mouseGlow.style.opacity !== '1') mouseGlow.style.opacity = '1';
+        }
       }
 
       // 2. Batch constellation lines into a SINGLE stroke call (huge performance gain)
@@ -167,8 +179,8 @@
       ctx.strokeStyle = 'rgba(88, 101, 242, 0.16)';
       ctx.stroke();
 
-      // 3. Batch cursor tether lines into a SINGLE stroke call
-      if (mouse.active) {
+      // 3. Batch cursor tether lines into a SINGLE stroke call (yield during scroll)
+      if (mouse.active && !isScrolling) {
         const tetherDistSq = 140 * 140;
         ctx.beginPath();
         ctx.lineWidth = 1.1;

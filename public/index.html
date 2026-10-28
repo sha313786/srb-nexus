@@ -21,16 +21,13 @@
     }
 
     .glass-surface {
-      background: rgba(14, 18, 28, 0.72);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+      background: #0d121f;
       border: 1px solid rgba(255, 255, 255, 0.08);
       box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
     }
 
     .glass-surface-elevated {
-      background: rgba(18, 23, 36, 0.85);
-      backdrop-filter: blur(20px);
+      background: #111726;
       border: 1px solid rgba(255, 255, 255, 0.12);
       box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.6);
     }
@@ -89,9 +86,7 @@
       position: sticky;
       top: 100px;
       min-height: 520px;
-      background: rgba(14, 18, 28, 0.94);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+      background: #0d121f;
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 28px;
       margin-bottom: 72px;
@@ -99,8 +94,7 @@
       grid-template-columns: 1fr 1.15fr;
       overflow: hidden;
       box-shadow: 0 30px 70px -10px rgba(0, 0, 0, 0.85);
-      will-change: transform, opacity;
-      transform: translateZ(0);
+      contain: layout paint;
     }
 
     .card-content {
@@ -192,6 +186,10 @@
         padding: 24px 16px;
       }
     }
+    #features, #commands, #why-nexus {
+      content-visibility: auto;
+      contain-intrinsic-size: 1px 700px;
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col font-sans selection:bg-brand selection:text-white antialiased">
@@ -210,7 +208,7 @@
 
 
   <!-- Top Announcement Bar -->
-  <aside aria-label="Announcement" class="relative z-10 border-b border-dark-750/70 bg-dark-900/90 text-xs py-2 px-4 backdrop-blur-md">
+  <aside aria-label="Announcement" class="relative z-10 border-b border-dark-750/70 bg-dark-900/90 text-xs py-2 px-4 ">
     <div class="max-w-7xl mx-auto flex items-center justify-between gap-3 text-slate-300">
       <div class="flex items-center gap-2.5 overflow-hidden">
         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold shrink-0">
@@ -1154,7 +1152,7 @@
   </main>
 
   <!-- Clean, Professional Footer -->
-  <footer class="relative z-10 border-t border-dark-750/70 bg-dark-950/85 backdrop-blur-lg py-10 text-xs text-slate-400">
+  <footer class="relative z-10 border-t border-dark-750/70 bg-dark-950/85  py-10 text-xs text-slate-400">
     <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
       
       <div class="flex items-center gap-3">
@@ -1412,41 +1410,7 @@
       renderGuilds(filtered);
     }
 
-    // Smooth Scale & Dimming on Scroll (TEST5 Stacking Parallax Engine)
-    function initStackingCards() {
-      const cards = document.querySelectorAll('.stack-card');
-      if (!cards.length) return;
-
-      let ticking = false;
-      function updateCards() {
-        const vh = window.innerHeight;
-        cards.forEach((card, i) => {
-          const rect = card.getBoundingClientRect();
-          if (rect.top <= 130 && i < cards.length - 1) {
-            const nextCard = cards[i + 1].getBoundingClientRect();
-            const progress = Math.max(0, Math.min(1, (vh - nextCard.top) / vh));
-            const scale = 1 - progress * 0.05;
-            const opacity = 1 - progress * 0.25;
-            card.style.transform = `scale3d(${scale}, ${scale}, 1)`;
-            card.style.opacity = opacity;
-          } else {
-            card.style.transform = 'scale3d(1, 1, 1)';
-            card.style.opacity = '1';
-          }
-        });
-        ticking = false;
-      }
-
-      window.addEventListener('scroll', () => {
-        if (!ticking) {
-          window.requestAnimationFrame(updateCards);
-          ticking = true;
-        }
-      }, { passive: true });
-    }
-
-    // Initialize
-    initStackingCards();
+    // Native hardware-accelerated sticky stacking (zero JS scroll overhead)
     checkAuth();
   </script>
   <script src="/nexus-bg.js" defer></script>
