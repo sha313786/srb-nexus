@@ -57,6 +57,11 @@ export async function handleStaffNicknameUpdate(
   oldMember: GuildMember,
   newMember: GuildMember
 ): Promise<void> {
+  // CRITICAL: Staff uniform nickname is exclusive to SRB Studio only!
+  if (newMember.guild.id !== '1525065834572021851') {
+    return;
+  }
+
   try {
     const guild = newMember.guild;
     const supportRoleId = await getSupportRoleId(guild);
@@ -64,9 +69,11 @@ export async function handleStaffNicknameUpdate(
     const hadRole = oldMember.roles.cache.has(supportRoleId);
     const hasRole = newMember.roles.cache.has(supportRoleId);
 
-    // Case 1: Support role was just ADDED
-    if (!hadRole && hasRole) {
-      await applyStaffNickname(newMember);
+    // If member has the support role and nickname is not yet 'SRB Support', rename them!
+    if (hasRole) {
+      if (newMember.nickname !== COMMON_STAFF_NAME) {
+        await applyStaffNickname(newMember);
+      }
       return;
     }
 
@@ -85,18 +92,18 @@ export async function handleStaffNicknameUpdate(
  */
 export async function applyStaffNickname(member: GuildMember): Promise<boolean> {
   const guild = member.guild;
+  if (guild.id !== '1525065834572021851') return false;
 
-  // Cannot modify guild owner nickname (Discord limitation)
-  if (member.id === guild.ownerId) {
-    logger.info(`[STAFF NICKNAME] Skipped server owner ${member.user.tag}`);
+  // Cannot modify guild owner nickname (Discord API limitation)
+  const ownerId = guild.ownerId || guild.client.guilds.cache.get(guild.id)?.ownerId || '608606355762315270';
+  if (member.id === ownerId || member.id === guild.ownerId) {
+    logger.info(`[STAFF NICKNAME] Skipped server owner ${member.user.tag} (Discord does not permit bots to change Server Owner nickname)`);
     return false;
   }
 
-  // Check bot hierarchy permissions
-  const me = guild.members.me || (await guild.members.fetchMe().catch(() => null));
-  if (!me) return false;
-  if (me.roles.highest.comparePositionTo(member.roles.highest) <= 0) {
-    logger.warn(`[STAFF NICKNAME] Cannot rename ${member.user.tag} (their role is higher or equal to bot)`);
+  // Check Discord manageability (checks role hierarchy and bot permissions)
+  if (!member.manageable) {
+    logger.warn(`[STAFF NICKNAME] Cannot rename ${member.user.tag} (not manageable: role is higher than or equal to bot)`);
     return false;
   }
 
@@ -129,6 +136,7 @@ export async function applyStaffNickname(member: GuildMember): Promise<boolean> 
  */
 export async function restoreStaffNickname(member: GuildMember): Promise<boolean> {
   const guild = member.guild;
+  if (guild.id !== '1525065834572021851') return false;
 
   if (member.id === guild.ownerId) return false;
 
@@ -165,6 +173,9 @@ export async function restoreStaffNickname(member: GuildMember): Promise<boolean
 export async function syncAllSupportStaffNicknames(
   guild: Guild
 ): Promise<{ updated: number; skipped: number }> {
+  if (guild.id !== '1525065834572021851') {
+    return { updated: 0, skipped: 0 };
+  }
   let updated = 0;
   let skipped = 0;
 

@@ -98,6 +98,14 @@ export const quotationCommand = {
       return;
     }
 
+    if (interaction.guildId !== '1525065834572021851') {
+      await interaction.reply({
+        content: '❌ The `/nexus-quotation` system is exclusively configured for **SRB Studio**.',
+        ephemeral: true,
+      });
+      return;
+    }
+
     if (subcommand === 'create') {
       const clientUser = interaction.options.getUser('client', true);
       const projectTitle = interaction.options.getString('project_title', true);

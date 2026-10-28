@@ -49,6 +49,10 @@ export async function approveTicketAndCreateWorkspace(options: ApproveTicketOpti
 }> {
   const { guild, ticketChannel, approvedBy, projectNotes, withVoice = true } = options;
 
+  if (guild.id !== '1525065834572021851') {
+    throw new Error('Client workspace creation is an exclusive feature configured for SRB Studio.');
+  }
+
   await guild.roles.fetch();
   await guild.channels.fetch();
 

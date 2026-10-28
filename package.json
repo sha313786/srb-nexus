@@ -11,7 +11,9 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "deploy:commands": "node -e \"const { registerSlashCommands } = require('./dist/discord/commands/index.js'); require('dotenv').config(); registerSlashCommands(process.env.DISCORD_CLIENT_ID || '1526885301736177705');\"",
     "deploy:client-portal": "ts-node src/scripts/deployClientPortal.ts",
-    "create:client": "ts-node src/scripts/createClientSpace.ts"
+    "create:client": "ts-node src/scripts/createClientSpace.ts",
+    "post:alhashimi": "ts-node src/scripts/postAlHashimiPortfolio.ts",
+    "deploy:forum-portfolio": "ts-node src/scripts/deployForumPortfolio.ts"
   },
   "dependencies": {
     "@discord-player/extractor": "^7.2.0",

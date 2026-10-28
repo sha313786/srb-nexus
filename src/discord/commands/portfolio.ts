@@ -8,6 +8,7 @@ import {
   ButtonStyle,
   ChannelType,
   TextChannel,
+  ForumChannel,
 } from 'discord.js';
 
 export const portfolioCommand = {
@@ -47,12 +48,6 @@ export const portfolioCommand = {
     )
     .addStringOption((opt) =>
       opt
-        .setName('github_url')
-        .setDescription('GitHub repository or Case study URL')
-        .setRequired(false)
-    )
-    .addStringOption((opt) =>
-      opt
         .setName('highlights')
         .setDescription('Key features or achievements (e.g. Mobile-First, Stripe Checkout)')
         .setRequired(false)
@@ -61,12 +56,20 @@ export const portfolioCommand = {
       opt
         .setName('channel')
         .setDescription('Channel to post in (defaults to #💼・portfolio)')
-        .addChannelTypes(ChannelType.GuildText)
+        .addChannelTypes(ChannelType.GuildText, ChannelType.GuildForum)
         .setRequired(false)
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
     if (!interaction.guild) return;
+
+    if (interaction.guildId !== '1525065834572021851') {
+      await interaction.reply({
+        content: '❌ The `/nexus-portfolio` showcase system is exclusively configured for **SRB Studio**.',
+        ephemeral: true,
+      });
+      return;
+    }
 
     await interaction.deferReply({ ephemeral: true });
 
@@ -75,19 +78,18 @@ export const portfolioCommand = {
     const description = interaction.options.getString('description', true);
     const liveUrl = interaction.options.getString('live_url');
     const imageUrl = interaction.options.getString('image_url');
-    const githubUrl = interaction.options.getString('github_url');
     const highlightsRaw = interaction.options.getString('highlights');
-    const customChannel = interaction.options.getChannel('channel') as TextChannel | null;
+    const customChannel = interaction.options.getChannel('channel') as TextChannel | ForumChannel | null;
 
     // Resolve portfolio channel
-    let targetChan: TextChannel | null = customChannel;
+    let targetChan: any = customChannel;
     if (!targetChan) {
       targetChan = interaction.guild.channels.cache.find(
-        (c) => c.isTextBased() && c.name.includes('portfolio')
-      ) as TextChannel;
+        (c) => c.name.includes('portfolio')
+      );
     }
 
-    if (!targetChan || !targetChan.isTextBased()) {
+    if (!targetChan) {
       await interaction.editReply({
         content: '❌ Could not find the **#💼・portfolio** channel. Please specify a channel option.',
       });
@@ -129,7 +131,7 @@ export const portfolioCommand = {
       embed.setImage(imageUrl);
     }
 
-    // Build Action Buttons
+    // Build Action Buttons (Never include private repository URLs)
     const buttons: ButtonBuilder[] = [];
 
     if (liveUrl && /^https?:\/\//i.test(liveUrl)) {
@@ -139,16 +141,6 @@ export const portfolioCommand = {
           .setEmoji('🔗')
           .setStyle(ButtonStyle.Link)
           .setURL(liveUrl)
-      );
-    }
-
-    if (githubUrl && /^https?:\/\//i.test(githubUrl)) {
-      buttons.push(
-        new ButtonBuilder()
-          .setLabel('Repository')
-          .setEmoji('📂')
-          .setStyle(ButtonStyle.Link)
-          .setURL(githubUrl)
       );
     }
 
@@ -164,6 +156,30 @@ export const portfolioCommand = {
     const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(buttons);
 
     try {
+      if (targetChan.type === ChannelType.GuildForum) {
+        const forum = targetChan as ForumChannel;
+        const tag = forum.availableTags.find((t) =>
+          category.toLowerCase().includes(t.name.toLowerCase()) ||
+          t.name.toLowerCase().includes(category.toLowerCase())
+        );
+        const appliedTags = tag ? [tag.id] : [];
+
+        const thread = await forum.threads.create({
+          name: `${title} — ${category}`.slice(0, 100),
+          appliedTags,
+          message: {
+            content: `🚀 **${title}** — Featured Project Case Study`,
+            embeds: [embed],
+            components: [actionRow],
+          },
+        });
+
+        await interaction.editReply({
+          content: `🎉 **Project Published Successfully!**\n\nYour case study **${title}** is now live in ${targetChan} under thread **${thread.name}**.\n🔗 [View Showcase Thread](${thread.url})`,
+        });
+        return;
+      }
+
       const message = await targetChan.send({
         embeds: [embed],
         components: [actionRow],

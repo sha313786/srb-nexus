@@ -221,12 +221,18 @@ async function createUniversalTicket(
         .setCustomId('nexus_claim_ticket')
         .setLabel('Claim Ticket')
         .setStyle(ButtonStyle.Primary)
-        .setEmoji('🙋‍♂️'),
-      new ButtonBuilder()
-        .setCustomId('nexus_approve_ticket')
-        .setLabel('Approve Client')
-        .setStyle(ButtonStyle.Success)
-        .setEmoji('🤝'),
+        .setEmoji('🙋‍♂️')
+    );
+    if (guild.id === '1525065834572021851') {
+      actionRow.addComponents(
+        new ButtonBuilder()
+          .setCustomId('nexus_approve_ticket')
+          .setLabel('Approve Client')
+          .setStyle(ButtonStyle.Success)
+          .setEmoji('🤝')
+      );
+    }
+    actionRow.addComponents(
       new ButtonBuilder()
         .setCustomId('nexus_close_ticket')
         .setLabel('Close Ticket')
@@ -407,12 +413,33 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         [guild.id, ticketChannel.id, interaction.user.id]
       ).catch(() => {});
 
-      const closeRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      const closeRow = new ActionRowBuilder<ButtonBuilder>();
+      if (category === 'website-quote') {
+        closeRow.addComponents(
+          new ButtonBuilder()
+            .setCustomId('nexus_open_quote_modal')
+            .setLabel('Fill Quotation Form')
+            .setStyle(ButtonStyle.Primary)
+            .setEmoji('📝')
+        );
+      }
+      closeRow.addComponents(
         new ButtonBuilder()
-          .setCustomId('nexus_approve_ticket')
-          .setLabel('Approve Client')
-          .setStyle(ButtonStyle.Success)
-          .setEmoji('🤝'),
+          .setCustomId('nexus_claim_ticket')
+          .setLabel('Claim Ticket')
+          .setStyle(ButtonStyle.Primary)
+          .setEmoji('🙋‍♂️')
+      );
+      if (guild.id === '1525065834572021851') {
+        closeRow.addComponents(
+          new ButtonBuilder()
+            .setCustomId('nexus_approve_ticket')
+            .setLabel('Approve Client')
+            .setStyle(ButtonStyle.Success)
+            .setEmoji('🤝')
+        );
+      }
+      closeRow.addComponents(
         new ButtonBuilder()
           .setCustomId('nexus_close_ticket')
           .setLabel('Close Ticket')
@@ -997,12 +1024,18 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
           .setCustomId(`nexus_staff_create_quote_${interaction.user.id}`)
           .setLabel('Create Quotation')
           .setStyle(ButtonStyle.Success)
-          .setEmoji('💼'),
-        new ButtonBuilder()
-          .setCustomId('nexus_approve_ticket')
-          .setLabel('Approve Client')
-          .setStyle(ButtonStyle.Success)
-          .setEmoji('🤝'),
+          .setEmoji('💼')
+      );
+      if (guild.id === '1525065834572021851') {
+        actionRow.addComponents(
+          new ButtonBuilder()
+            .setCustomId('nexus_approve_ticket')
+            .setLabel('Approve Client')
+            .setStyle(ButtonStyle.Success)
+            .setEmoji('🤝')
+        );
+      }
+      actionRow.addComponents(
         new ButtonBuilder()
           .setCustomId('nexus_close_ticket')
           .setLabel('Close Ticket')
@@ -1758,12 +1791,18 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
         .setCustomId(`nexus_quote_revise_${quoteId}`)
         .setLabel('Request Revision')
         .setStyle(ButtonStyle.Primary)
-        .setEmoji('💬'),
-      new ButtonBuilder()
-        .setCustomId('nexus_approve_ticket')
-        .setLabel('Approve Client')
-        .setStyle(ButtonStyle.Success)
-        .setEmoji('🤝'),
+        .setEmoji('💬')
+    );
+    if (interaction.guildId === '1525065834572021851') {
+      actionRow.addComponents(
+        new ButtonBuilder()
+          .setCustomId('nexus_approve_ticket')
+          .setLabel('Approve Client')
+          .setStyle(ButtonStyle.Success)
+          .setEmoji('🤝')
+      );
+    }
+    actionRow.addComponents(
       new ButtonBuilder()
         .setCustomId('nexus_close_ticket')
         .setLabel('Close Ticket')
@@ -1873,6 +1912,10 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
   // 3h. HANDLE APPROVE TICKET BUTTON
   if (interaction.isButton() && interaction.customId === 'nexus_approve_ticket') {
     if (!interaction.guild || !interaction.channel || !interaction.channel.isTextBased()) return;
+    if (interaction.guildId !== '1525065834572021851') {
+      await interaction.reply({ content: '❌ The client approval workflow is exclusively configured for SRB Studio.', ephemeral: true });
+      return;
+    }
 
     const member = interaction.member as any;
     const isStaff =

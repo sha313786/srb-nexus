@@ -1,5 +1,6 @@
 /* ============================================================
-   SRB NEXUS — HIGH-VISIBILITY ANIMATED CYBER BACKGROUND SYSTEM
+   SRB NEXUS — HIGH-PERFORMANCE CYBER BACKGROUND SYSTEM
+   Hardware-accelerated, zero layout reflow, smooth 60-120 FPS
    ============================================================ */
 
 body {
@@ -16,6 +17,8 @@ body {
   z-index: 0;
   overflow: hidden;
   background-color: #06080d;
+  contain: strict;
+  transform: translateZ(0);
 }
 
 /* Animated Cyber Flow Grid */
@@ -24,11 +27,12 @@ body {
   inset: -60px;
   background-size: 44px 44px;
   background-image: 
-    linear-gradient(to right, rgba(88, 101, 242, 0.09) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(88, 101, 242, 0.09) 1px, transparent 1px);
-  animation: nexusGridFlow 22s linear infinite;
-  opacity: 0.95;
+    linear-gradient(to right, rgba(88, 101, 242, 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(88, 101, 242, 0.07) 1px, transparent 1px);
+  animation: nexusGridFlow 24s linear infinite;
+  opacity: 0.85;
   pointer-events: none;
+  transform: translateZ(0);
 }
 
 @keyframes nexusGridFlow {
@@ -36,89 +40,90 @@ body {
   100% { transform: translateY(44px); }
 }
 
-/* Radiant Floating Aurora Nebulae */
+/* Radiant Floating Aurora Nebulae — Naturally feathered radial gradients (zero heavy blur recompositing) */
 .nexus-orb {
   position: absolute;
   border-radius: 9999px;
-  filter: blur(80px);
   will-change: transform;
-  mix-blend-mode: screen;
   pointer-events: none;
+  transform: translateZ(0);
 }
 
 /* Blurple Radiant Core */
 .nexus-orb-1 {
-  width: 680px;
-  height: 680px;
+  width: 650px;
+  height: 650px;
   top: -100px;
   left: 10%;
-  background: radial-gradient(circle, rgba(88, 101, 242, 0.45) 0%, rgba(88, 101, 242, 0.16) 45%, transparent 70%);
-  animation: nexusFloat1 18s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(88, 101, 242, 0.38) 0%, rgba(88, 101, 242, 0.12) 40%, transparent 70%);
+  animation: nexusFloat1 20s ease-in-out infinite;
 }
 
 /* Electric Cyan Core */
 .nexus-orb-2 {
-  width: 600px;
-  height: 600px;
+  width: 580px;
+  height: 580px;
   top: 32%;
   right: -80px;
-  background: radial-gradient(circle, rgba(0, 229, 255, 0.38) 0%, rgba(0, 229, 255, 0.14) 45%, transparent 70%);
-  animation: nexusFloat2 22s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(0, 229, 255, 0.30) 0%, rgba(0, 229, 255, 0.10) 40%, transparent 70%);
+  animation: nexusFloat2 24s ease-in-out infinite;
 }
 
 /* Deep Magenta/Violet Core */
 .nexus-orb-3 {
-  width: 720px;
-  height: 720px;
+  width: 680px;
+  height: 680px;
   bottom: -150px;
   left: 25%;
-  background: radial-gradient(circle, rgba(217, 70, 239, 0.35) 0%, rgba(217, 70, 239, 0.12) 45%, transparent 70%);
-  animation: nexusFloat3 26s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(217, 70, 239, 0.28) 0%, rgba(217, 70, 239, 0.09) 40%, transparent 70%);
+  animation: nexusFloat3 28s ease-in-out infinite;
 }
 
 /* Emerald Guard Core */
 .nexus-orb-4 {
-  width: 540px;
-  height: 540px;
+  width: 500px;
+  height: 500px;
   bottom: 22%;
   left: -120px;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.32) 0%, rgba(16, 185, 129, 0.09) 45%, transparent 70%);
-  animation: nexusFloat4 20s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.25) 0%, rgba(16, 185, 129, 0.08) 40%, transparent 70%);
+  animation: nexusFloat4 22s ease-in-out infinite;
 }
 
 @keyframes nexusFloat1 {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(150px, 130px, 0) scale(1.15); }
+  50% { transform: translate3d(120px, 100px, 0) scale(1.1); }
 }
 
 @keyframes nexusFloat2 {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1.08); }
-  50% { transform: translate3d(-160px, 170px, 0) scale(0.92); }
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
+  50% { transform: translate3d(-130px, 140px, 0) scale(0.95); }
 }
 
 @keyframes nexusFloat3 {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(0.95); }
-  50% { transform: translate3d(140px, -150px, 0) scale(1.2); }
+  0%, 100% { transform: translate3d(0, 0, 0) scale(0.96); }
+  50% { transform: translate3d(110px, -120px, 0) scale(1.15); }
 }
 
 @keyframes nexusFloat4 {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
-  50% { transform: translate3d(130px, -120px, 0) scale(0.88); }
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.02); }
+  50% { transform: translate3d(100px, -90px, 0) scale(0.92); }
 }
 
-/* Interactive Cursor Ambient Spotlight */
+/* Hardware-Accelerated Interactive Cursor Ambient Spotlight */
 #nexus-mouse-glow {
-  position: absolute;
-  width: 600px;
-  height: 600px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 500px;
+  height: 500px;
   border-radius: 9999px;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(circle, rgba(88, 101, 242, 0.22) 0%, rgba(0, 229, 255, 0.09) 35%, transparent 70%);
+  background: radial-gradient(circle, rgba(88, 101, 242, 0.20) 0%, rgba(0, 229, 255, 0.07) 35%, transparent 70%);
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.3s ease;
-  will-change: left, top;
+  will-change: transform;
   z-index: 1;
+  transform: translate3d(-9999px, -9999px, 0);
 }
 
 /* Neural Constellation & Particle Canvas */
@@ -129,4 +134,5 @@ body {
   height: 100%;
   z-index: 2;
   pointer-events: none;
+  transform: translateZ(0);
 }

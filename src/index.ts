@@ -804,6 +804,15 @@ bot.on(Events.GuildMemberRemove, async (member) => {
   }
 });
 
+// 5b. Support Staff Nickname Auto-Change on Role Assignment
+bot.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+  try {
+    await handleStaffNicknameUpdate(oldMember as GuildMember, newMember as GuildMember);
+  } catch (err) {
+    app.log.error({ err }, '[BOT] Error handling GuildMemberUpdate event');
+  }
+});
+
 // 6. Voice State Update Listener (Temp Voice / Join to Create)
 bot.on(Events.VoiceStateUpdate, async (oldState: VoiceState, newState: VoiceState) => {
   await handleTempVoiceStateUpdate(oldState, newState);

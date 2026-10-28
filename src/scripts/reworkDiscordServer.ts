@@ -361,8 +361,8 @@ async function main() {
     console.log('Updated: 🚀・services-pricing');
   }
 
-  // Portfolio (1525066567103287396)
-  const chanPortfolio = guild.channels.cache.get('1525066567103287396') as any;
+  // Portfolio (1564338454416859233)
+  const chanPortfolio = guild.channels.cache.get('1564338454416859233') as any;
   if (chanPortfolio) {
     await chanPortfolio.edit({
       name: '💼・portfolio',

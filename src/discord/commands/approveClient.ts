@@ -30,6 +30,14 @@ export const approveClientCommand = {
       return;
     }
 
+    if (interaction.guildId !== '1525065834572021851') {
+      await interaction.reply({
+        content: '❌ The `/approve-client` workflow is an exclusive client management tool configured for **SRB Studio**.',
+        ephemeral: true,
+      });
+      return;
+    }
+
     const member = interaction.member as any;
     const isStaff =
       member?.permissions?.has(PermissionFlagsBits.Administrator) ||

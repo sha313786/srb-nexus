@@ -58,6 +58,14 @@ export const createClientCommand = {
       return;
     }
 
+    if (interaction.guildId !== '1525065834572021851') {
+      await interaction.reply({
+        content: '❌ The `/create-client` command is an exclusive client workspace tool configured for **SRB Studio**.',
+        ephemeral: true,
+      });
+      return;
+    }
+
     await interaction.deferReply({ ephemeral: true });
 
     const clientName = interaction.options.getString('name', true).trim();

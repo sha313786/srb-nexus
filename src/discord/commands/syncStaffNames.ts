@@ -18,6 +18,14 @@ export const syncStaffNamesCommand = {
       return;
     }
 
+    if (interaction.guildId !== '1525065834572021851') {
+      await interaction.reply({
+        content: '❌ Staff anonymization sync is exclusively configured for **SRB Studio**.',
+        ephemeral: true,
+      });
+      return;
+    }
+
     await interaction.deferReply({ ephemeral: true });
 
     try {

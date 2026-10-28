@@ -1,53 +1,71 @@
 /**
- * SRB NEXUS — High-Visibility Neural Constellation & Particle Background Engine
- * Renders glowing cyber particles, connecting laser constellation lines,
- * and interactive cursor attraction tethers at locked 60 FPS.
+ * SRB NEXUS — Ultra-High-Performance Neural Constellation Background Engine
+ * Optimized for silky-smooth 60-120 FPS on all devices.
+ * Zero layout thrashing, batched GPU draw calls, zero shadowBlur raster lag.
  */
 (function() {
   function init() {
     const canvas = document.getElementById('nexus-bg-canvas');
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
     let width = 0;
     let height = 0;
     let particles = [];
     const isMobile = window.innerWidth < 768;
-    const particleCount = isMobile ? 32 : 68;
-    const connectionDistance = isMobile ? 95 : 125;
+    const particleCount = isMobile ? 22 : 44;
+    const connectionDistance = isMobile ? 85 : 115;
+    const connDistSq = connectionDistance * connectionDistance;
     const mouse = { x: -9999, y: -9999, active: false };
+    let targetMouseX = -9999;
+    let targetMouseY = -9999;
+    let currentGlowX = -9999;
+    let currentGlowY = -9999;
+    let isVisible = true;
+    let animFrameId = null;
 
     function resize() {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      // Background ambient canvas is locked to 1.0 DPR for max performance and zero GPU fillrate bottlenecks
       width = window.innerWidth;
       height = window.innerHeight;
-      canvas.width = Math.floor(width * dpr);
-      canvas.height = Math.floor(height * dpr);
+      canvas.width = width;
+      canvas.height = height;
       canvas.style.width = width + 'px';
       canvas.style.height = height + 'px';
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.scale(dpr, dpr);
     }
 
     window.addEventListener('resize', resize, { passive: true });
     resize();
 
     const mouseGlow = document.getElementById('nexus-mouse-glow');
+    if (mouseGlow) {
+      mouseGlow.style.top = '0';
+      mouseGlow.style.left = '0';
+      mouseGlow.style.transform = 'translate3d(-9999px, -9999px, 0)';
+    }
+
     window.addEventListener('pointermove', (e) => {
+      targetMouseX = e.clientX;
+      targetMouseY = e.clientY;
       mouse.x = e.clientX;
       mouse.y = e.clientY;
       mouse.active = true;
-      if (mouseGlow) {
-        mouseGlow.style.left = e.clientX + 'px';
-        mouseGlow.style.top = e.clientY + 'px';
-        mouseGlow.style.opacity = '1';
-      }
     }, { passive: true });
 
     window.addEventListener('pointerleave', () => {
       mouse.active = false;
+      targetMouseX = -9999;
+      targetMouseY = -9999;
       if (mouseGlow) mouseGlow.style.opacity = '0';
+    }, { passive: true });
+
+    document.addEventListener('visibilitychange', () => {
+      isVisible = !document.hidden;
+      if (isVisible && !animFrameId) {
+        animFrameId = requestAnimationFrame(render);
+      }
     });
 
     const colorPalette = [
@@ -61,13 +79,13 @@
       constructor() {
         this.x = Math.random() * width;
         this.y = Math.random() * height;
-        this.vx = (Math.random() - 0.5) * 0.75;
-        this.vy = (Math.random() - 0.5) * 0.75;
-        this.radius = Math.random() * 2.2 + 1.2;
+        this.vx = (Math.random() - 0.5) * 0.55;
+        this.vy = (Math.random() - 0.5) * 0.55;
+        this.radius = Math.random() * 1.8 + 1.2;
         this.color = colorPalette[Math.floor(Math.random() * colorPalette.length)];
-        this.alpha = Math.random() * 0.4 + 0.35;
+        this.alpha = Math.random() * 0.35 + 0.35;
         this.pulseAngle = Math.random() * Math.PI * 2;
-        this.pulseSpeed = Math.random() * 0.03 + 0.01;
+        this.pulseSpeed = Math.random() * 0.025 + 0.01;
       }
 
       update() {
@@ -80,26 +98,32 @@
         if (this.y < 0) this.y = height;
         else if (this.y > height) this.y = 0;
 
-        // Interactive cursor repulsion / swirl
+        // Interactive cursor repulsion / swirl (fast squared distance check)
         if (mouse.active) {
           const dx = this.x - mouse.x;
           const dy = this.y - mouse.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 140 && dist > 0) {
-            const force = (140 - dist) / 140;
-            this.x += (dx / dist) * force * 1.8;
-            this.y += (dy / dist) * force * 1.8;
+          const distSq = dx * dx + dy * dy;
+          if (distSq < 16900 && distSq > 0) { // 130^2
+            const dist = Math.sqrt(distSq);
+            const force = (130 - dist) / 130;
+            this.x += (dx / dist) * force * 1.5;
+            this.y += (dy / dist) * force * 1.5;
           }
         }
       }
 
       draw() {
-        const currentAlpha = Math.max(0.18, this.alpha + Math.sin(this.pulseAngle) * 0.2);
+        const currentAlpha = Math.max(0.18, this.alpha + Math.sin(this.pulseAngle) * 0.18);
+        
+        // Fast dual-circle glow (no expensive shadowBlur)
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius * 2.2, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, ${currentAlpha * 0.25})`;
+        ctx.fill();
+
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, ${currentAlpha})`;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, 0.8)`;
         ctx.fill();
       }
     }
@@ -109,57 +133,69 @@
     }
 
     function render() {
+      if (!isVisible) {
+        animFrameId = null;
+        return;
+      }
+
       ctx.clearRect(0, 0, width, height);
 
-      // Connect near particles
+      // 1. Smoothly interpolate mouse glow without layout recalculation
+      if (mouseGlow && mouse.active) {
+        currentGlowX += (targetMouseX - currentGlowX) * 0.35;
+        currentGlowY += (targetMouseY - currentGlowY) * 0.35;
+        mouseGlow.style.transform = `translate3d(${currentGlowX - 250}px, ${currentGlowY - 250}px, 0)`;
+        if (mouseGlow.style.opacity !== '1') mouseGlow.style.opacity = '1';
+      }
+
+      // 2. Batch constellation lines into a SINGLE stroke call (huge performance gain)
+      ctx.beginPath();
+      ctx.lineWidth = 0.9;
       for (let i = 0; i < particles.length; i++) {
         const p1 = particles[i];
         for (let j = i + 1; j < particles.length; j++) {
           const p2 = particles[j];
           const dx = p1.x - p2.x;
           const dy = p1.y - p2.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < connectionDistance) {
-            const alpha = (1 - dist / connectionDistance) * 0.25;
-            ctx.strokeStyle = `rgba(88, 101, 242, ${alpha})`;
-            ctx.lineWidth = 1;
-            ctx.shadowBlur = 0;
-            ctx.beginPath();
+          const distSq = dx * dx + dy * dy;
+          if (distSq < connDistSq) {
             ctx.moveTo(p1.x, p1.y);
             ctx.lineTo(p2.x, p2.y);
-            ctx.stroke();
-          }
-        }
-
-        // Interactive cursor tether lines
-        if (mouse.active) {
-          const mdx = p1.x - mouse.x;
-          const mdy = p1.y - mouse.y;
-          const mdist = Math.sqrt(mdx * mdx + mdy * mdy);
-          if (mdist < 150) {
-            const mAlpha = (1 - mdist / 150) * 0.55;
-            ctx.strokeStyle = `rgba(0, 229, 255, ${mAlpha})`;
-            ctx.lineWidth = 1.3;
-            ctx.shadowBlur = 4;
-            ctx.shadowColor = 'rgba(0, 229, 255, 0.6)';
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(mouse.x, mouse.y);
-            ctx.stroke();
           }
         }
       }
+      ctx.strokeStyle = 'rgba(88, 101, 242, 0.16)';
+      ctx.stroke();
 
-      // Draw particle nodes
+      // 3. Batch cursor tether lines into a SINGLE stroke call
+      if (mouse.active) {
+        const tetherDistSq = 140 * 140;
+        ctx.beginPath();
+        ctx.lineWidth = 1.1;
+        for (let i = 0; i < particles.length; i++) {
+          const p1 = particles[i];
+          const mdx = p1.x - mouse.x;
+          const mdy = p1.y - mouse.y;
+          const mdistSq = mdx * mdx + mdy * mdy;
+          if (mdistSq < tetherDistSq) {
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(mouse.x, mouse.y);
+          }
+        }
+        ctx.strokeStyle = 'rgba(0, 229, 255, 0.32)';
+        ctx.stroke();
+      }
+
+      // 4. Update and draw particle nodes
       for (let i = 0; i < particles.length; i++) {
         particles[i].update();
         particles[i].draw();
       }
 
-      requestAnimationFrame(render);
+      animFrameId = requestAnimationFrame(render);
     }
 
-    requestAnimationFrame(render);
+    animFrameId = requestAnimationFrame(render);
   }
 
   if (document.readyState === 'loading') {
