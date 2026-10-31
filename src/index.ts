@@ -1,3 +1,4 @@
+import { getTopXpForGuild } from './services/levelingService';
 import './core/dnsFallback';
 import Fastify from 'fastify';
 import fastifyCookie from '@fastify/cookie';
@@ -1525,31 +1526,8 @@ async function start() {
         return reply.status(404).send({ error: 'Server not found or bot is not in this server' });
       }
 
-      // Fetch top XP
-      const xpRes = await db.query(
-        `SELECT user_id, xp, level 
-         FROM user_economy 
-         WHERE guild_id = $1 
-         ORDER BY xp DESC LIMIT 25`,
-        [guildId]
-      ).catch(() => ({ rows: [] }));
-
-      const topXp = await Promise.all(
-        xpRes.rows.map(async (row: any, idx: number) => {
-          let member = guild.members.cache.get(row.user_id);
-          if (!member) {
-            member = await guild.members.fetch(row.user_id).catch(() => null as any);
-          }
-          return {
-            rank: idx + 1,
-            userId: row.user_id,
-            username: member ? (member.displayName || member.user.username) : `User ${row.user_id.slice(-4)}`,
-            avatar: member ? member.user.displayAvatarURL({ size: 64 }) : null,
-            level: Number(row.level) || 1,
-            xp: Number(row.xp) || 0,
-          };
-        })
-      );
+            // Fetch top XP (dual-layer resilient leveling engine)
+      const topXp = await getTopXpForGuild(guild, 25);
 
       // Fetch top inviters
       let topInviters: any[] = [];
@@ -1889,6 +1867,14 @@ async function start() {
       ADD COLUMN IF NOT EXISTS notif_milestones BOOLEAN DEFAULT TRUE,
       ADD COLUMN IF NOT EXISTS notif_stream_alerts BOOLEAN DEFAULT TRUE,
       ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+
+      ALTER TABLE user_economy
+      ADD COLUMN IF NOT EXISTS balance BIGINT DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS bank BIGINT DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS xp BIGINT DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS level INTEGER DEFAULT 1,
+      ADD COLUMN IF NOT EXISTS last_daily TIMESTAMP WITH TIME ZONE,
+      ADD COLUMN IF NOT EXISTS last_work TIMESTAMP WITH TIME ZONE;
 
       ALTER TABLE guild_tickets
       ADD COLUMN IF NOT EXISTS ticket_type VARCHAR(50) DEFAULT 'GENERAL_SUPPORT',
