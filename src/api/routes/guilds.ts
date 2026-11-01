@@ -843,12 +843,13 @@ export async function guildRoutes(fastify: FastifyInstance) {
         );
       } else if (module === 'modmail') {
         const cleanChan = body.modmail_channel_id ? String(body.modmail_channel_id).replace(/[<#@!&>]/g, '').trim() : null;
-        const cleanRole = body.modmail_staff_role_id ? String(body.modmail_staff_role_id).replace(/[<#@!&>]/g, '').trim() : null;
+        const cleanRole = (body.modmail_staff_role_id || body.modmail_role_id) ? String(body.modmail_staff_role_id || body.modmail_role_id).replace(/[<#@!&>]/g, '').trim() : null;
 
         await db.query(
           `UPDATE guild_settings 
            SET modmail_enabled = $1,
                modmail_channel_id = $2,
+               modmail_role_id = $3,
                modmail_staff_role_id = $3,
                updated_at = NOW()
            WHERE guild_id = $4`,

@@ -1949,6 +1949,8 @@ async function start() {
       ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS verification_role_id VARCHAR(32);
       ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS unverified_role_id VARCHAR(32);
       ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS verification_type VARCHAR(20) DEFAULT 'button';
+      ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS verification_title VARCHAR(256) DEFAULT '🛡️ Server Verification Gate';
+      ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS verification_desc TEXT DEFAULT 'Welcome to our community! To ensure server security and block automated spam bots, all members must verify before accessing channels. Click the button below to unlock access.';
 
       -- Live Voice Stat Counters Columns
       ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS stat_counters_enabled BOOLEAN DEFAULT FALSE;
@@ -1967,6 +1969,7 @@ async function start() {
       ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS modmail_enabled BOOLEAN DEFAULT FALSE;
       ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS modmail_channel_id VARCHAR(32);
       ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS modmail_role_id VARCHAR(32);
+      ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS modmail_staff_role_id VARCHAR(32);
 
       -- Tags / Custom Auto-Responders Table
       CREATE TABLE IF NOT EXISTS guild_tags (
