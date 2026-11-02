@@ -158,16 +158,25 @@ export const streamCommand = {
         });
       }
 
+      // Pre-fetch streamer info to resolve real creator name & profile
+      let initialDisplayName = rawStreamer;
+      try {
+        const initialInfo = await fetchStreamInfo(platform, cleanStreamer);
+        if (initialInfo.displayName) initialDisplayName = initialInfo.displayName;
+      } catch {
+        // ignore
+      }
+
       await db.query(
         `INSERT INTO stream_trackers (guild_id, platform, channel_name, display_name, discord_channel_id, custom_message, mention_role, event_type)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [interaction.guild.id, platform, cleanStreamer, rawStreamer, channel.id, message, mention, eventType]
+        [interaction.guild.id, platform, cleanStreamer, initialDisplayName, channel.id, message, mention, eventType]
       );
 
       const embed = new EmbedBuilder()
         .setColor('#10B981')
         .setTitle('✅ Stream Radar Active')
-        .setDescription(`Successfully added **${cleanStreamer}** to the Multi-Platform Stream Radar!`)
+        .setDescription(`Successfully added **${initialDisplayName}** (${cleanStreamer}) to the Multi-Platform Stream Radar!`)
         .addFields(
           { name: '🌐 Platform', value: platform.toUpperCase(), inline: true },
           { name: '📢 Notification Channel', value: `<#${channel.id}>`, inline: true },

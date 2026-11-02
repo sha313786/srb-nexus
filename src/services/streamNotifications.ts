@@ -41,6 +41,10 @@ const KNOWN_CHANNEL_IDS: Record<string, string> = {
   'srbtrollersyt': 'UCdKhGijZa4-K5QEQjxAX6yg',
 };
 
+// In-memory caches to persist channel avatars and display names across polling cycles
+const avatarCache = new Map<string, string>();
+const authorCache = new Map<string, string>();
+
 /**
  * Safe fetch helpers that always consume response bodies to prevent
  * unhandled socket leaks and Windows libuv UV_HANDLE_CLOSING assertion crashes.
@@ -232,66 +236,165 @@ export async function fetchStreamInfo(
       let liveVideoId = '';
       let liveThumbnail = '';
       let channelId = knownId || '';
-      let authorName = '';
+      let authorName = authorCache.get(cleanName) || '';
+      let channelAvatar = avatarCache.get(cleanName) || '';
 
       if (cleanName.startsWith('uc') && cleanName.length === 24) {
         channelId = cleanName;
       }
 
-      // Step 1: Query YouTube InnerTube resolve_url API for active live stream
-      try {
-        const resolveTarget = channelId
-          ? `https://www.youtube.com/channel/${channelId}/live`
-          : `https://www.youtube.com/@${cleanName}/live`;
+      // Step 1: Directly inspect YouTube /live endpoint with follow redirects
+      const liveTarget = channelId
+        ? `https://www.youtube.com/channel/${channelId}/live`
+        : `https://www.youtube.com/@${cleanName.replace(/^@/, '')}/live`;
 
-        const resolveData = await fetchSafeJson<any>('https://www.youtube.com/youtubei/v1/navigation/resolve_url', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            url: resolveTarget,
-            context: { client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' } }
-          }),
-          signal: AbortSignal.timeout(6000)
+      try {
+        const liveRes = await fetch(liveTarget, {
+          redirect: 'follow',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9'
+          },
+          signal: AbortSignal.timeout(8000)
         });
 
-        if (resolveData) {
-          const endpoint = resolveData.endpoint;
-          const candidateVideoId = endpoint?.watchEndpoint?.videoId;
-          const pageType = endpoint?.commandMetadata?.webCommandMetadata?.webPageType;
+        const liveHtml = await liveRes.text();
 
-          if (endpoint?.browseEndpoint?.browseId && !channelId) {
-            channelId = endpoint.browseEndpoint.browseId;
-          }
+        // Extract video ID from redirected URL, canonical link, or embedded JSON
+        const urlVidMatch = liveRes.url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+        const canonicalMatch = liveHtml.match(/<link\s+rel="canonical"\s+href="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})"/i);
+        const videoIdMatch = liveHtml.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+        const candidateVideoId = (urlVidMatch && urlVidMatch[1]) || (canonicalMatch && canonicalMatch[1]) || (videoIdMatch && videoIdMatch[1]);
 
-          if (candidateVideoId && pageType === 'WEB_PAGE_TYPE_WATCH') {
-            isLive = true;
-            liveVideoId = candidateVideoId;
-            liveTitle = 'Live on YouTube';
-            liveThumbnail = `https://i.ytimg.com/vi/${candidateVideoId}/maxresdefault.jpg`;
+        // Check if stream is currently actively live (not ended)
+        const activeLiveStatus = Boolean(
+          candidateVideoId &&
+          (liveHtml.includes('"isLive":true') ||
+           liveHtml.includes('"isLiveContent":true') ||
+           liveHtml.includes('"status":"LIVE"') ||
+           liveHtml.includes('{"iconType":"LIVE"}') ||
+           liveHtml.includes('"liveStreamability"') ||
+           liveHtml.includes('BADGE_STYLE_TYPE_LIVE_NOW')) &&
+          !liveHtml.includes('"status":"ENDED"')
+        );
 
-            // Enrich metadata via official YouTube oEmbed API
-            try {
-              const oeData = await fetchSafeJson<any>(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${candidateVideoId}&format=json`, {
-                signal: AbortSignal.timeout(5000)
-              });
-              if (oeData) {
-                if (oeData.title) liveTitle = oeData.title;
-                if (oeData.author_name) authorName = oeData.author_name;
-                if (oeData.thumbnail_url) liveThumbnail = oeData.thumbnail_url;
-              }
-            } catch (oeErr) {
-              logger.warn({ oeErr, candidateVideoId }, '[RADAR] Failed to fetch oEmbed details');
-            }
+        // Extract creator avatar from liveHtml
+        if (!channelAvatar) {
+          const avatarMatch =
+            liveHtml.match(/"channelMetadataRenderer":\s*\{[\s\S]*?"avatar":\s*\{\s*"thumbnails":\s*\[\s*\{\s*"url":\s*"([^"]+)"/i) ||
+            liveHtml.match(/"videoOwnerRenderer":\s*\{[\s\S]*?"thumbnail":\s*\{\s*"thumbnails":\s*\[\s*\{\s*"url":\s*"([^"]+)"/i) ||
+            liveHtml.match(/(https:\/\/yt3\.(?:ggpht|googleusercontent)\.com\/[a-zA-Z0-9_\-=/]+)/i);
+          if (avatarMatch && avatarMatch[1]) {
+            channelAvatar = avatarMatch[1].replace(/=s\d+/, '=s800');
+            avatarCache.set(cleanName, channelAvatar);
           }
         }
-      } catch (err) {
-        logger.warn({ err, cleanName }, '[RADAR] Failed during YouTube InnerTube live resolve');
+
+        // Extract channel display name from liveHtml
+        if (!authorName) {
+          const channelNameMatch =
+            liveHtml.match(/"channelMetadataRenderer":\s*\{[\s\S]*?"title":\s*"([^"]+)"/i) ||
+            liveHtml.match(/"ownerChannelName":"([^"]+)"/i) ||
+            liveHtml.match(/<meta\s+name="title"\s+content="([^"]+)"/i);
+          if (channelNameMatch && channelNameMatch[1]) {
+            authorName = channelNameMatch[1].trim();
+            authorCache.set(cleanName, authorName);
+          }
+        }
+
+        // Extract channelId if we didn't have one
+        if (!channelId) {
+          const cidMatch = liveHtml.match(/"channelId":"(UC[a-zA-Z0-9_-]{22})"/);
+          if (cidMatch && cidMatch[1]) channelId = cidMatch[1];
+        }
+
+        if (activeLiveStatus && candidateVideoId) {
+          isLive = true;
+          liveVideoId = candidateVideoId;
+          liveThumbnail = `https://i.ytimg.com/vi/${candidateVideoId}/maxresdefault.jpg`;
+
+          // Enrich title, creator name, and thumbnail via YouTube oEmbed
+          try {
+            const oeData = await fetchSafeJson<any>(
+              `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${candidateVideoId}&format=json`,
+              { signal: AbortSignal.timeout(5000) }
+            );
+            if (oeData) {
+              if (oeData.title) liveTitle = oeData.title;
+              if (oeData.author_name) {
+                authorName = oeData.author_name;
+                authorCache.set(cleanName, authorName);
+              }
+              if (oeData.thumbnail_url && !liveThumbnail) {
+                liveThumbnail = oeData.thumbnail_url;
+              }
+            }
+          } catch (oeErr) {
+            logger.warn({ oeErr, candidateVideoId }, '[RADAR] Failed to fetch oEmbed details');
+          }
+
+          if (!liveTitle) {
+            const metaTitle =
+              liveHtml.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
+              liveHtml.match(/<meta\s+name="title"\s+content="([^"]+)"/i);
+            if (metaTitle && metaTitle[1]) liveTitle = metaTitle[1].trim();
+          }
+        }
+      } catch (liveErr) {
+        logger.warn({ liveErr, cleanName }, '[RADAR] Failed fetching YouTube live status');
       }
 
-      // Step 2: Fallback / Secondary RSS Check for recent video upload
+      // Step 2: If avatar or author name are still missing, fetch channel home page once
+      if (!channelAvatar || !authorName || !channelId) {
+        try {
+          const homeUrl = channelId
+            ? `https://www.youtube.com/channel/${channelId}`
+            : `https://www.youtube.com/@${cleanName.replace(/^@/, '')}`;
+          const homeHtml = await fetchSafeText(homeUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept-Language': 'en-US,en;q=0.9'
+            },
+            signal: AbortSignal.timeout(6000)
+          });
+          if (homeHtml) {
+            if (!channelAvatar) {
+              const avMatch =
+                homeHtml.match(/"channelMetadataRenderer":\s*\{[\s\S]*?"avatar":\s*\{\s*"thumbnails":\s*\[\s*\{\s*"url":\s*"([^"]+)"/i) ||
+                homeHtml.match(/"avatar":\s*\{\s*"thumbnails":\s*\[\s*\{\s*"url":\s*"([^"]+)"/i) ||
+                homeHtml.match(/(https:\/\/yt3\.(?:ggpht|googleusercontent)\.com\/[a-zA-Z0-9_\-=/]+)/i);
+              if (avMatch && avMatch[1]) {
+                channelAvatar = avMatch[1].replace(/=s\d+/, '=s800');
+                avatarCache.set(cleanName, channelAvatar);
+              }
+            }
+            if (!authorName) {
+              const nameMatch =
+                homeHtml.match(/"channelMetadataRenderer":\s*\{[\s\S]*?"title":\s*"([^"]+)"/i) ||
+                homeHtml.match(/<meta\s+name="title"\s+content="([^"]+)"/i);
+              if (nameMatch && nameMatch[1]) {
+                authorName = nameMatch[1].trim();
+                authorCache.set(cleanName, authorName);
+              }
+            }
+            if (!channelId) {
+              const cidMatch = homeHtml.match(/"channelId":"(UC[a-zA-Z0-9_-]{22})"/);
+              if (cidMatch && cidMatch[1]) channelId = cidMatch[1];
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      // Safe fallback profile info
+      const finalAvatar = channelAvatar || 'https://www.youtube.com/s/desktop/f7be2d12/img/favicon_144x144.png';
+      const finalDisplayName = authorName || cleanName;
+
+      // Step 3: Video Uploads check via RSS (when not live)
       let latestVideoId = '';
       let latestVideoTitle = '';
-      let latestVideoUrl = `https://youtube.com/@${cleanName}`;
+      let latestVideoUrl = `https://youtube.com/@${cleanName.replace(/^@/, '')}`;
       let latestThumbnail = '';
       let isCandidateStreamVOD = false;
 
@@ -305,7 +408,10 @@ export async function fetchStreamInfo(
             const idMatch = xml.match(/<yt:videoId>(.*?)<\/yt:videoId>/);
             const titleMatch = xml.match(/<media:title>(.*?)<\/media:title>/) || xml.match(/<title>(.*?)<\/title>/);
             const authorTag = xml.match(/<author>\s*<name>(.*?)<\/name>/);
-            if (authorTag && authorTag[1]) authorName = authorTag[1];
+            if (authorTag && authorTag[1]) {
+              authorName = authorTag[1];
+              authorCache.set(cleanName, authorName);
+            }
 
             if (idMatch && idMatch[1]) {
               const candidateId = idMatch[1];
@@ -346,17 +452,17 @@ export async function fetchStreamInfo(
         }
       }
 
-      // Step 3: Package final StreamInfo
+      // Step 4: Package final StreamInfo
       if (isLive && liveVideoId) {
         return {
           isLive: true,
           platform: 'youtube',
           eventType: 'live',
           channelName: cleanName,
-          displayName: authorName || cleanName,
+          displayName: finalDisplayName,
           title: liveTitle || 'Live Stream on YouTube',
           game: 'YouTube Live',
-          avatarUrl: 'https://cdn.discordapp.com/embed/avatars/0.png',
+          avatarUrl: finalAvatar,
           thumbnailUrl: liveThumbnail,
           streamUrl: `https://www.youtube.com/watch?v=${liveVideoId}`,
           streamId: liveVideoId
@@ -367,10 +473,10 @@ export async function fetchStreamInfo(
           platform: 'youtube',
           eventType: 'upload',
           channelName: cleanName,
-          displayName: authorName || cleanName,
+          displayName: finalDisplayName,
           title: latestVideoTitle || 'New YouTube Video',
           game: 'Video Upload',
-          avatarUrl: 'https://cdn.discordapp.com/embed/avatars/0.png',
+          avatarUrl: finalAvatar,
           thumbnailUrl: latestThumbnail,
           streamUrl: latestVideoUrl,
           streamId: latestVideoId
@@ -382,10 +488,11 @@ export async function fetchStreamInfo(
         platform: 'youtube',
         eventType: 'live',
         channelName: cleanName,
-        displayName: authorName || cleanName,
+        displayName: finalDisplayName,
         title: 'Offline',
         game: 'Offline',
-        streamUrl: `https://youtube.com/@${cleanName}`
+        avatarUrl: finalAvatar,
+        streamUrl: `https://youtube.com/@${cleanName.replace(/^@/, '')}`
       };
     } catch (err) {
       logger.error({ err, cleanName }, 'Failed to fetch YouTube channel status');
@@ -396,7 +503,7 @@ export async function fetchStreamInfo(
         displayName: cleanName,
         title: 'Offline',
         game: 'Offline',
-        streamUrl: `https://youtube.com/@${cleanName}`,
+        streamUrl: `https://youtube.com/@${cleanName.replace(/^@/, '')}`,
       };
     }
   }
@@ -424,82 +531,20 @@ export function buildStreamEmbed(tracker: Partial<StreamTrackerRow>, info: Strea
   const isPremiere = info.eventType === 'premiere';
 
   let color: `#${string}` = '#9146FF';
-  let badge = '🟣 TWITCH';
   let btnLabel = '🔴 Watch Live on Twitch';
   let platformIcon = 'https://assets.help.twitch.tv/Glitch_Purple_RGB.png';
 
   if (info.platform === 'kick') {
     color = '#53FC18';
-    badge = '🟢 KICK';
     btnLabel = '🔴 Watch Live on Kick';
     platformIcon = 'https://files.kick.com/images/user/62/profile_image/conversion/300.webp';
   } else if (info.platform === 'youtube') {
     color = '#FF0000';
-    badge = '🔴 YOUTUBE';
     btnLabel = isVideoUpload ? '🎬 Watch New Video' : (isPremiere ? '⭐ Watch Premiere' : '🔴 Watch Live on YouTube');
     platformIcon = 'https://www.youtube.com/s/desktop/f7be2d12/img/favicon_144x144.png';
   }
 
-  const alertTypeLabel = isVideoUpload
-    ? 'NEW VIDEO UPLOAD'
-    : (isPremiere ? 'VIDEO PREMIERE' : 'LIVE STREAM ALERT');
-
-  const titleHeader = isVideoUpload
-    ? `🎬 ${info.displayName || info.channelName} published a new video!`
-    : (isPremiere
-        ? `⭐ ${info.displayName || info.channelName} is premiering a video!`
-        : `🔴 ${info.displayName || info.channelName} is now LIVE!`);
-
-  const startedTimestamp = Math.floor(Date.now() / 1000);
-
-  const embed = new EmbedBuilder()
-    .setColor(color)
-    .setAuthor({
-      name: `${badge} • ${alertTypeLabel}`,
-      iconURL: info.avatarUrl || platformIcon,
-      url: info.streamUrl
-    })
-    .setTitle(titleHeader)
-    .setURL(info.streamUrl)
-    .setDescription(`### [${info.title || (isVideoUpload ? 'New Video' : 'Live Broadcast')}](${info.streamUrl})`)
-    .addFields(
-      {
-        name: isVideoUpload ? '📂 Content Type' : '🎮 Category / Game',
-        value: `\`${isVideoUpload ? 'Video Upload' : (info.game || 'Just Chatting')}\``,
-        inline: true
-      },
-      {
-        name: isVideoUpload ? '🕒 Status' : '👥 Live Viewers',
-        value: isVideoUpload ? '`Uploaded & Ready`' : `\`${info.viewers ? info.viewers.toLocaleString() : 'Live Now'}\``,
-        inline: true
-      },
-      {
-        name: isVideoUpload ? '🕒 Published' : '⏱️ Started',
-        value: `<t:${startedTimestamp}:R>`,
-        inline: true
-      },
-      { name: '🌐 Platform', value: `**${info.platform.toUpperCase()}**`, inline: true }
-    )
-    .setFooter({
-      text: 'SRB NEXUS Stream Radar • Real-Time Alert',
-      iconURL: 'https://srb-nexus-awgm.onrender.com/nexus-logo.png'
-    })
-    .setTimestamp();
-
-  if (info.thumbnailUrl) {
-    embed.setImage(info.thumbnailUrl);
-  }
-  if (info.avatarUrl) {
-    embed.setThumbnail(info.avatarUrl);
-  }
-
-  // Primary Watch Button
-  const watchBtn = new ButtonBuilder()
-    .setLabel(btnLabel)
-    .setStyle(ButtonStyle.Link)
-    .setURL(info.streamUrl);
-
-  // Secondary Creator Channel Profile Button
+  // Determine Creator Channel URL
   let channelUrl = info.streamUrl;
   if (info.platform === 'twitch') {
     channelUrl = `https://twitch.tv/${info.channelName}`;
@@ -507,9 +552,56 @@ export function buildStreamEmbed(tracker: Partial<StreamTrackerRow>, info: Strea
     channelUrl = `https://kick.com/${info.channelName}`;
   } else if (info.platform === 'youtube') {
     channelUrl = info.channelName.startsWith('UC')
-      ? `https://youtube.com/channel/${info.channelName}`
-      : `https://youtube.com/@${info.channelName.replace(/^@/, '')}`;
+      ? `https://www.youtube.com/channel/${info.channelName}`
+      : `https://www.youtube.com/@${info.channelName.replace(/^@/, '')}`;
   }
+
+  const displayName = info.displayName || tracker.display_name || info.channelName;
+  const avatar = info.avatarUrl || platformIcon;
+
+  // Ultra-clean high fidelity embed matching NotifyMe's gold standard
+  const embed = new EmbedBuilder()
+    .setColor(color)
+    .setAuthor({
+      name: displayName,
+      iconURL: avatar,
+      url: channelUrl
+    })
+    .setTitle(info.title || (isVideoUpload ? 'New Video Release' : 'Live Stream Broadcast'))
+    .setURL(info.streamUrl)
+    .setFooter({
+      text: `SRB NEXUS Stream Radar • ${info.platform.toUpperCase()}`,
+      iconURL: 'https://srb-nexus-awgm.onrender.com/nexus-logo.png'
+    })
+    .setTimestamp();
+
+  // For Twitch/Kick or gaming platforms, display category or viewers only if real data exists
+  if (info.platform !== 'youtube' && info.game && info.game !== 'Just Chatting' && info.game !== 'Offline') {
+    embed.addFields({
+      name: '🎮 Category',
+      value: `\`${info.game}\``,
+      inline: true
+    });
+  }
+
+  if (info.viewers && info.viewers > 0) {
+    embed.addFields({
+      name: '👥 Viewers',
+      value: `\`${info.viewers.toLocaleString()}\``,
+      inline: true
+    });
+  }
+
+  // Full-width high-res banner image (Do NOT set right-hand thumbnail, keep header wide and clean)
+  if (info.thumbnailUrl) {
+    embed.setImage(info.thumbnailUrl);
+  }
+
+  // Primary Action Buttons
+  const watchBtn = new ButtonBuilder()
+    .setLabel(btnLabel)
+    .setStyle(ButtonStyle.Link)
+    .setURL(info.streamUrl);
 
   const channelBtn = new ButtonBuilder()
     .setLabel('Creator Channel')
@@ -519,42 +611,51 @@ export function buildStreamEmbed(tracker: Partial<StreamTrackerRow>, info: Strea
 
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(watchBtn, channelBtn);
 
-  // Formulate mention text
+  // Formulate mention text: ping on first line
   let mention = '';
   if (tracker.mention_role === 'everyone') {
-    mention = '@everyone ';
+    mention = '@everyone\n';
   } else if (tracker.mention_role === 'here') {
-    mention = '@here ';
+    mention = '@here\n';
   } else if (tracker.mention_role && tracker.mention_role !== 'none') {
-    mention = `<@&${tracker.mention_role}> `;
+    mention = `<@&${tracker.mention_role}>\n`;
   }
 
   const typeDisplay = isVideoUpload ? 'video' : (isPremiere ? 'premiere' : 'live stream');
 
+  // Modern clean notification phrasing
   let defaultTemplate = isVideoUpload
-    ? '{streamer} just uploaded a new video on {platform}! 🎬'
+    ? '{streamer} uploaded a new video!'
     : (isPremiere
-        ? '{streamer} is premiering a new video on {platform}! ⭐'
-        : '{streamer} is now LIVE on {platform}! 🔴');
+        ? '{streamer} is premiering a video!'
+        : '{streamer} is live!');
 
   let customText = tracker.custom_message || defaultTemplate;
 
+  // Clean legacy noisy default templates if user had saved one
+  if (
+    customText.includes('published new live stream on') ||
+    customText.includes('is now LIVE on') ||
+    customText === '{streamer} is now LIVE on {platform}! 🔴'
+  ) {
+    customText = isVideoUpload ? '{streamer} uploaded a new video!' : '{streamer} is live!';
+  }
+
   // Auto-adapt message if custom template doesn't match event type
-  if (isVideoUpload && customText.includes('is now LIVE')) {
-    customText = customText.replace(/is now LIVE/gi, 'just uploaded a new video').replace(/🔴/g, '🎬');
-  } else if (!isVideoUpload && (customText.includes('uploaded a new video') || customText.includes('published new video'))) {
-    customText = customText.replace(/uploaded a new video|published new video/gi, 'is now LIVE').replace(/🎬/g, '🔴');
+  if (isVideoUpload && customText.includes('is live')) {
+    customText = customText.replace(/is live/gi, 'uploaded a new video');
+  } else if (!isVideoUpload && customText.includes('uploaded a new video')) {
+    customText = customText.replace(/uploaded a new video/gi, 'is live');
   }
 
   customText = customText
-    .replace(/{streamer}/g, `**${info.displayName || info.channelName}**`)
+    .replace(/{streamer}/g, `**${displayName}**`)
     .replace(/{platform}/g, info.platform.toUpperCase())
     .replace(/{title}/g, info.title || 'New Release')
-    .replace(/{game}/g, info.game || 'Streaming')
+    .replace(/{game}/g, info.game || '')
     .replace(/{type}/g, typeDisplay)
     .replace(/{url}/g, info.streamUrl)
-    .replace(/{viewers}/g, info.viewers ? String(info.viewers) : 'Live')
-    .replace(/\bnew new\b/gi, 'new');
+    .replace(/{viewers}/g, info.viewers ? String(info.viewers) : 'Live');
 
   const content = `${mention}${customText}`;
 
@@ -632,21 +733,37 @@ export async function testStreamNotification(
   const channelName = tracker.channel_name || 'nexus_creator';
   const isUploadTest = tracker.event_type === 'upload';
 
+  // Attempt real info fetch so test alert uses the creator's real profile picture and name if found
+  let resolvedDisplayName = tracker.display_name || channelName;
+  let resolvedAvatar: string | undefined = undefined;
+
+  try {
+    const liveFetch = await fetchStreamInfo(platform, channelName);
+    if (liveFetch.displayName) resolvedDisplayName = liveFetch.displayName;
+    if (liveFetch.avatarUrl) resolvedAvatar = liveFetch.avatarUrl;
+  } catch {
+    // ignore
+  }
+
+  const defaultAvatar = platform === 'twitch'
+    ? 'https://static-cdn.jtvnw.net/jtv_user_pictures/c754eebf-745b-4e0a-814a-10bcaecaabbc-profile_image-300x300.png'
+    : (platform === 'kick'
+        ? 'https://files.kick.com/images/user/62/profile_image/conversion/300.webp'
+        : 'https://yt3.googleusercontent.com/sJ6F4fHhBXHQtnyqr_lKCkaqLzXZQlI0h031eO7qLQyTNZZ0uiU9Lck9j_-QtSZApHAeMjnD2cg=s800-c-k-c0x00ffffff-no-rj');
+
   // Build simulated stream or video upload info
   const testInfo: StreamInfo = {
     isLive: !isUploadTest,
     eventType: isUploadTest ? 'upload' : 'live',
     platform,
     channelName,
-    displayName: tracker.display_name || channelName,
+    displayName: resolvedDisplayName,
     title: isUploadTest
       ? `🎬 [TEST VIDEO] Brand New Gaming Guide & Full Walkthrough!`
       : `🔥 [TEST BROADCAST] Epic Gaming & Community Hangout!`,
     game: isUploadTest ? 'Video Upload' : (platform === 'kick' ? 'Grand Theft Auto V' : (platform === 'youtube' ? 'Valorant' : 'Just Chatting')),
     viewers: isUploadTest ? undefined : 1337,
-    avatarUrl: platform === 'twitch'
-      ? 'https://static-cdn.jtvnw.net/jtv_user_pictures/c754eebf-745b-4e0a-814a-10bcaecaabbc-profile_image-300x300.png'
-      : (platform === 'kick' ? 'https://files.kick.com/images/user/62/profile_image/conversion/300.webp' : 'https://cdn.discordapp.com/embed/avatars/0.png'),
+    avatarUrl: resolvedAvatar || defaultAvatar,
     thumbnailUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1280&auto=format&fit=crop',
     streamUrl: platform === 'twitch' ? `https://twitch.tv/${channelName}` : (platform === 'kick' ? `https://kick.com/${channelName}` : `https://youtube.com/@${channelName}`)
   };
@@ -654,7 +771,7 @@ export async function testStreamNotification(
   const { embed, row, content } = buildStreamEmbed(tracker, testInfo);
 
   await channel.send({
-    content: `🧪 **[TEST ${isUploadTest ? 'VIDEO' : 'STREAM'} ALERT]** ${content}`,
+    content: `🧪 **[TEST ${isUploadTest ? 'VIDEO' : 'STREAM'} ALERT]**\n${content}`,
     embeds: [embed],
     components: [row]
   });
@@ -721,9 +838,10 @@ async function pollTrackedStreams(bot: Client) {
                    last_stream_id = $1, 
                    last_title = $2, 
                    last_game = $3, 
+                   display_name = COALESCE($4, display_name),
                    last_checked_at = NOW() 
-               WHERE id = $4`,
-              [streamInfo.streamId || null, streamInfo.title, streamInfo.game, tracker.id]
+               WHERE id = $5`,
+              [streamInfo.streamId || null, streamInfo.title, streamInfo.game, streamInfo.displayName, tracker.id]
             );
             continue;
           } else if (tracker.is_live && !streamInfo.isLive) {
@@ -735,8 +853,8 @@ async function pollTrackedStreams(bot: Client) {
             continue;
           } else if (streamInfo.isLive && tracker.is_live) {
             await db.query(
-              `UPDATE stream_trackers SET last_title = $1, last_checked_at = NOW() WHERE id = $2`,
-              [streamInfo.title, tracker.id]
+              `UPDATE stream_trackers SET last_title = $1, display_name = COALESCE($2, display_name), last_checked_at = NOW() WHERE id = $3`,
+              [streamInfo.title, streamInfo.displayName, tracker.id]
             );
             continue;
           }
@@ -778,9 +896,10 @@ async function pollTrackedStreams(bot: Client) {
                SET last_stream_id = $1, 
                    last_title = $2, 
                    last_game = $3, 
+                   display_name = COALESCE($4, display_name),
                    last_checked_at = NOW() 
-               WHERE id = $4`,
-              [streamInfo.streamId, streamInfo.title, streamInfo.game, tracker.id]
+               WHERE id = $5`,
+              [streamInfo.streamId, streamInfo.title, streamInfo.game, streamInfo.displayName, tracker.id]
             );
             continue;
           }

@@ -1314,9 +1314,9 @@ export async function guildRoutes(fastify: FastifyInstance) {
 
       await db.query(
         `UPDATE stream_trackers 
-         SET is_live = $1, last_stream_id = $2, last_title = $3, last_game = $4, last_checked_at = NOW() 
-         WHERE id = $5`,
-        [info.isLive, info.streamId || tracker.last_stream_id, info.title, info.game, tracker.id]
+         SET is_live = $1, last_stream_id = $2, last_title = $3, last_game = $4, display_name = COALESCE($5, display_name), last_checked_at = NOW() 
+         WHERE id = $6`,
+        [info.isLive, info.streamId || tracker.last_stream_id, info.title, info.game, info.displayName, tracker.id]
       );
 
       return reply.send({ success: true, info });
