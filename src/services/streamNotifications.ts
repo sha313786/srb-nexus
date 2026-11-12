@@ -38,12 +38,79 @@ export interface StreamTrackerRow {
 
 const KNOWN_CHANNEL_IDS: Record<string, string> = {
   'jackalknightyt': 'UCIi1sRUljdH7wTdW8X_pp9g',
-  'srbtrollersyt': 'UCdKhGijZa4-K5QEQjxAX6yg',
+  'srbtrollersyt': 'UCNna4bg9nRaxhoS1CJ1hbaw',
 };
 
-// In-memory caches to persist channel avatars and display names across polling cycles
-const avatarCache = new Map<string, string>();
-const authorCache = new Map<string, string>();
+export interface YouTubeProfile {
+  displayName: string;
+  avatarUrl: string;
+  channelId?: string;
+  cachedAt: number;
+}
+
+// In-memory cache to strictly persist verified YouTube channel profiles (title, avatar, channelId)
+const ytProfileCache = new Map<string, YouTubeProfile>();
+
+/**
+ * Fetch authoritative YouTube channel profile directly from the channel home page.
+ * Guarantees that the creator's real name and profile picture are NEVER overwritten by third-party recommendations.
+ */
+export async function getYouTubeChannelProfile(cleanName: string, knownId?: string): Promise<YouTubeProfile> {
+  const cached = ytProfileCache.get(cleanName);
+  if (cached && Date.now() - cached.cachedAt < 3600000) {
+    return cached;
+  }
+
+  let channelId = knownId || '';
+  if (cleanName.startsWith('uc') && cleanName.length === 24) {
+    channelId = cleanName;
+  }
+
+  const url = channelId
+    ? `https://www.youtube.com/channel/${channelId}`
+    : `https://www.youtube.com/@${cleanName.replace(/^@/, '')}`;
+
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9'
+      },
+      signal: AbortSignal.timeout(6000)
+    });
+    const html = await res.text();
+
+    const titleMatch =
+      html.match(/"channelMetadataRenderer":\s*\{[\s\S]*?"title":\s*"([^"]+)"/i) ||
+      html.match(/"ownerChannelName":"([^"]+)"/i) ||
+      html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i);
+
+    const cidMatch = html.match(/"channelId":"(UC[a-zA-Z0-9_-]{22})"/);
+
+    const avatarMatch =
+      html.match(/"channelMetadataRenderer":\s*\{[\s\S]*?"avatar":\s*\{\s*"thumbnails":\s*\[\s*\{\s*"url":\s*"([^"]+)"/i) ||
+      html.match(/(https:\/\/yt3\.(?:ggpht|googleusercontent)\.com\/[a-zA-Z0-9_\-=/]+)/i);
+
+    const profile: YouTubeProfile = {
+      displayName: titleMatch ? titleMatch[1].trim() : cleanName,
+      channelId: cidMatch ? cidMatch[1] : (channelId || undefined),
+      avatarUrl: avatarMatch ? avatarMatch[1].replace(/=s\d+/, '=s800') : 'https://www.youtube.com/s/desktop/f7be2d12/img/favicon_144x144.png',
+      cachedAt: Date.now()
+    };
+
+    ytProfileCache.set(cleanName, profile);
+    return profile;
+  } catch {
+    const fallback: YouTubeProfile = {
+      displayName: cleanName,
+      channelId: channelId || undefined,
+      avatarUrl: 'https://www.youtube.com/s/desktop/f7be2d12/img/favicon_144x144.png',
+      cachedAt: Date.now()
+    };
+    ytProfileCache.set(cleanName, fallback);
+    return fallback;
+  }
+}
 
 /**
  * Safe fetch helpers that always consume response bodies to prevent
@@ -231,19 +298,16 @@ export async function fetchStreamInfo(
   // 3. YOUTUBE STREAM & VIDEO CHECK
   if (platform === 'youtube') {
     try {
+      // Step 1: Authoritative profile resolution directly from the channel home page
+      const profile = await getYouTubeChannelProfile(cleanName, knownId);
+      const channelId = profile.channelId;
+
       let isLive = false;
       let liveTitle = '';
       let liveVideoId = '';
       let liveThumbnail = '';
-      let channelId = knownId || '';
-      let authorName = authorCache.get(cleanName) || '';
-      let channelAvatar = avatarCache.get(cleanName) || '';
 
-      if (cleanName.startsWith('uc') && cleanName.length === 24) {
-        channelId = cleanName;
-      }
-
-      // Step 1: Directly inspect YouTube /live endpoint with follow redirects
+      // Step 2: Strictly inspect creator's /live endpoint
       const liveTarget = channelId
         ? `https://www.youtube.com/channel/${channelId}/live`
         : `https://www.youtube.com/@${cleanName.replace(/^@/, '')}/live`;
@@ -260,136 +324,67 @@ export async function fetchStreamInfo(
 
         const liveHtml = await liveRes.text();
 
-        // Extract video ID from redirected URL, canonical link, or embedded JSON
-        const urlVidMatch = liveRes.url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+        // STRICT CANONICAL CHECK:
+        // When a stream is actually live, YouTube canonical points to /watch?v=...
+        // NEVER extract video ID from generic body regex if canonical is not /watch!
         const canonicalMatch = liveHtml.match(/<link\s+rel="canonical"\s+href="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})"/i);
-        const videoIdMatch = liveHtml.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
-        const candidateVideoId = (urlVidMatch && urlVidMatch[1]) || (canonicalMatch && canonicalMatch[1]) || (videoIdMatch && videoIdMatch[1]);
+        const urlVidMatch = liveRes.url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+        const candidateVideoId = (urlVidMatch && urlVidMatch[1]) || (canonicalMatch && canonicalMatch[1]);
 
-        // Check if stream is currently actively live (not ended)
-        const activeLiveStatus = Boolean(
-          candidateVideoId &&
-          (liveHtml.includes('"isLive":true') ||
-           liveHtml.includes('"isLiveContent":true') ||
-           liveHtml.includes('"status":"LIVE"') ||
-           liveHtml.includes('{"iconType":"LIVE"}') ||
-           liveHtml.includes('"liveStreamability"') ||
-           liveHtml.includes('BADGE_STYLE_TYPE_LIVE_NOW')) &&
-          !liveHtml.includes('"status":"ENDED"')
-        );
+        if (candidateVideoId) {
+          const playerMatch = liveHtml.match(/var ytInitialPlayerResponse\s*=\s*(\{.+?\});(?:var|<\/script>)/s);
+          if (playerMatch) {
+            try {
+              const pData = JSON.parse(playerMatch[1]);
+              const vd = pData.videoDetails || {};
+              const micro = pData.microformat?.playerMicroformatRenderer || {};
+              const playability = pData.playabilityStatus || {};
 
-        // Extract creator avatar from liveHtml
-        if (!channelAvatar) {
-          const avatarMatch =
-            liveHtml.match(/"channelMetadataRenderer":\s*\{[\s\S]*?"avatar":\s*\{\s*"thumbnails":\s*\[\s*\{\s*"url":\s*"([^"]+)"/i) ||
-            liveHtml.match(/"videoOwnerRenderer":\s*\{[\s\S]*?"thumbnail":\s*\{\s*"thumbnails":\s*\[\s*\{\s*"url":\s*"([^"]+)"/i) ||
-            liveHtml.match(/(https:\/\/yt3\.(?:ggpht|googleusercontent)\.com\/[a-zA-Z0-9_\-=/]+)/i);
-          if (avatarMatch && avatarMatch[1]) {
-            channelAvatar = avatarMatch[1].replace(/=s\d+/, '=s800');
-            avatarCache.set(cleanName, channelAvatar);
-          }
-        }
+              // STRICT OWNERSHIP VERIFICATION:
+              // The stream MUST belong to the tracked creator, never a third-party recommended video!
+              const streamAuthor = (vd.author || micro.ownerChannelName || '').trim().toLowerCase();
+              const profileTitle = profile.displayName.toLowerCase();
+              const cleanLower = cleanName.toLowerCase();
 
-        // Extract channel display name from liveHtml
-        if (!authorName) {
-          const channelNameMatch =
-            liveHtml.match(/"channelMetadataRenderer":\s*\{[\s\S]*?"title":\s*"([^"]+)"/i) ||
-            liveHtml.match(/"ownerChannelName":"([^"]+)"/i) ||
-            liveHtml.match(/<meta\s+name="title"\s+content="([^"]+)"/i);
-          if (channelNameMatch && channelNameMatch[1]) {
-            authorName = channelNameMatch[1].trim();
-            authorCache.set(cleanName, authorName);
-          }
-        }
+              const isAuthorMatch =
+                streamAuthor.includes(profileTitle) ||
+                profileTitle.includes(streamAuthor) ||
+                streamAuthor.includes(cleanLower) ||
+                cleanLower.includes(streamAuthor) ||
+                (channelId && (vd.channelId === channelId || micro.externalChannelId === channelId));
 
-        // Extract channelId if we didn't have one
-        if (!channelId) {
-          const cidMatch = liveHtml.match(/"channelId":"(UC[a-zA-Z0-9_-]{22})"/);
-          if (cidMatch && cidMatch[1]) channelId = cidMatch[1];
-        }
+              if (isAuthorMatch) {
+                const streamEnded = liveHtml.includes('"status":"ENDED"') || playability.status === 'LIVE_STREAM_OFFLINE';
+                const activeLive = Boolean(
+                  vd.isLive &&
+                  playability.status === 'OK' &&
+                  (micro.liveBroadcastDetails?.isLiveNow === true || vd.isLiveContent === true) &&
+                  !streamEnded
+                );
 
-        if (activeLiveStatus && candidateVideoId) {
-          isLive = true;
-          liveVideoId = candidateVideoId;
-          liveThumbnail = `https://i.ytimg.com/vi/${candidateVideoId}/maxresdefault.jpg`;
-
-          // Enrich title, creator name, and thumbnail via YouTube oEmbed
-          try {
-            const oeData = await fetchSafeJson<any>(
-              `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${candidateVideoId}&format=json`,
-              { signal: AbortSignal.timeout(5000) }
-            );
-            if (oeData) {
-              if (oeData.title) liveTitle = oeData.title;
-              if (oeData.author_name) {
-                authorName = oeData.author_name;
-                authorCache.set(cleanName, authorName);
+                if (activeLive) {
+                  isLive = true;
+                  liveVideoId = candidateVideoId;
+                  liveTitle = vd.title || micro.title?.simpleText || 'Live on YouTube';
+                  liveThumbnail = `https://i.ytimg.com/vi/${candidateVideoId}/maxresdefault.jpg`;
+                }
+              } else {
+                logger.warn(
+                  { cleanName, streamAuthor, profileTitle, candidateVideoId },
+                  '[RADAR] Ignored third-party video on YouTube live redirect'
+                );
               }
-              if (oeData.thumbnail_url && !liveThumbnail) {
-                liveThumbnail = oeData.thumbnail_url;
-              }
+            } catch (pErr) {
+              logger.warn({ pErr, cleanName }, '[RADAR] Failed parsing player response');
             }
-          } catch (oeErr) {
-            logger.warn({ oeErr, candidateVideoId }, '[RADAR] Failed to fetch oEmbed details');
-          }
-
-          if (!liveTitle) {
-            const metaTitle =
-              liveHtml.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
-              liveHtml.match(/<meta\s+name="title"\s+content="([^"]+)"/i);
-            if (metaTitle && metaTitle[1]) liveTitle = metaTitle[1].trim();
           }
         }
       } catch (liveErr) {
         logger.warn({ liveErr, cleanName }, '[RADAR] Failed fetching YouTube live status');
       }
 
-      // Step 2: If avatar or author name are still missing, fetch channel home page once
-      if (!channelAvatar || !authorName || !channelId) {
-        try {
-          const homeUrl = channelId
-            ? `https://www.youtube.com/channel/${channelId}`
-            : `https://www.youtube.com/@${cleanName.replace(/^@/, '')}`;
-          const homeHtml = await fetchSafeText(homeUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept-Language': 'en-US,en;q=0.9'
-            },
-            signal: AbortSignal.timeout(6000)
-          });
-          if (homeHtml) {
-            if (!channelAvatar) {
-              const avMatch =
-                homeHtml.match(/"channelMetadataRenderer":\s*\{[\s\S]*?"avatar":\s*\{\s*"thumbnails":\s*\[\s*\{\s*"url":\s*"([^"]+)"/i) ||
-                homeHtml.match(/"avatar":\s*\{\s*"thumbnails":\s*\[\s*\{\s*"url":\s*"([^"]+)"/i) ||
-                homeHtml.match(/(https:\/\/yt3\.(?:ggpht|googleusercontent)\.com\/[a-zA-Z0-9_\-=/]+)/i);
-              if (avMatch && avMatch[1]) {
-                channelAvatar = avMatch[1].replace(/=s\d+/, '=s800');
-                avatarCache.set(cleanName, channelAvatar);
-              }
-            }
-            if (!authorName) {
-              const nameMatch =
-                homeHtml.match(/"channelMetadataRenderer":\s*\{[\s\S]*?"title":\s*"([^"]+)"/i) ||
-                homeHtml.match(/<meta\s+name="title"\s+content="([^"]+)"/i);
-              if (nameMatch && nameMatch[1]) {
-                authorName = nameMatch[1].trim();
-                authorCache.set(cleanName, authorName);
-              }
-            }
-            if (!channelId) {
-              const cidMatch = homeHtml.match(/"channelId":"(UC[a-zA-Z0-9_-]{22})"/);
-              if (cidMatch && cidMatch[1]) channelId = cidMatch[1];
-            }
-          }
-        } catch {
-          // ignore
-        }
-      }
-
-      // Safe fallback profile info
-      const finalAvatar = channelAvatar || 'https://www.youtube.com/s/desktop/f7be2d12/img/favicon_144x144.png';
-      const finalDisplayName = authorName || cleanName;
+      const finalAvatar = profile.avatarUrl;
+      const finalDisplayName = profile.displayName;
 
       // Step 3: Video Uploads check via RSS (when not live)
       let latestVideoId = '';
@@ -407,11 +402,6 @@ export async function fetchStreamInfo(
           if (xml) {
             const idMatch = xml.match(/<yt:videoId>(.*?)<\/yt:videoId>/);
             const titleMatch = xml.match(/<media:title>(.*?)<\/media:title>/) || xml.match(/<title>(.*?)<\/title>/);
-            const authorTag = xml.match(/<author>\s*<name>(.*?)<\/name>/);
-            if (authorTag && authorTag[1]) {
-              authorName = authorTag[1];
-              authorCache.set(cleanName, authorName);
-            }
 
             if (idMatch && idMatch[1]) {
               const candidateId = idMatch[1];
