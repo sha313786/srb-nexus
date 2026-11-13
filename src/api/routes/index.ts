@@ -6,6 +6,7 @@ import { levelsRoutes } from './levels';
 import { musicRoutes } from './music';
 import { economyRoutes } from './economy';
 import { ticketRoutes } from './tickets';
+import { tournamentRoutes } from './tournaments';
 
 /**
  * Global Route Register
@@ -22,6 +23,7 @@ export async function registerRoutes(fastify: FastifyInstance) {
   await fastify.register(musicRoutes);        // DJ roles, default volumes, maximum queue lengths
   await fastify.register(economyRoutes);      // Daily rewards, shop setup, currency configuration
   await fastify.register(ticketRoutes);       // Support categories, transcript logs, support roles
+  await fastify.register(tournamentRoutes);   // Tournament approvals, webhooks, and auto-provisioning
 }
 
 export default registerRoutes;

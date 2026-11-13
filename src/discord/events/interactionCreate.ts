@@ -2274,4 +2274,20 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
       return;
     }
   }
+
+  // 7. HANDLE TOURNAMENT TEAM REGISTRATION BUTTONS (Approve & Reject)
+  if (interaction.isButton() && interaction.customId.startsWith('team_approve_')) {
+    const regId = interaction.customId.replace('team_approve_', '');
+    const { handleTeamApproval } = await import('../../services/teamRegistrationService.js');
+    await handleTeamApproval(interaction, regId);
+    return;
+  }
+
+  if (interaction.isButton() && interaction.customId.startsWith('team_reject_')) {
+    const regId = interaction.customId.replace('team_reject_', '');
+    const { handleTeamRejection } = await import('../../services/teamRegistrationService.js');
+    await handleTeamRejection(interaction, regId);
+    return;
+  }
+
 }
