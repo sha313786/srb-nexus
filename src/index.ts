@@ -427,7 +427,6 @@ bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
             name: member.guild.name,
             iconURL: member.guild.iconURL() || undefined,
           })
-          .setTitle(`Welcome, ${member.user.displayName || member.user.username}!`)
           .setDescription(`${formattedMsg}\n\nWe're glad to have you here.\nPlease read the rules and enjoy your stay.`)
           .addFields(
             { name: 'Member', value: member.user.username, inline: true },
