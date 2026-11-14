@@ -20,6 +20,7 @@ const GUILD_ID = '1558245529417293884'; // NAADAN LEGACY ESPORTS
 const STAFF_REVIEW_CHANNEL_ID = '1570853707317379185'; // 📋・ᴛᴇᴀᴍ-ʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴꜱ
 const TEAM_ZONE_CATEGORY_ID = '1570853712459604179'; // 🏆 ══════ 𝐓𝐄𝐀𝐌 𝐙𝐎𝐍𝐄 ══════ 🏆
 const REGISTERED_ROLE_ID = '1566440573513244682'; // @registered
+const TEAM_LEADER_ROLE_ID = '1571071414448955564'; // 👑 TEAM LEADER
 
 // Helper to sanitize team name into a clean discord channel slug
 export function slugify(name: string): string {
@@ -282,7 +283,12 @@ export async function provisionTeamDiscordSpace(
         // Also grant @registered
         const regRole = guild.roles.cache.get(REGISTERED_ROLE_ID);
         if (regRole) await captainMember.roles.add(regRole).catch(() => {});
-        logger.info(`[TEAM-REG] Assigned role to captain ${captainMember.user.tag}`);
+        // Also grant @👑 TEAM LEADER
+        const leaderRole =
+          guild.roles.cache.get(TEAM_LEADER_ROLE_ID) ||
+          guild.roles.cache.find((r) => r.name.toLowerCase().includes('team leader') || r.name.toLowerCase().includes('captain'));
+        if (leaderRole) await captainMember.roles.add(leaderRole).catch(() => {});
+        logger.info(`[TEAM-REG] Assigned roles (Team, Registered, Team Leader) to captain ${captainMember.user.tag}`);
       }
     }
 
@@ -297,6 +303,10 @@ export async function provisionTeamDiscordSpace(
     const categoryId = category ? category.id : undefined;
 
     // D. Create or Find Private Text Channel
+    const isNewTextChannel = !guild.channels.cache.some(
+      (c) => c.parentId === categoryId && (c.name === `💬・${slug}` || c.name === slug)
+    );
+
     let textChannel = guild.channels.cache.find(
       (c) => c.parentId === categoryId && (c.name === `💬・${slug}` || c.name === slug)
     ) as TextChannel;
@@ -330,25 +340,6 @@ export async function provisionTeamDiscordSpace(
             ],
           },
         ],
-      });
-
-      // Send Team Welcome Announcement
-      const teamWelcomeEmbed = new EmbedBuilder()
-        .setColor('#EAB308')
-        .setTitle(`🏆 Welcome, ${teamName}!`)
-        .setDescription(
-          `Congratulations! Your squad registration for **${data.game || 'Tournament'}** has been officially **APPROVED**.\n\n` +
-          `• **Squad Role:** <@&${teamRole.id}>\n` +
-          `• **Text Channel:** <#${textChannel.id}>\n` +
-          (captainMember ? `• **Team Captain:** <@${captainMember.id}>\n\n` : `\n`) +
-          `Use this private channel and voice room for your scrims, team comms, and tournament updates. Room credentials and match schedules will be dispatched here!`
-        )
-        .setFooter({ text: 'NAADAN LEGACY ESPORTS • Powered by SRB NEXUS' })
-        .setTimestamp();
-
-      await textChannel.send({
-        content: captainMember ? `<@${captainMember.id}>` : undefined,
-        embeds: [teamWelcomeEmbed],
       });
     }
 
@@ -386,6 +377,28 @@ export async function provisionTeamDiscordSpace(
             ],
           },
         ],
+      });
+    }
+
+    // Send Team Welcome Announcement in Text Channel if new
+    if (isNewTextChannel) {
+      const teamWelcomeEmbed = new EmbedBuilder()
+        .setColor('#EAB308')
+        .setTitle(`🏆 Welcome, ${teamName}!`)
+        .setDescription(
+          `Congratulations! Your squad registration for **${data.game || 'Tournament'}** has been officially **APPROVED**.\n\n` +
+          `• **Squad Role:** <@&${teamRole.id}>\n` +
+          `• **Text Channel:** <#${textChannel.id}>\n` +
+          `• **Voice Room:** <#${voiceChannel.id}>\n` +
+          (captainMember ? `• **Team Leader:** <@${captainMember.id}> (<@&${TEAM_LEADER_ROLE_ID}>)\n\n` : `\n`) +
+          `Use this private channel and voice room for your scrims, team comms, and tournament updates. Room credentials and match schedules will be dispatched here!`
+        )
+        .setFooter({ text: 'NAADAN LEGACY ESPORTS • Powered by SRB NEXUS' })
+        .setTimestamp();
+
+      await textChannel.send({
+        content: captainMember ? `<@${captainMember.id}>` : undefined,
+        embeds: [teamWelcomeEmbed],
       });
     }
 
