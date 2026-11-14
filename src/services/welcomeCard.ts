@@ -1,7 +1,11 @@
 import fs from 'fs';
 import path from 'path';
+import axios from 'axios';
 import { createCanvas, loadImage, GlobalFonts } from '@napi-rs/canvas';
 import { GuildMember, AttachmentBuilder } from 'discord.js';
+
+let cachedNaadanBuffer: Buffer | null = null;
+const NAADAN_REMOTE_TEMPLATE_URL = 'https://raw.githubusercontent.com/sha313786/srb-nexus/main/assets/templates/naadan_welcome.jpg';
 
 // Register cross-platform fonts if not already registered
 try {
@@ -51,31 +55,48 @@ export async function createWelcomeCard(
     ];
     const naadanTemplatePath = templateCandidates.find((p) => fs.existsSync(p));
 
-    if (naadanTemplatePath || (customBgUrl && customBgUrl.startsWith('http'))) {
-      const canvas = createCanvas(1024, 425);
-      const ctx = canvas.getContext('2d');
+    const canvas = createCanvas(1024, 425);
+    const ctx = canvas.getContext('2d');
 
-      let bgLoaded = false;
-      if (customBgUrl && customBgUrl.startsWith('http')) {
-        try {
-          const bgImg = await loadImage(customBgUrl);
-          ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
-          bgLoaded = true;
-        } catch {
-          // fallback to local template file
-        }
+    let bgLoaded = false;
+    if (customBgUrl && customBgUrl.startsWith('http')) {
+      try {
+        const bgImg = await loadImage(customBgUrl);
+        ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+        bgLoaded = true;
+      } catch {
+        // fallback to local or remote template
       }
-      if (!bgLoaded && naadanTemplatePath) {
-        try {
-          const bgImg = await loadImage(naadanTemplatePath);
-          ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
-          bgLoaded = true;
-        } catch (err) {
-          console.error('[BOT] Failed to load local naadan template', err);
-        }
-      }
+    }
 
-      if (bgLoaded) {
+    if (!bgLoaded && naadanTemplatePath) {
+      try {
+        const bgImg = await loadImage(naadanTemplatePath);
+        ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+        bgLoaded = true;
+      } catch (err) {
+        console.error('[BOT] Failed to load local naadan template', err);
+      }
+    }
+
+    if (!bgLoaded) {
+      try {
+        if (!cachedNaadanBuffer) {
+          const res = await axios.get(NAADAN_REMOTE_TEMPLATE_URL, {
+            responseType: 'arraybuffer',
+            timeout: 7000,
+          });
+          cachedNaadanBuffer = Buffer.from(res.data as any);
+        }
+        const bgImg = await loadImage(cachedNaadanBuffer);
+        ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+        bgLoaded = true;
+      } catch (err) {
+        console.error('[BOT] Failed to load remote naadan template from GitHub raw', err);
+      }
+    }
+
+    if (bgLoaded) {
         // Precision slot coordinates:
         // Fiery Flame Ring Outer Avatar
         const cx = 163;
@@ -140,7 +161,6 @@ export async function createWelcomeCard(
         return new AttachmentBuilder(buffer, { name: 'welcome-card.png' });
       }
     }
-  }
 
   // ----------------------------------------------------
   // 2. DEFAULT NEXUS CYBER CANVAS GENERATOR (Fallback)

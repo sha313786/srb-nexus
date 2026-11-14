@@ -6,7 +6,7 @@
   "scripts": {
     "build:css": "tailwindcss -c ./tailwind.config.js -i ./src/styles/input.css -o ./public/styles.css --minify",
     "watch:css": "tailwindcss -c ./tailwind.config.js -i ./src/styles/input.css -o ./public/styles.css --watch",
-    "build": "npm run build:css && tsc && copyfiles -u 0 public/* dist/ && copyfiles -u 0 assets/**/* dist/",
+    "build": "npm run build:css && tsc && copyfiles -u 0 public/* dist/ && copyfiles -u 0 \"assets/**/*\" dist/ && node -e \"const fs=require('fs'); fs.cpSync('assets','dist/assets',{recursive:true});\"",
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "deploy:commands": "node -e \"const { registerSlashCommands } = require('./dist/discord/commands/index.js'); require('dotenv').config(); registerSlashCommands(process.env.DISCORD_CLIENT_ID || '1526885301736177705');\"",
