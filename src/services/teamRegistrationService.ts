@@ -18,7 +18,7 @@ import { logger } from '../core/logger';
 
 const GUILD_ID = '1558245529417293884'; // NAADAN LEGACY ESPORTS
 const STAFF_REVIEW_CHANNEL_ID = '1570853707317379185'; // 📋・ᴛᴇᴀᴍ-ʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴꜱ
-const TEAM_ZONE_CATEGORY_ID = '1570853712459604179'; // 🏆 ══════ 𝐓𝐄𝐀𝐌 𝐙𝐎𝐍𝐄 ══════ 🏆
+const TEAM_ZONE_CATEGORY_ID = '1570853712459604179'; // 🏆 ══════ 𝐓𝐎𝐔𝐑𝐍𝐀𝐌𝐄𝐍𝐓 𝐙𝐎𝐍𝐄 ══════ 🏆
 const REGISTERED_ROLE_ID = '1566440573513244682'; // @registered
 const TEAM_LEADER_ROLE_ID = '1571071414448955564'; // 👑 TEAM LEADER
 
@@ -292,11 +292,11 @@ export async function provisionTeamDiscordSpace(
       }
     }
 
-    // C. Resolve Target Category (TEAM ZONE)
-    let category = guild.channels.cache.get(TEAM_ZONE_CATEGORY_ID);
+    // C. Resolve Target Category (TOURNAMENT ZONE)
+    let category = guild.channels.cache.get(TEAM_ZONE_CATEGORY_ID) || (await guild.channels.fetch(TEAM_ZONE_CATEGORY_ID).catch(() => null));
     if (!category || category.type !== ChannelType.GuildCategory) {
       category = guild.channels.cache.find(
-        (c) => c.type === ChannelType.GuildCategory && c.name.includes('TEAM ZONE')
+        (c) => c.type === ChannelType.GuildCategory && (c.name.includes('TOURNAMENT') || c.name.includes('TEAM ZONE'))
       ) as any;
     }
 
