@@ -2290,4 +2290,17 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
     return;
   }
 
+  // 8. HANDLE TOURNAMENT MATCH CHECK-IN BUTTONS
+  if (interaction.isButton() && interaction.customId === 'tourney_squad_checkin') {
+    const { handleSquadCheckin } = await import('../../services/tournamentCheckinService.js');
+    await handleSquadCheckin(interaction);
+    return;
+  }
+
+  if (interaction.isButton() && interaction.customId === 'tourney_checkin_status') {
+    const { handleCheckinStatus } = await import('../../services/tournamentCheckinService.js');
+    await handleCheckinStatus(interaction);
+    return;
+  }
+
 }
