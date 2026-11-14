@@ -14,6 +14,7 @@ RUN npm ci
 # Copy static assets and source files
 COPY public ./public
 COPY src ./src
+COPY assets ./assets
 
 # Compile TypeScript to JavaScript and copy assets
 RUN npm run build
@@ -41,6 +42,7 @@ COPY --chown=nexususer:nexusgroup package*.json ./
 COPY --chown=nexususer:nexusgroup --from=builder /app/node_modules ./node_modules
 COPY --chown=nexususer:nexusgroup --from=builder /app/dist ./dist
 COPY --chown=nexususer:nexusgroup --from=builder /app/public ./public
+COPY --chown=nexususer:nexusgroup assets ./assets
 
 # Switch to non-privileged user
 USER nexususer

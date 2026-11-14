@@ -2292,14 +2292,32 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
 
   // 8. HANDLE TOURNAMENT MATCH CHECK-IN BUTTONS
   if (interaction.isButton() && interaction.customId === 'tourney_squad_checkin') {
-    const { handleSquadCheckin } = await import('../../services/tournamentCheckinService.js');
-    await handleSquadCheckin(interaction);
+    try {
+      const { handleSquadCheckin } = await import('../../services/tournamentCheckinService.js');
+      await handleSquadCheckin(interaction);
+    } catch (err: any) {
+      logger.error({ err: err?.message || err }, '[INTERACTION] Error in tourney_squad_checkin');
+      if (interaction.deferred) {
+        await interaction.editReply({ content: '❌ An error occurred while processing check-in.' }).catch(() => {});
+      } else if (!interaction.replied) {
+        await interaction.reply({ content: '❌ An error occurred while processing check-in.', ephemeral: true }).catch(() => {});
+      }
+    }
     return;
   }
 
   if (interaction.isButton() && interaction.customId === 'tourney_checkin_status') {
-    const { handleCheckinStatus } = await import('../../services/tournamentCheckinService.js');
-    await handleCheckinStatus(interaction);
+    try {
+      const { handleCheckinStatus } = await import('../../services/tournamentCheckinService.js');
+      await handleCheckinStatus(interaction);
+    } catch (err: any) {
+      logger.error({ err: err?.message || err }, '[INTERACTION] Error in tourney_checkin_status');
+      if (interaction.deferred) {
+        await interaction.editReply({ content: '❌ An error occurred while fetching roster status.' }).catch(() => {});
+      } else if (!interaction.replied) {
+        await interaction.reply({ content: '❌ An error occurred while fetching roster status.', ephemeral: true }).catch(() => {});
+      }
+    }
     return;
   }
 
