@@ -36,6 +36,51 @@ function clientAppId(guild: any): string {
 }
 
 /**
+ * Extract or derive clean short team tag (e.g. "NDL", "VLX")
+ */
+export function extractTeamTag(teamName: string, teamTag?: string, captainIGN?: string): string {
+  if (teamTag && teamTag.trim().length > 0) {
+    return teamTag.trim().toUpperCase().replace(/[^A-Z0-9]/gi, '').slice(0, 6);
+  }
+
+  // Check if captainIGN has a tag like "VLX・Predator", "VLX | Predator", "[VLX] Predator"
+  if (captainIGN) {
+    const bracketMatch = captainIGN.match(/^\[([A-Za-z0-9]{2,6})\]/);
+    if (bracketMatch) return bracketMatch[1].toUpperCase();
+
+    const sepMatch = captainIGN.match(/^([A-Za-z0-9]{2,6})\s*[・|•\-_:]\s*/);
+    if (sepMatch) return sepMatch[1].toUpperCase();
+  }
+
+  // Derive acronym or short tag from teamName
+  const words = teamName.trim().split(/\s+/).filter(Boolean);
+  if (words.length > 1) {
+    return words.map((w) => w[0]).join('').toUpperCase().slice(0, 5);
+  } else if (words.length === 1) {
+    const single = words[0].toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (single.length <= 4) return single;
+    return single.slice(0, 3);
+  }
+
+  return 'NDL';
+}
+
+/**
+ * Extract clean player name without redundant tag or separators
+ */
+export function extractCleanPlayerName(rawName: string, tag: string): string {
+  let name = (rawName || '').trim();
+  // Strip out brackets [TAG] or (TAG)
+  name = name.replace(new RegExp(`^\\[${tag}\\]\\s*`, 'i'), '');
+  name = name.replace(new RegExp(`^\\(${tag}\\)\\s*`, 'i'), '');
+  // Strip out "TAG | ", "TAG・", "TAG•", etc.
+  name = name.replace(new RegExp(`^${tag}\\s*[|・•\\-_:]\\s*`, 'i'), '');
+  // Strip any other prefix like "ABC | "
+  name = name.replace(/^[A-Za-z0-9]{2,6}\s*[|・•\\-_:]\s*/, '');
+  return name.trim() || rawName.trim();
+}
+
+/**
  * 1. Open the Discord Registration Modal (if triggered via Discord)
  */
 export async function openTeamRegistrationModal(interaction: ButtonInteraction): Promise<void> {
@@ -221,6 +266,7 @@ export async function provisionTeamDiscordSpace(
   client: Client,
   data: {
     teamName: string;
+    teamTag?: string;
     captainDiscord?: string;
     captainIGN?: string;
     game?: string;
@@ -263,7 +309,7 @@ export async function provisionTeamDiscordSpace(
       logger.info(`[TEAM-REG] Created role ${teamRole.name} (${teamRole.id})`);
     }
 
-    // B. Assign role to captain if on server
+    // B. Assign role to captain if on server & Auto-set Nickname: TAG | NAME
     let captainMember = null;
     let captainFound = false;
     if (data.captainDiscord) {
@@ -289,6 +335,43 @@ export async function provisionTeamDiscordSpace(
           guild.roles.cache.find((r) => r.name.toLowerCase().includes('team leader') || r.name.toLowerCase().includes('captain'));
         if (leaderRole) await captainMember.roles.add(leaderRole).catch(() => {});
         logger.info(`[TEAM-REG] Assigned roles (Team, Registered, Team Leader) to captain ${captainMember.user.tag}`);
+
+        // Set captain nickname to: TAG | NAME
+        const teamTag = extractTeamTag(teamName, data.teamTag, data.captainIGN);
+        const cleanPlayerName = extractCleanPlayerName(
+          data.captainIGN || captainMember.displayName || captainMember.user.username,
+          teamTag
+        );
+        const newNickname = `${teamTag} | ${cleanPlayerName}`.slice(0, 32);
+
+        // Record original nickname
+        const currentNick = captainMember.nickname || captainMember.user.globalName || captainMember.user.username;
+        const originalNickname =
+          !currentNick.includes('|') && !currentNick.includes('・')
+            ? currentNick
+            : captainMember.user.globalName || captainMember.user.username;
+
+        if (data.regId) {
+          await db
+            .query(
+              `UPDATE tournament_registrations 
+               SET team_tag = $1, captain_user_id = $2, original_nickname = $3 
+               WHERE id = $4`,
+              [teamTag, captainMember.id, originalNickname, data.regId]
+            )
+            .catch(() => {});
+        }
+
+        if (captainMember.id !== guild.ownerId) {
+          try {
+            await captainMember.setNickname(newNickname, `Tournament squad approval: ${newNickname}`);
+            logger.info(`[TEAM-REG] Updated captain nickname: ${captainMember.user.tag} -> "${newNickname}"`);
+          } catch (nickErr: any) {
+            logger.warn({ err: nickErr.message }, `[TEAM-REG] Failed setting nickname "${newNickname}" on ${captainMember.user.tag}`);
+          }
+        } else {
+          logger.info(`[TEAM-REG] Skipped nickname change for Server Owner ${captainMember.user.tag}`);
+        }
       }
     }
 
@@ -566,4 +649,205 @@ export async function handleTeamRejection(interaction: ButtonInteraction, regId:
   });
 
   logger.info(`[TEAM-REG] Rejected team reg ${regId} by ${interaction.user.tag}`);
+}
+
+/**
+ * 7. Deprovision, Disqualify or Delete Team
+ * Automatically removes roles, resets nicknames, deletes team channels, and notifies staff!
+ */
+export async function deprovisionOrDisqualifyTeam(
+  client: Client,
+  data: {
+    regId?: string;
+    teamName?: string;
+    roleId?: string;
+    action: 'DISQUALIFIED' | 'DELETED';
+    reason?: string;
+    executedBy?: string;
+  }
+): Promise<{
+  success: boolean;
+  message: string;
+  affectedMembers: number;
+  channelsDeleted: number;
+  error?: string;
+}> {
+  const guild = client.guilds.cache.get(GUILD_ID) || (await client.guilds.fetch(GUILD_ID).catch(() => null));
+  if (!guild) {
+    return { success: false, message: 'Guild not found', affectedMembers: 0, channelsDeleted: 0, error: 'Guild not found' };
+  }
+
+  try {
+    // 1. Fetch registration if regId provided
+    let reg: any = null;
+    if (data.regId) {
+      const res = await db.query('SELECT * FROM tournament_registrations WHERE id = $1', [data.regId]);
+      reg = res.rows[0];
+    } else if (data.teamName) {
+      const res = await db.query(
+        'SELECT * FROM tournament_registrations WHERE LOWER(team_name) = LOWER($1) ORDER BY created_at DESC LIMIT 1',
+        [data.teamName]
+      );
+      reg = res.rows[0];
+    }
+
+    const teamName = reg?.team_name || data.teamName || 'Unknown Team';
+    const roleId = reg?.role_id || data.roleId;
+    const slug = slugify(teamName);
+
+    // 2. Find Team Role
+    let teamRole = roleId ? guild.roles.cache.get(roleId) : null;
+    if (!teamRole && teamName) {
+      teamRole =
+        guild.roles.cache.find(
+          (r) =>
+            r.name.toLowerCase() === `team ${teamName}`.toLowerCase() ||
+            r.name.toLowerCase() === teamName.toLowerCase()
+        ) || null;
+    }
+
+    let affectedCount = 0;
+    const allMembers = await guild.members.fetch().catch(() => guild.members.cache);
+
+    // 3. Collect all squad members: either having teamRole or being the captain
+    const membersToReset = new Set<any>();
+
+    if (teamRole) {
+      teamRole.members.forEach((m) => membersToReset.add(m));
+    }
+
+    if (reg?.captain_user_id) {
+      const capt = allMembers.get(reg.captain_user_id);
+      if (capt) membersToReset.add(capt);
+    } else if (reg?.captain_discord) {
+      const cleanTag = reg.captain_discord.toLowerCase().replace(/^@/, '').trim();
+      const capt = allMembers.find(
+        (m) =>
+          m.user.tag.toLowerCase() === cleanTag ||
+          m.user.username.toLowerCase() === cleanTag ||
+          m.id === cleanTag
+      );
+      if (capt) membersToReset.add(capt);
+    }
+
+    // 4. Remove Roles & Reset Nicknames
+    for (const member of membersToReset) {
+      try {
+        // Remove team role
+        if (teamRole && member.roles.cache.has(teamRole.id)) {
+          await member.roles.remove(teamRole, `Team ${data.action}: Removed team role`).catch(() => {});
+        }
+
+        // Remove TEAM LEADER role
+        if (member.roles.cache.has(TEAM_LEADER_ROLE_ID)) {
+          await member.roles.remove(TEAM_LEADER_ROLE_ID, `Team ${data.action}: Removed team leader role`).catch(() => {});
+        }
+
+        // Remove @registered role
+        if (member.roles.cache.has(REGISTERED_ROLE_ID)) {
+          await member.roles.remove(REGISTERED_ROLE_ID, `Team ${data.action}: Removed registered role`).catch(() => {});
+        }
+
+        // Reset Nickname
+        if (member.id !== guild.ownerId) {
+          const currentNick = member.nickname || '';
+          if (currentNick.includes('|')) {
+            const restoredNick = reg?.original_nickname || currentNick.split('|').slice(1).join('|').trim();
+            await member.setNickname(restoredNick && restoredNick.length > 0 ? restoredNick : null, `Team ${data.action}: Resetting tag`).catch(() => {});
+            logger.info(`[TEAM-REG] Reset nickname for ${member.user.tag} -> ${restoredNick || 'Default'}`);
+          }
+        }
+        affectedCount++;
+      } catch (mErr: any) {
+        logger.warn({ err: mErr.message }, `[TEAM-REG] Error resetting member ${member.user?.tag}`);
+      }
+    }
+
+    // 5. Delete Channels
+    let channelsDeleted = 0;
+    const textChannelId = reg?.text_channel_id;
+    const voiceChannelId = reg?.voice_channel_id;
+
+    if (textChannelId) {
+      const ch = guild.channels.cache.get(textChannelId);
+      if (ch) {
+        await ch.delete(`Tournament Team ${data.action} by ${data.executedBy || 'Admin'}`).catch(() => {});
+        channelsDeleted++;
+      }
+    } else {
+      const ch = guild.channels.cache.find(
+        (c) => c.parentId === TEAM_ZONE_CATEGORY_ID && (c.name === `💬・${slug}` || c.name === slug)
+      );
+      if (ch) {
+        await ch.delete(`Tournament Team ${data.action}`).catch(() => {});
+        channelsDeleted++;
+      }
+    }
+
+    if (voiceChannelId) {
+      const vc = guild.channels.cache.get(voiceChannelId);
+      if (vc) {
+        await vc.delete(`Tournament Team ${data.action} by ${data.executedBy || 'Admin'}`).catch(() => {});
+        channelsDeleted++;
+      }
+    } else {
+      const vc = guild.channels.cache.find(
+        (c) => c.parentId === TEAM_ZONE_CATEGORY_ID && (c.name === `🔊・${slug}` || c.name === slug)
+      );
+      if (vc) {
+        await vc.delete(`Tournament Team ${data.action}`).catch(() => {});
+        channelsDeleted++;
+      }
+    }
+
+    // 6. Delete Team Role
+    if (teamRole) {
+      await teamRole.delete(`Tournament Team ${data.action} by ${data.executedBy || 'Admin'}`).catch(() => {});
+    }
+
+    // 7. Update Database status
+    if (reg) {
+      await db.query(
+        `UPDATE tournament_registrations SET status = $1, updated_at = NOW() WHERE id = $2`,
+        [data.action, reg.id]
+      );
+    } else if (data.teamName) {
+      await db.query(
+        `UPDATE tournament_registrations SET status = $1, updated_at = NOW() WHERE LOWER(team_name) = LOWER($2)`,
+        [data.action, data.teamName]
+      );
+    }
+
+    // 8. Send Staff Alert in #📋・ᴛᴇᴀᴍ-ʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴꜱ
+    const staffChannel = guild.channels.cache.get(STAFF_REVIEW_CHANNEL_ID) as TextChannel;
+    if (staffChannel && staffChannel.isTextBased()) {
+      const actionColor = data.action === 'DISQUALIFIED' ? '#DC2626' : '#6B7280';
+      const actionIcon = data.action === 'DISQUALIFIED' ? '🚫' : '🗑️';
+
+      const alertEmbed = new EmbedBuilder()
+        .setColor(actionColor)
+        .setTitle(`${actionIcon} Squad ${data.action}: ${teamName}`)
+        .setDescription(
+          `Team **${teamName}** has been **${data.action.toLowerCase()}**.\n` +
+          `• **Roles Removed:** Team Role & \`👑 TEAM LEADER\` revoked from ${affectedCount} member(s).\n` +
+          `• **Nicknames Reset:** Player tag removed; nicknames restored to original.\n` +
+          `• **Channels Cleaned:** ${channelsDeleted} channel(s) deleted.\n` +
+          `• **Executed By:** ${data.executedBy || 'Admin Portal'}` +
+          (data.reason ? `\n• **Reason:** ${data.reason}` : '')
+        )
+        .setTimestamp();
+
+      await staffChannel.send({ embeds: [alertEmbed] }).catch(() => {});
+    }
+
+    return {
+      success: true,
+      message: `Squad ${teamName} successfully ${data.action.toLowerCase()}. ${affectedCount} members reset, ${channelsDeleted} channels cleaned.`,
+      affectedMembers: affectedCount,
+      channelsDeleted,
+    };
+  } catch (err: any) {
+    logger.error({ err }, `[TEAM-REG] Error in deprovisionOrDisqualifyTeam for ${data.teamName || data.regId}`);
+    return { success: false, message: err.message, affectedMembers: 0, channelsDeleted: 0, error: err.message };
+  }
 }

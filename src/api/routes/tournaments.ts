@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { bot } from '../../index';
-import { provisionTeamDiscordSpace } from '../../services/teamRegistrationService';
+import { provisionTeamDiscordSpace, deprovisionOrDisqualifyTeam } from '../../services/teamRegistrationService';
 import { logger } from '../../core/logger';
 import { db } from '../../core/database';
 
@@ -12,7 +12,7 @@ export async function tournamentRoutes(fastify: FastifyInstance) {
   fastify.post('/api/tournaments/approve', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const body = (request.body || {}) as any;
-      const { teamName, captainDiscord, captainIGN, game, roster, approvedBy } = body;
+      const { teamName, teamTag, tag, captainDiscord, captainIGN, game, roster, approvedBy } = body;
 
       if (!teamName || !teamName.trim()) {
         return reply.status(400).send({ success: false, error: 'teamName is required' });
@@ -22,6 +22,7 @@ export async function tournamentRoutes(fastify: FastifyInstance) {
 
       const result = await provisionTeamDiscordSpace(bot, {
         teamName: teamName.trim(),
+        teamTag: teamTag?.trim() || tag?.trim(),
         captainDiscord: captainDiscord?.trim(),
         captainIGN: captainIGN?.trim(),
         game: game?.trim() || 'Valorant',
@@ -41,8 +42,70 @@ export async function tournamentRoutes(fastify: FastifyInstance) {
   });
 
   /**
+   * POST /api/tournaments/disqualify
+   * Triggered when a team is disqualified
+   */
+  fastify.post('/api/tournaments/disqualify', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const body = (request.body || {}) as any;
+      const { teamName, regId, roleId, reason, executedBy } = body;
+
+      if (!teamName && !regId && !roleId) {
+        return reply.status(400).send({ success: false, error: 'teamName, regId, or roleId is required' });
+      }
+
+      logger.info({ body }, '[API] Received tournament team disqualification request');
+
+      const result = await deprovisionOrDisqualifyTeam(bot, {
+        teamName,
+        regId,
+        roleId,
+        action: 'DISQUALIFIED',
+        reason,
+        executedBy: executedBy || 'Admin Portal',
+      });
+
+      return reply.send(result);
+    } catch (err: any) {
+      logger.error({ err }, '[API] Error in /api/tournaments/disqualify');
+      return reply.status(500).send({ success: false, error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/tournaments/delete
+   * Triggered when a team is deleted
+   */
+  fastify.post('/api/tournaments/delete', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const body = (request.body || {}) as any;
+      const { teamName, regId, roleId, reason, executedBy } = body;
+
+      if (!teamName && !regId && !roleId) {
+        return reply.status(400).send({ success: false, error: 'teamName, regId, or roleId is required' });
+      }
+
+      logger.info({ body }, '[API] Received tournament team deletion request');
+
+      const result = await deprovisionOrDisqualifyTeam(bot, {
+        teamName,
+        regId,
+        roleId,
+        action: 'DELETED',
+        reason,
+        executedBy: executedBy || 'Admin Portal',
+      });
+
+      return reply.send(result);
+    } catch (err: any) {
+      logger.error({ err }, '[API] Error in /api/tournaments/delete');
+      return reply.status(500).send({ success: false, error: err.message });
+    }
+  });
+
+  /**
    * POST /api/tournaments/webhook
-   * Supabase Database Webhook handler (triggers when a team status is set to approved)
+   * Supabase Database Webhook handler (triggers on team updates/deletions)
    */
   fastify.post('/api/tournaments/webhook', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -60,6 +123,7 @@ export async function tournamentRoutes(fastify: FastifyInstance) {
 
         const result = await provisionTeamDiscordSpace(bot, {
           teamName,
+          teamTag: record.tag || record.team_tag,
           captainDiscord: record.discord_id || record.captain_discord || record.discord,
           captainIGN: record.captain_name || record.captain_ign || record.captain,
           game: record.game || 'Valorant',
@@ -67,6 +131,32 @@ export async function tournamentRoutes(fastify: FastifyInstance) {
           approvedBy: 'Supabase Database Webhook',
         });
 
+        return reply.send(result);
+      }
+
+      // Check if status is disqualified
+      if (record && (record.status === 'disqualified' || record.status === 'DISQUALIFIED')) {
+        const teamName = record.name || record.team_name || record.team;
+        const result = await deprovisionOrDisqualifyTeam(bot, {
+          teamName,
+          regId: record.id,
+          action: 'DISQUALIFIED',
+          reason: record.disqualify_reason || record.reason || 'Webhook trigger',
+          executedBy: 'Supabase Database Webhook',
+        });
+        return reply.send(result);
+      }
+
+      // Check if status is deleted
+      if (record && (record.status === 'deleted' || record.status === 'DELETED')) {
+        const teamName = record.name || record.team_name || record.team;
+        const result = await deprovisionOrDisqualifyTeam(bot, {
+          teamName,
+          regId: record.id,
+          action: 'DELETED',
+          reason: 'Webhook record deleted',
+          executedBy: 'Supabase Database Webhook',
+        });
         return reply.send(result);
       }
 
@@ -84,8 +174,13 @@ export async function tournamentRoutes(fastify: FastifyInstance) {
     return reply.send({
       status: 'active',
       guild: '1558245529417293884',
-      features: ['auto_role', 'auto_text_channel', 'auto_voice_channel', 'welcome_embed'],
-      endpoint: '/api/tournaments/approve',
+      features: ['auto_role', 'auto_text_channel', 'auto_voice_channel', 'welcome_embed', 'auto_nickname_tag', 'auto_disqualify_cleanup'],
+      endpoints: {
+        approve: '/api/tournaments/approve',
+        disqualify: '/api/tournaments/disqualify',
+        delete: '/api/tournaments/delete',
+        webhook: '/api/tournaments/webhook',
+      },
     });
   });
 }
