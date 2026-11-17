@@ -495,6 +495,8 @@ bot.on(Events.GuildMemberRemove, async (member) => {
 bot.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
   try {
     await handleStaffNicknameUpdate(oldMember as GuildMember, newMember as GuildMember);
+    const { handleTeamMemberRoleUpdate } = await import('./services/teamRegistrationService.js');
+    await handleTeamMemberRoleUpdate(oldMember, newMember);
   } catch (err) {
     app.log.error({ err }, '[BOT] Error handling GuildMemberUpdate event');
   }

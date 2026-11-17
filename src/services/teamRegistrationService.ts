@@ -22,6 +22,32 @@ const TEAM_ZONE_CATEGORY_ID = '1570853712459604179'; // 🏆 ══════ 
 const REGISTERED_ROLE_ID = '1566440573513244682'; // @registered
 const TEAM_LEADER_ROLE_ID = '1571071414448955564'; // 👑 TEAM LEADER
 
+export const TEAM_COLORS = [
+  '#00F0FF', // Cyber Cyan
+  '#FF2E93', // Neon Fuchsia / Pink
+  '#10B981', // Vivid Emerald
+  '#F59E0B', // Amber Gold
+  '#A855F7', // Royal Purple
+  '#EF4444', // Crimson Red
+  '#3B82F6', // Cobalt Blue
+  '#FB923C', // Bright Orange
+  '#84CC16', // Electric Lime
+  '#E11D48', // Ruby Rose
+  '#06B6D4', // Aqua
+  '#8B5CF6', // Violet
+];
+
+export function getDistinctTeamColor(guild: any, teamName: string): string {
+  const existingTeamRoles = guild.roles.cache.filter((r: any) => r.name.toLowerCase().startsWith('team '));
+  let hash = 0;
+  for (let i = 0; i < teamName.length; i++) {
+    hash = (hash << 5) - hash + teamName.charCodeAt(i);
+    hash |= 0;
+  }
+  const index = Math.abs((existingTeamRoles.size + hash) % TEAM_COLORS.length);
+  return TEAM_COLORS[index];
+}
+
 // Helper to sanitize team name into a clean discord channel slug
 export function slugify(name: string): string {
   return name
@@ -292,29 +318,46 @@ export async function provisionTeamDiscordSpace(
   const slug = slugify(teamName);
 
   try {
-    // A. Create or Find Team Role
+    // A. Create or Find Team Role with Distinct Vivid Color
     let teamRole = guild.roles.cache.find(
       (r) =>
         r.name.toLowerCase() === `team ${teamName}`.toLowerCase() ||
         r.name.toLowerCase() === teamName.toLowerCase()
     );
 
+    const distinctColor = getDistinctTeamColor(guild, teamName);
+
     if (!teamRole) {
       teamRole = await guild.roles.create({
         name: `Team ${teamName}`,
-        color: '#EAB308', // Gold
+        color: distinctColor as any,
+        hoist: true, // Display separately in sidebar
         mentionable: true,
         reason: `Tournament Team Approval for ${teamName} (${data.approvedBy || 'Admin'})`,
       });
-      logger.info(`[TEAM-REG] Created role ${teamRole.name} (${teamRole.id})`);
+
+      // Position above registered role so team color displays prominently on member name
+      const regRole = guild.roles.cache.get(REGISTERED_ROLE_ID);
+      if (regRole && teamRole.position < regRole.position) {
+        await teamRole.setPosition(regRole.position + 1).catch(() => {});
+      }
+      logger.info(`[TEAM-REG] Created role ${teamRole.name} with color ${distinctColor} (${teamRole.id})`);
+    } else {
+      // Ensure existing team role has distinct color and is hoisted
+      if (teamRole.hexColor === '#000000' || teamRole.hexColor === '#ffffff' || teamRole.hexColor === '#eab308') {
+        await teamRole.edit({ color: distinctColor as any, hoist: true }).catch(() => {});
+      }
     }
 
-    // B. Assign role to captain if on server & Auto-set Nickname: TAG | NAME
+    const teamTag = extractTeamTag(teamName, data.teamTag, data.captainIGN);
+
+    // B. Assign role to captain & Auto-set Nickname: TAG | NAME
     let captainMember = null;
     let captainFound = false;
+    const allMembers = await guild.members.fetch().catch(() => guild.members.cache);
+
     if (data.captainDiscord) {
       const cleanTag = data.captainDiscord.toLowerCase().replace(/^@/, '').trim();
-      const allMembers = await guild.members.fetch().catch(() => guild.members.cache);
       captainMember = allMembers.find(
         (m) =>
           m.user.tag.toLowerCase() === cleanTag ||
@@ -337,7 +380,6 @@ export async function provisionTeamDiscordSpace(
         logger.info(`[TEAM-REG] Assigned roles (Team, Registered, Team Leader) to captain ${captainMember.user.tag}`);
 
         // Set captain nickname to: TAG | NAME
-        const teamTag = extractTeamTag(teamName, data.teamTag, data.captainIGN);
         const cleanPlayerName = extractCleanPlayerName(
           data.captainIGN || captainMember.displayName || captainMember.user.username,
           teamTag
@@ -371,6 +413,29 @@ export async function provisionTeamDiscordSpace(
           }
         } else {
           logger.info(`[TEAM-REG] Skipped nickname change for Server Owner ${captainMember.user.tag}`);
+        }
+      }
+    }
+
+    // B2. Scan roster for full team members on Discord & Auto-set Nicknames: TAG | NAME
+    if (data.roster) {
+      const rosterStr = typeof data.roster === 'string' ? data.roster : JSON.stringify(data.roster);
+      const idMatches = rosterStr.match(/\b\d{17,20}\b/g) || [];
+
+      for (const rawId of idMatches) {
+        if (captainMember && rawId === captainMember.id) continue;
+        const tm = allMembers.get(rawId);
+        if (tm) {
+          await tm.roles.add(teamRole).catch(() => {});
+          const regRole = guild.roles.cache.get(REGISTERED_ROLE_ID);
+          if (regRole) await tm.roles.add(regRole).catch(() => {});
+
+          if (tm.id !== guild.ownerId) {
+            const cleanTmName = extractCleanPlayerName(tm.displayName || tm.user.username, teamTag);
+            const tmNick = `${teamTag} | ${cleanTmName}`.slice(0, 32);
+            await tm.setNickname(tmNick, `Tournament squad teammate approval: ${tmNick}`).catch(() => {});
+            logger.info(`[TEAM-REG] Auto-updated teammate nickname: ${tm.user.tag} -> "${tmNick}"`);
+          }
         }
       }
     }
@@ -849,5 +914,85 @@ export async function deprovisionOrDisqualifyTeam(
   } catch (err: any) {
     logger.error({ err }, `[TEAM-REG] Error in deprovisionOrDisqualifyTeam for ${data.teamName || data.regId}`);
     return { success: false, message: err.message, affectedMembers: 0, channelsDeleted: 0, error: err.message };
+  }
+}
+
+export function isTeamRole(role: any, guild: any): boolean {
+  if (!role || role.id === guild.id || role.id === REGISTERED_ROLE_ID || role.id === TEAM_LEADER_ROLE_ID) return false;
+  if (role.name.toLowerCase().startsWith('team ')) return true;
+  // Check if role has explicit permissions in tournament category channels
+  return guild.channels.cache.some(
+    (c: any) => c.parentId === TEAM_ZONE_CATEGORY_ID && c.permissionOverwrites?.cache?.has(role.id)
+  );
+}
+
+/**
+ * 8. GuildMemberUpdate listener for team roles
+ * Guarantees that ANY squad member assigned a Team role automatically gets:
+ * - Nickname formatted as: TAG | NAME
+ * - @registered role
+ * And when the team role is removed:
+ * - Nickname reverted back to normal
+ * - Team Leader & Registered roles revoked
+ */
+export async function handleTeamMemberRoleUpdate(oldMember: any, newMember: any): Promise<void> {
+  const guild = newMember.guild;
+  if (!guild || guild.id !== GUILD_ID) return;
+
+  const oldTeamRoles = oldMember.roles.cache.filter((r: any) => isTeamRole(r, guild));
+  const newTeamRoles = newMember.roles.cache.filter((r: any) => isTeamRole(r, guild));
+
+  // Role Added
+  if (newTeamRoles.size > oldTeamRoles.size) {
+    const addedRole = newTeamRoles.find((r: any) => !oldTeamRoles.has(r.id));
+    if (addedRole) {
+      const teamName = addedRole.name.replace(/^team\s+/i, '').trim();
+      const tag = extractTeamTag(teamName);
+      const cleanPlayerName = extractCleanPlayerName(newMember.displayName || newMember.user.username, tag);
+      const formattedNick = `${tag} | ${cleanPlayerName}`.slice(0, 32);
+
+      // Auto-set nickname if not already having this tag
+      if (newMember.id !== guild.ownerId) {
+        const currentNick = newMember.nickname || '';
+        if (!currentNick.startsWith(`${tag} |`)) {
+          try {
+            await newMember.setNickname(formattedNick, `Tournament squad role assigned: ${formattedNick}`);
+            logger.info(`[TEAM-REG] Auto-updated teammate nickname: ${newMember.user.tag} -> "${formattedNick}"`);
+          } catch (err: any) {
+            logger.warn({ err: err.message }, `[TEAM-REG] Failed auto-updating teammate nickname for ${newMember.user.tag}`);
+          }
+        }
+      }
+
+      // Also ensure @registered role
+      const regRole = guild.roles.cache.get(REGISTERED_ROLE_ID);
+      if (regRole && !newMember.roles.cache.has(regRole.id)) {
+        await newMember.roles.add(regRole, `Teammate added to ${teamName}`).catch(() => {});
+      }
+    }
+  }
+
+  // Role Removed
+  if (oldTeamRoles.size > newTeamRoles.size) {
+    // If no more team roles remain
+    if (newTeamRoles.size === 0) {
+      // Remove TEAM LEADER if present
+      if (newMember.roles.cache.has(TEAM_LEADER_ROLE_ID)) {
+        await newMember.roles.remove(TEAM_LEADER_ROLE_ID, 'Team role removed').catch(() => {});
+      }
+      // Remove @registered if present
+      if (newMember.roles.cache.has(REGISTERED_ROLE_ID)) {
+        await newMember.roles.remove(REGISTERED_ROLE_ID, 'Team role removed').catch(() => {});
+      }
+      // Reset Nickname (remove "TAG | " prefix)
+      if (newMember.id !== guild.ownerId) {
+        const currentNick = newMember.nickname || '';
+        if (currentNick.includes('|')) {
+          const clean = currentNick.split('|').slice(1).join('|').trim();
+          await newMember.setNickname(clean.length > 0 ? clean : null, 'Team role removed: Resetting nickname').catch(() => {});
+          logger.info(`[TEAM-REG] Reset teammate nickname: ${newMember.user.tag} -> "${clean || 'Default'}"`);
+        }
+      }
+    }
   }
 }
