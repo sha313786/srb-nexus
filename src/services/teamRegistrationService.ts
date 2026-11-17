@@ -440,23 +440,61 @@ export async function provisionTeamDiscordSpace(
       }
     }
 
-    // C. Resolve Target Category (TOURNAMENT ZONE)
-    let category = guild.channels.cache.get(TEAM_ZONE_CATEGORY_ID) || (await guild.channels.fetch(TEAM_ZONE_CATEGORY_ID).catch(() => null));
-    if (!category || category.type !== ChannelType.GuildCategory) {
-      category = guild.channels.cache.find(
-        (c) => c.type === ChannelType.GuildCategory && (c.name.includes('TOURNAMENT') || c.name.includes('TEAM ZONE'))
-      ) as any;
+    // C. Create or Find Dedicated Team Category
+    const categoryName = `【🛡️】TEAM ${teamName.toUpperCase()}`.slice(0, 100);
+    let category = guild.channels.cache.find(
+      (c) =>
+        c.type === ChannelType.GuildCategory &&
+        (c.name.toLowerCase() === categoryName.toLowerCase() ||
+          c.name.toLowerCase() === `【🛡️】${teamName.toLowerCase()}` ||
+          c.name.toLowerCase() === `team ${teamName.toLowerCase()}`)
+    ) as any;
+
+    if (!category) {
+      category = await guild.channels.create({
+        name: categoryName,
+        type: ChannelType.GuildCategory,
+        permissionOverwrites: [
+          {
+            id: guild.id,
+            deny: [PermissionFlagsBits.ViewChannel],
+          },
+          {
+            id: teamRole.id,
+            allow: [
+              PermissionFlagsBits.ViewChannel,
+              PermissionFlagsBits.SendMessages,
+              PermissionFlagsBits.Connect,
+              PermissionFlagsBits.Speak,
+              PermissionFlagsBits.Stream,
+            ],
+          },
+          {
+            id: guild.members.me?.id || clientAppId(guild),
+            allow: [
+              PermissionFlagsBits.ViewChannel,
+              PermissionFlagsBits.ManageChannels,
+              PermissionFlagsBits.ManageRoles,
+            ],
+          },
+        ],
+      });
+      logger.info(`[TEAM-REG] Created dedicated team category ${category.name} (${category.id})`);
     }
 
     const categoryId = category ? category.id : undefined;
 
     // D. Create or Find Private Text Channel
     const isNewTextChannel = !guild.channels.cache.some(
-      (c) => c.parentId === categoryId && (c.name === `💬・${slug}` || c.name === slug)
+      (c) =>
+        (c.parentId === categoryId || c.parentId === TEAM_ZONE_CATEGORY_ID) &&
+        (c.name === `💬・${slug}` || c.name === slug)
     );
 
     let textChannel = guild.channels.cache.find(
-      (c) => c.parentId === categoryId && (c.name === `💬・${slug}` || c.name === slug)
+      (c) =>
+        (c.parentId === categoryId || c.parentId === TEAM_ZONE_CATEGORY_ID) &&
+        (c.name === `💬・${slug}` || c.name === slug)
     ) as TextChannel;
 
     if (!textChannel) {
@@ -489,11 +527,15 @@ export async function provisionTeamDiscordSpace(
           },
         ],
       });
+    } else if (textChannel.parentId !== categoryId && categoryId) {
+      await (textChannel as any).setParent(categoryId, { lockPermissions: false }).catch(() => {});
     }
 
     // E. Create or Find Private Voice Channel
     let voiceChannel = guild.channels.cache.find(
-      (c) => c.parentId === categoryId && (c.name === `🔊・${slug}` || c.name === slug)
+      (c) =>
+        (c.parentId === categoryId || c.parentId === TEAM_ZONE_CATEGORY_ID) &&
+        (c.name === `🔊・${slug}` || c.name === slug)
     );
 
     if (!voiceChannel) {
@@ -526,6 +568,8 @@ export async function provisionTeamDiscordSpace(
           },
         ],
       });
+    } else if (voiceChannel.parentId !== categoryId && categoryId) {
+      await (voiceChannel as any).setParent(categoryId, { lockPermissions: false }).catch(() => {});
     }
 
     // Send Team Welcome Announcement in Text Channel if new
@@ -828,22 +872,32 @@ export async function deprovisionOrDisqualifyTeam(
       }
     }
 
-    // 5. Delete Channels
+    // 5. Delete Channels & Dedicated Team Category
     let channelsDeleted = 0;
     const textChannelId = reg?.text_channel_id;
     const voiceChannelId = reg?.voice_channel_id;
 
+    let parentCategory: any = null;
+
     if (textChannelId) {
       const ch = guild.channels.cache.get(textChannelId);
       if (ch) {
+        if (ch.parent && ch.parent.type === ChannelType.GuildCategory && ch.parent.id !== TEAM_ZONE_CATEGORY_ID) {
+          parentCategory = ch.parent;
+        }
         await ch.delete(`Tournament Team ${data.action} by ${data.executedBy || 'Admin'}`).catch(() => {});
         channelsDeleted++;
       }
     } else {
       const ch = guild.channels.cache.find(
-        (c) => c.parentId === TEAM_ZONE_CATEGORY_ID && (c.name === `💬・${slug}` || c.name === slug)
+        (c) =>
+          c.type === ChannelType.GuildText &&
+          (c.name === `💬・${slug}` || c.name === slug || c.name === `💬・${teamName.toLowerCase()}`)
       );
       if (ch) {
+        if (ch.parent && ch.parent.type === ChannelType.GuildCategory && ch.parent.id !== TEAM_ZONE_CATEGORY_ID) {
+          parentCategory = ch.parent;
+        }
         await ch.delete(`Tournament Team ${data.action}`).catch(() => {});
         channelsDeleted++;
       }
@@ -852,17 +906,41 @@ export async function deprovisionOrDisqualifyTeam(
     if (voiceChannelId) {
       const vc = guild.channels.cache.get(voiceChannelId);
       if (vc) {
+        if (!parentCategory && vc.parent && vc.parent.type === ChannelType.GuildCategory && vc.parent.id !== TEAM_ZONE_CATEGORY_ID) {
+          parentCategory = vc.parent;
+        }
         await vc.delete(`Tournament Team ${data.action} by ${data.executedBy || 'Admin'}`).catch(() => {});
         channelsDeleted++;
       }
     } else {
       const vc = guild.channels.cache.find(
-        (c) => c.parentId === TEAM_ZONE_CATEGORY_ID && (c.name === `🔊・${slug}` || c.name === slug)
+        (c) =>
+          c.type === ChannelType.GuildVoice &&
+          (c.name === `🔊・${slug}` || c.name === slug || c.name === `🔊・${teamName.toLowerCase()}`)
       );
       if (vc) {
+        if (!parentCategory && vc.parent && vc.parent.type === ChannelType.GuildCategory && vc.parent.id !== TEAM_ZONE_CATEGORY_ID) {
+          parentCategory = vc.parent;
+        }
         await vc.delete(`Tournament Team ${data.action}`).catch(() => {});
         channelsDeleted++;
       }
+    }
+
+    // Also check and delete dedicated category if exists
+    if (!parentCategory) {
+      parentCategory = guild.channels.cache.find(
+        (c) =>
+          c.type === ChannelType.GuildCategory &&
+          (c.name.toLowerCase() === `【🛡️】team ${teamName.toLowerCase()}` ||
+            c.name.toLowerCase() === `【🛡️】${teamName.toLowerCase()}` ||
+            c.name.toLowerCase() === `team ${teamName.toLowerCase()}`)
+      );
+    }
+
+    if (parentCategory && parentCategory.id !== TEAM_ZONE_CATEGORY_ID) {
+      await parentCategory.delete(`Tournament Team ${data.action} by ${data.executedBy || 'Admin'}`).catch(() => {});
+      logger.info(`[TEAM-REG] Deleted team category: ${parentCategory.name} (${parentCategory.id})`);
     }
 
     // 6. Delete Team Role
@@ -920,9 +998,11 @@ export async function deprovisionOrDisqualifyTeam(
 export function isTeamRole(role: any, guild: any): boolean {
   if (!role || role.id === guild.id || role.id === REGISTERED_ROLE_ID || role.id === TEAM_LEADER_ROLE_ID) return false;
   if (role.name.toLowerCase().startsWith('team ')) return true;
-  // Check if role has explicit permissions in tournament category channels
+  // Check if role has explicit permissions in tournament category channels or dedicated team categories
   return guild.channels.cache.some(
-    (c: any) => c.parentId === TEAM_ZONE_CATEGORY_ID && c.permissionOverwrites?.cache?.has(role.id)
+    (c: any) =>
+      (c.parentId === TEAM_ZONE_CATEGORY_ID || (c.parent && c.parent.name.startsWith('【🛡️】')) || c.name.startsWith('【🛡️】')) &&
+      c.permissionOverwrites?.cache?.has(role.id)
   );
 }
 
