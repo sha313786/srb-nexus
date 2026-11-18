@@ -79,16 +79,17 @@ export async function tournamentRoutes(fastify: FastifyInstance) {
   fastify.post('/api/tournaments/delete', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const body = (request.body || {}) as any;
-      const { teamName, regId, roleId, reason, executedBy } = body;
+      const { teamName, teamTag, regId, roleId, reason, executedBy } = body;
 
-      if (!teamName && !regId && !roleId) {
-        return reply.status(400).send({ success: false, error: 'teamName, regId, or roleId is required' });
+      if (!teamName && !teamTag && !regId && !roleId) {
+        return reply.status(400).send({ success: false, error: 'teamName, teamTag, regId, or roleId is required' });
       }
 
       logger.info({ body }, '[API] Received tournament team deletion request');
 
       const result = await deprovisionOrDisqualifyTeam(bot, {
         teamName,
+        teamTag,
         regId,
         roleId,
         action: 'DELETED',
@@ -105,16 +106,42 @@ export async function tournamentRoutes(fastify: FastifyInstance) {
 
   /**
    * POST /api/tournaments/webhook
-   * Supabase Database Webhook handler (triggers on team updates/deletions)
+   * Supabase Database Webhook handler (triggers on team inserts/updates/deletions)
    */
   fastify.post('/api/tournaments/webhook', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const body = (request.body || {}) as any;
+      const eventType = (body.type || body.event_type || body.event || '').toUpperCase();
       const record = body.record || body;
+      const oldRecord = body.old_record || {};
 
-      logger.info({ body }, '[API] Received tournament webhook event');
+      logger.info({ body, eventType }, '[API] Received tournament webhook event');
 
-      // Check if status is approved
+      // 1. Supabase DELETE Event or Status Deleted
+      if (
+        eventType === 'DELETE' ||
+        (record && (record.status === 'deleted' || record.status === 'DELETED')) ||
+        (oldRecord && (oldRecord.status === 'deleted' || oldRecord.status === 'DELETED'))
+      ) {
+        const target = oldRecord && Object.keys(oldRecord).length > 0 ? oldRecord : record || body;
+        const teamName = target.name || target.team_name || target.team;
+        const teamTag = target.tag || target.team_tag;
+
+        logger.info({ target, teamName, teamTag }, '[API] Webhook processing DELETE event');
+
+        const result = await deprovisionOrDisqualifyTeam(bot, {
+          teamName,
+          teamTag,
+          regId: target.id,
+          roleId: target.role_id,
+          action: 'DELETED',
+          reason: target.reason || target.disqualify_reason || 'Webhook record deleted',
+          executedBy: 'Supabase Database Webhook',
+        });
+        return reply.send(result);
+      }
+
+      // 2. Check if status is approved (INSERT / UPDATE)
       if (record && (record.status === 'approved' || record.status === 'APPROVED')) {
         const teamName = record.name || record.team_name || record.team;
         if (!teamName) {
@@ -134,12 +161,14 @@ export async function tournamentRoutes(fastify: FastifyInstance) {
         return reply.send(result);
       }
 
-      // Check if status is disqualified
+      // 3. Check if status is disqualified
       if (record && (record.status === 'disqualified' || record.status === 'DISQUALIFIED')) {
         const teamName = record.name || record.team_name || record.team;
         const result = await deprovisionOrDisqualifyTeam(bot, {
           teamName,
+          teamTag: record.tag || record.team_tag,
           regId: record.id,
+          roleId: record.role_id,
           action: 'DISQUALIFIED',
           reason: record.disqualify_reason || record.reason || 'Webhook trigger',
           executedBy: 'Supabase Database Webhook',
@@ -147,20 +176,7 @@ export async function tournamentRoutes(fastify: FastifyInstance) {
         return reply.send(result);
       }
 
-      // Check if status is deleted
-      if (record && (record.status === 'deleted' || record.status === 'DELETED')) {
-        const teamName = record.name || record.team_name || record.team;
-        const result = await deprovisionOrDisqualifyTeam(bot, {
-          teamName,
-          regId: record.id,
-          action: 'DELETED',
-          reason: 'Webhook record deleted',
-          executedBy: 'Supabase Database Webhook',
-        });
-        return reply.send(result);
-      }
-
-      return reply.send({ received: true, status: record?.status || 'no-op' });
+      return reply.send({ received: true, status: record?.status || eventType || 'no-op' });
     } catch (err: any) {
       logger.error({ err }, '[API] Error in /api/tournaments/webhook');
       return reply.status(500).send({ success: false, error: err.message });

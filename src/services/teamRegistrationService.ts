@@ -57,6 +57,25 @@ export function slugify(name: string): string {
     .slice(0, 30) || 'squad';
 }
 
+/**
+ * Normalizes Unicode fonts (small caps, math bold, emojis) to plain lowercase alphanumeric
+ */
+export function normalizeDiscordName(str: string): string {
+  const smallCapsMap: Record<string, string> = {
+    'ᴀ': 'a', 'ʙ': 'b', 'ᴄ': 'c', 'ᴅ': 'd', 'ᴇ': 'e', 'ꜰ': 'f', 'ɢ': 'g', 'ʜ': 'h',
+    'ɪ': 'i', 'ᴊ': 'j', 'ᴋ': 'k', 'ʟ': 'l', 'ᴍ': 'm', 'ɴ': 'n', 'ᴏ': 'o', 'ᴘ': 'p',
+    'ǫ': 'q', 'ʀ': 'r', 'ꜱ': 's', 'ᴛ': 't', 'ᴜ': 'u', 'ᴠ': 'v', 'ᴡ': 'w', 'x': 'x',
+    'ʏ': 'y', 'ᴢ': 'z'
+  };
+  return (str || '')
+    .split('')
+    .map((char) => smallCapsMap[char] || char)
+    .join('')
+    .normalize('NFKD')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
 function clientAppId(guild: any): string {
   return guild.client?.user?.id || '1526885301736177705';
 }
@@ -769,6 +788,7 @@ export async function deprovisionOrDisqualifyTeam(
   data: {
     regId?: string;
     teamName?: string;
+    teamTag?: string;
     roleId?: string;
     action: 'DISQUALIFIED' | 'DELETED';
     reason?: string;
@@ -790,29 +810,37 @@ export async function deprovisionOrDisqualifyTeam(
     // 1. Fetch registration if regId provided
     let reg: any = null;
     if (data.regId) {
-      const res = await db.query('SELECT * FROM tournament_registrations WHERE id = $1', [data.regId]);
+      const res = await db.query('SELECT * FROM tournament_registrations WHERE id = $1', [data.regId]).catch(() => ({ rows: [] }));
       reg = res.rows[0];
     } else if (data.teamName) {
       const res = await db.query(
         'SELECT * FROM tournament_registrations WHERE LOWER(team_name) = LOWER($1) ORDER BY created_at DESC LIMIT 1',
         [data.teamName]
-      );
+      ).catch(() => ({ rows: [] }));
       reg = res.rows[0];
     }
 
-    const teamName = reg?.team_name || data.teamName || 'Unknown Team';
+    const teamName = reg?.team_name || data.teamName || '';
+    const teamTag = data.teamTag || reg?.team_tag || (teamName ? extractTeamTag(teamName) : '');
     const roleId = reg?.role_id || data.roleId;
     const slug = slugify(teamName);
+    const normTeam = normalizeDiscordName(teamName);
+    const normTag = normalizeDiscordName(teamTag);
 
-    // 2. Find Team Role
+    // 2. Find Team Role (check roleId, exact name, tag, normalized name, or channel permissions)
     let teamRole = roleId ? guild.roles.cache.get(roleId) : null;
-    if (!teamRole && teamName) {
+    if (!teamRole && (teamName || teamTag)) {
       teamRole =
-        guild.roles.cache.find(
-          (r) =>
-            r.name.toLowerCase() === `team ${teamName}`.toLowerCase() ||
-            r.name.toLowerCase() === teamName.toLowerCase()
-        ) || null;
+        guild.roles.cache.find((r) => {
+          const rName = r.name.toLowerCase();
+          const rNorm = normalizeDiscordName(r.name);
+          return (
+            (teamName && (rName === teamName.toLowerCase() || rName === `team ${teamName.toLowerCase()}`)) ||
+            (teamTag && (rName === teamTag.toLowerCase() || rName === `team ${teamTag.toLowerCase()}`)) ||
+            (normTeam && (rNorm === normTeam || rNorm === `team${normTeam}`)) ||
+            (normTag && (rNorm === normTag || rNorm === `team${normTag}`))
+          );
+        }) || null;
     }
 
     let affectedCount = 0;
@@ -889,12 +917,17 @@ export async function deprovisionOrDisqualifyTeam(
         channelsDeleted++;
       }
     } else {
-      const ch = guild.channels.cache.find(
-        (c) =>
-          c.type === ChannelType.GuildText &&
-          (c.name === `💬・${slug}` || c.name === slug || c.name === `💬・${teamName.toLowerCase()}`)
-      );
-      if (ch) {
+      const textChannels = guild.channels.cache.filter((c: any) => {
+        if (c.type !== ChannelType.GuildText) return false;
+        const cNorm = normalizeDiscordName(c.name);
+        return (
+          (normTeam && (cNorm === normTeam || cNorm === `team${normTeam}` || cNorm.includes(normTeam))) ||
+          (normTag && (cNorm === normTag || cNorm === `team${normTag}` || cNorm.includes(normTag))) ||
+          c.name === `💬・${slug}` ||
+          c.name === slug
+        );
+      });
+      for (const [, ch] of textChannels) {
         if (ch.parent && ch.parent.type === ChannelType.GuildCategory && ch.parent.id !== TEAM_ZONE_CATEGORY_ID) {
           parentCategory = ch.parent;
         }
@@ -913,12 +946,17 @@ export async function deprovisionOrDisqualifyTeam(
         channelsDeleted++;
       }
     } else {
-      const vc = guild.channels.cache.find(
-        (c) =>
-          c.type === ChannelType.GuildVoice &&
-          (c.name === `🔊・${slug}` || c.name === slug || c.name === `🔊・${teamName.toLowerCase()}`)
-      );
-      if (vc) {
+      const voiceChannels = guild.channels.cache.filter((c: any) => {
+        if (c.type !== ChannelType.GuildVoice) return false;
+        const cNorm = normalizeDiscordName(c.name);
+        return (
+          (normTeam && (cNorm === normTeam || cNorm === `team${normTeam}` || cNorm.includes(normTeam))) ||
+          (normTag && (cNorm === normTag || cNorm === `team${normTag}` || cNorm.includes(normTag))) ||
+          c.name === `🔊・${slug}` ||
+          c.name === slug
+        );
+      });
+      for (const [, vc] of voiceChannels) {
         if (!parentCategory && vc.parent && vc.parent.type === ChannelType.GuildCategory && vc.parent.id !== TEAM_ZONE_CATEGORY_ID) {
           parentCategory = vc.parent;
         }
@@ -927,15 +965,29 @@ export async function deprovisionOrDisqualifyTeam(
       }
     }
 
-    // Also check and delete dedicated category if exists
+    // Find and delete team category
     if (!parentCategory) {
-      parentCategory = guild.channels.cache.find(
-        (c) =>
-          c.type === ChannelType.GuildCategory &&
-          (c.name.toLowerCase() === `【🛡️】team ${teamName.toLowerCase()}` ||
-            c.name.toLowerCase() === `【🛡️】${teamName.toLowerCase()}` ||
-            c.name.toLowerCase() === `team ${teamName.toLowerCase()}`)
-      );
+      parentCategory = guild.channels.cache.find((c: any) => {
+        if (c.type !== ChannelType.GuildCategory) return false;
+        const cNorm = normalizeDiscordName(c.name);
+        return (
+          (normTeam && (cNorm === normTeam || cNorm === `team${normTeam}` || cNorm.includes(normTeam))) ||
+          (normTag && (cNorm === normTag || cNorm === `team${normTag}` || cNorm.includes(normTag)))
+        );
+      });
+    }
+
+    // Fallback: If teamRole still not found, check category permission overwrites
+    if (!teamRole && parentCategory) {
+      for (const [id] of parentCategory.permissionOverwrites?.cache || []) {
+        if (id !== guild.id && id !== client.user?.id) {
+          const r = guild.roles.cache.get(id);
+          if (r && isTeamRole(r, guild)) {
+            teamRole = r;
+            break;
+          }
+        }
+      }
     }
 
     if (parentCategory && parentCategory.id !== TEAM_ZONE_CATEGORY_ID) {
@@ -946,19 +998,24 @@ export async function deprovisionOrDisqualifyTeam(
     // 6. Delete Team Role
     if (teamRole) {
       await teamRole.delete(`Tournament Team ${data.action} by ${data.executedBy || 'Admin'}`).catch(() => {});
+      logger.info(`[TEAM-REG] Deleted team role: ${teamRole.name} (${teamRole.id})`);
     }
 
     // 7. Update Database status
-    if (reg) {
-      await db.query(
-        `UPDATE tournament_registrations SET status = $1, updated_at = NOW() WHERE id = $2`,
-        [data.action, reg.id]
-      );
-    } else if (data.teamName) {
-      await db.query(
-        `UPDATE tournament_registrations SET status = $1, updated_at = NOW() WHERE LOWER(team_name) = LOWER($2)`,
-        [data.action, data.teamName]
-      );
+    try {
+      if (reg) {
+        await db.query(
+          `UPDATE tournament_registrations SET status = $1, updated_at = NOW() WHERE id = $2`,
+          [data.action, reg.id]
+        );
+      } else if (data.teamName) {
+        await db.query(
+          `UPDATE tournament_registrations SET status = $1, updated_at = NOW() WHERE LOWER(team_name) = LOWER($2)`,
+          [data.action, data.teamName]
+        );
+      }
+    } catch (dbErr: any) {
+      logger.warn({ err: dbErr.message }, '[TEAM-REG] Database update skipped or failed');
     }
 
     // 8. Send Staff Alert in #📋・ᴛᴇᴀᴍ-ʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴꜱ
