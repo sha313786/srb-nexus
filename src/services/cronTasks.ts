@@ -1,14 +1,33 @@
 import { Client, TextChannel, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { db } from '../core/database';
 import { logger } from '../core/logger';
+import { checkAndDispatchBirthdays } from './birthdayService';
 
 export function startBackgroundSchedulers(bot: Client) {
-  logger.info('[CRON] Initializing background Giveaways and Reminders schedulers...');
+  logger.info('[CRON] Initializing background Giveaways, Reminders, and Birthday schedulers...');
 
-  // Run every 10 seconds
+  // Run every 10 seconds for giveaways and reminders
   setInterval(async () => {
     await processExpiredGiveaways(bot);
     await processDueReminders(bot);
+  }, 10000);
+
+  // Run Birthday wish checker every 60 seconds
+  setInterval(async () => {
+    try {
+      await checkAndDispatchBirthdays(bot);
+    } catch (err: any) {
+      logger.error({ err }, '[CRON] Error running birthday dispatcher');
+    }
+  }, 60000);
+
+  // Initial birthday check after bot startup
+  setTimeout(async () => {
+    try {
+      await checkAndDispatchBirthdays(bot);
+    } catch (err: any) {
+      logger.error({ err }, '[CRON] Error running initial birthday dispatcher');
+    }
   }, 10000);
 }
 

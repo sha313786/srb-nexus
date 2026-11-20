@@ -9,6 +9,7 @@ import { serverinfoCommand } from './serverinfo';
 import { userinfoCommand } from './userinfo';
 import { avatarCommand } from './avatar';
 import { pollCommand } from './poll';
+import { birthdayCommand, nexusBirthdayCommand } from './birthday';
 
 // Moderation & Defense Commands
 import { lockdownCommand } from './lockdown';
@@ -96,6 +97,8 @@ const allCommands = [
   remindCommand,
   afkCommand,
   tagCommand,
+  birthdayCommand,
+  nexusBirthdayCommand,
 
   // Moderation & Security
   lockdownCommand,

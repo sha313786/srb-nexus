@@ -232,6 +232,32 @@ CREATE TABLE IF NOT EXISTS module_tickets (
     support_role_id VARCHAR(32)
 );
 
+CREATE TABLE IF NOT EXISTS module_birthdays (
+    guild_id VARCHAR(32) PRIMARY KEY,
+    channel_id VARCHAR(32),
+    role_id VARCHAR(32),
+    wish_message TEXT DEFAULT '🎉 Happy Birthday {user}! 🎂 May your special day be packed with joy, laughter, and greatness! 🎈✨',
+    wish_time VARCHAR(5) DEFAULT '00:00',
+    enabled BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_birthdays (
+    guild_id VARCHAR(32) NOT NULL,
+    user_id VARCHAR(32) NOT NULL,
+    birth_day INT NOT NULL,
+    birth_month INT NOT NULL,
+    birth_year INT,
+    last_wished_year INT DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (guild_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_birthdays_date ON user_birthdays(birth_month, birth_day);
+
+
 -- 9. Reaction Roles Configuration
 CREATE TABLE IF NOT EXISTS guild_reaction_roles (
     id SERIAL PRIMARY KEY,
