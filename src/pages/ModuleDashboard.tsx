@@ -2,7 +2,7 @@ import React, { useState, useEffect, ChangeEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 
-type ActiveTab = 'welcome' | 'moderation' | 'levels' | 'music' | 'economy' | 'tickets';
+type ActiveTab = 'welcome' | 'moderation' | 'levels' | 'music' | 'economy' | 'tickets' | 'birthdays';
 
 interface Channel {
   id: string;
@@ -94,7 +94,7 @@ export const ModuleDashboard: React.FC = () => {
 
       {/* Module Tabs Navigation */}
       <div className="tab-bar" style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-        {(['welcome', 'moderation', 'levels', 'music', 'economy', 'tickets'] as ActiveTab[]).map((tab) => (
+        {(['welcome', 'moderation', 'levels', 'music', 'economy', 'tickets', 'birthdays'] as ActiveTab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -177,6 +177,62 @@ export const ModuleDashboard: React.FC = () => {
                     <option key={r.id} value={r.id}>@{r.name}</option>
                   ))}
                 </select>
+              </div>
+            </div>
+          )}
+
+          {/* BIRTHDAYS MODULE */}
+          {activeTab === 'birthdays' && (
+            <div>
+              <h2>Birthday Wishes Configuration</h2>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.enabled ?? true}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange('enabled', e.target.checked)}
+                  />
+                  Enable Automated Daily Birthday Wishes (12:00 AM IST)
+                </label>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px' }}>Announcement Channel:</label>
+                <select
+                  value={formData.channel_id || ''}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => handleChange('channel_id', e.target.value || null)}
+                  style={{ width: '100%', padding: '8px' }}
+                >
+                  <option value="">-- None / Select Channel --</option>
+                  {channels.map((c: Channel) => (
+                    <option key={c.id} value={c.id}>#{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px' }}>Birthday VIP Role (Granted for 24h):</label>
+                <select
+                  value={formData.role_id || ''}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => handleChange('role_id', e.target.value || null)}
+                  style={{ width: '100%', padding: '8px' }}
+                >
+                  <option value="">-- None --</option>
+                  {roles.map((r: Role) => (
+                    <option key={r.id} value={r.id}>@{r.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px' }}>Custom Wish Message:</label>
+                <textarea
+                  value={formData.wish_message || ''}
+                  onChange={(e: ChangeEvent<HTMLTextAreaElement>) => handleChange('wish_message', e.target.value)}
+                  placeholder="Wishing you a fantastic birthday filled with joy and success! 🎂🎈"
+                  style={{ width: '100%', padding: '8px', minHeight: '80px' }}
+                />
+                <small style={{ color: '#aaa' }}>Variables: &#123;user&#125;, &#123;username&#125;, &#123;server&#125;</small>
               </div>
             </div>
           )}
@@ -342,6 +398,62 @@ export const ModuleDashboard: React.FC = () => {
                     <option key={r.id} value={r.id}>@{r.name}</option>
                   ))}
                 </select>
+              </div>
+            </div>
+          )}
+
+          {/* BIRTHDAYS MODULE */}
+          {activeTab === 'birthdays' && (
+            <div>
+              <h2>Birthday Wishes Configuration</h2>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.enabled ?? true}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange('enabled', e.target.checked)}
+                  />
+                  Enable Automated Daily Birthday Wishes (12:00 AM IST)
+                </label>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px' }}>Announcement Channel:</label>
+                <select
+                  value={formData.channel_id || ''}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => handleChange('channel_id', e.target.value || null)}
+                  style={{ width: '100%', padding: '8px' }}
+                >
+                  <option value="">-- None / Select Channel --</option>
+                  {channels.map((c: Channel) => (
+                    <option key={c.id} value={c.id}>#{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px' }}>Birthday VIP Role (Granted for 24h):</label>
+                <select
+                  value={formData.role_id || ''}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => handleChange('role_id', e.target.value || null)}
+                  style={{ width: '100%', padding: '8px' }}
+                >
+                  <option value="">-- None --</option>
+                  {roles.map((r: Role) => (
+                    <option key={r.id} value={r.id}>@{r.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px' }}>Custom Wish Message:</label>
+                <textarea
+                  value={formData.wish_message || ''}
+                  onChange={(e: ChangeEvent<HTMLTextAreaElement>) => handleChange('wish_message', e.target.value)}
+                  placeholder="Wishing you a fantastic birthday filled with joy and success! 🎂🎈"
+                  style={{ width: '100%', padding: '8px', minHeight: '80px' }}
+                />
+                <small style={{ color: '#aaa' }}>Variables: &#123;user&#125;, &#123;username&#125;, &#123;server&#125;</small>
               </div>
             </div>
           )}

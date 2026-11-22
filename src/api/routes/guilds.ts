@@ -23,6 +23,12 @@ import { listGuildTags, upsertGuildTag, deleteGuildTag, getGuildTag } from '../.
 import { getSpamCatcherConfig, invalidateSpamCatcherCache } from '../../security/antiSpam';
 import { deploySpamCatcherHoneypot } from '../../services/spamCatcherDeployer';
 import { getVoiceRooms, muteAllVoice, unmuteAllVoice, moveAllVoice } from '../../services/voiceManagement';
+import {
+  getGuildBirthdayConfig,
+  setGuildBirthdayConfig,
+  getGuildUpcomingBirthdays,
+  deleteUserBirthday,
+} from '../../services/birthdayService';
 
 interface AuthUserPayload {
   id: string;
@@ -478,6 +484,12 @@ export async function guildRoutes(fastify: FastifyInstance) {
         return reply.send({ settings });
       }
 
+      if (module === 'birthdays' || module === 'birthday') {
+        const birthdayConfig = await getGuildBirthdayConfig(id);
+        const upcomingBirthdays = await getGuildUpcomingBirthdays(id);
+        return reply.send({ settings: birthdayConfig, upcoming: upcomingBirthdays });
+      }
+
       const result = await db.query(
         'SELECT * FROM guild_settings WHERE guild_id = $1',
         [id]
@@ -860,6 +872,21 @@ export async function guildRoutes(fastify: FastifyInstance) {
             id,
           ]
         );
+      } else if (module === 'birthdays' || module === 'birthday') {
+        const cleanChan = body.channel_id ? String(body.channel_id).replace(/[<#@!&>]/g, '').trim() : null;
+        const cleanRole = body.role_id ? String(body.role_id).replace(/[<#@!&>]/g, '').trim() : null;
+        const cleanMsg = body.wish_message ? String(body.wish_message).trim() : 'Wishing you a fantastic birthday filled with joy and success! 🎂🎈';
+        const isEnabled = body.enabled !== undefined ? Boolean(body.enabled) : true;
+        const wishTime = body.wish_time ? String(body.wish_time).trim() : '00:00';
+
+        await setGuildBirthdayConfig({
+          guild_id: id,
+          channel_id: cleanChan,
+          role_id: cleanRole,
+          wish_message: cleanMsg,
+          wish_time: wishTime,
+          enabled: isEnabled,
+        });
       } else {
         return reply.status(400).send({ error: `Unknown configuration module: ${module}` });
       }
@@ -868,6 +895,91 @@ export async function guildRoutes(fastify: FastifyInstance) {
     } catch (err: any) {
       request.log.error({ err }, `Failed to update module settings for ${module}`);
       return reply.status(500).send({ error: 'Failed to save module configuration' });
+    }
+  });
+
+  // POST /api/guilds/:id/birthdays/test - Send a test birthday announcement preview
+  fastify.post('/api/guilds/:id/birthdays/test', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) {
+      return reply.status(403).send({ error: 'You do not have permission to manage this server' });
+    }
+
+    try {
+      const config = await getGuildBirthdayConfig(id);
+      const discordGuild = bot.guilds.cache.get(id);
+      if (!discordGuild) {
+        return reply.status(404).send({ error: 'Discord bot is not present in this server' });
+      }
+
+      const targetChannel = config.channel_id
+        ? (discordGuild.channels.cache.get(config.channel_id) as TextChannel)
+        : (discordGuild.channels.cache.find(c => c.isTextBased()) as TextChannel);
+
+      if (!targetChannel) {
+        return reply.status(400).send({ error: 'Please configure a valid announcement channel first in the Birthday settings' });
+      }
+
+      const avatarUrl = user.avatar
+        ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=256`
+        : `https://cdn.discordapp.com/embed/avatars/0.png`;
+
+      const testEmbed = new EmbedBuilder()
+        .setColor('#F43F5E')
+        .setTitle(`🎂 [DASHBOARD TEST] HAPPY BIRTHDAY! 🎈`)
+        .setDescription(
+          `Today is a very special day! Everyone join us in wishing <@${user.id}>!\n\n` +
+          `> ${config.wish_message?.replace(/{user}/g, `<@${user.id}>`).replace(/{username}/g, user.username).replace(/{server}/g, discordGuild.name) || 'Wishing you a fantastic birthday filled with joy and success! 🎂🎈'}\n\n` +
+          `🎁 Drop your hearty wishes and love below for <@${user.id}>! 🥳🥂`
+        )
+        .setThumbnail(avatarUrl)
+        .addFields(
+          { name: '📅 Date', value: `\`Dashboard Test\``, inline: true },
+          { name: '👑 Birthday VIP', value: `<@${user.id}>`, inline: true }
+        )
+        .setImage('https://media.giphy.com/media/g5R9dok94mrIvplmZd/giphy.gif')
+        .setFooter({ text: `${discordGuild.name} • Birthday Test Preview 🎉` })
+        .setTimestamp();
+
+      await targetChannel.send({
+        content: `🎉 **HAPPY BIRTHDAY** <@${user.id}>! 🎂🎈 *(Test Preview from Dashboard)*`,
+        embeds: [testEmbed],
+      });
+
+      return reply.send({ success: true, message: `Test birthday announcement sent to #${targetChannel.name}` });
+    } catch (err: any) {
+      request.log.error({ err }, 'Failed to send test birthday announcement');
+      return reply.status(500).send({ error: err.message || 'Failed to send preview' });
+    }
+  });
+
+  // DELETE /api/guilds/:id/birthdays/:userId - Remove a user's birthday entry
+  fastify.delete('/api/guilds/:id/birthdays/:userId', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id, userId } = request.params as { id: string; userId: string };
+
+    if (!user || !user.accessToken) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) {
+      return reply.status(403).send({ error: 'You do not have permission to manage this server' });
+    }
+
+    try {
+      await deleteUserBirthday(id, userId);
+      return reply.send({ success: true, message: 'Birthday entry deleted' });
+    } catch (err: any) {
+      request.log.error({ err }, 'Failed to delete birthday entry');
+      return reply.status(500).send({ error: 'Failed to delete birthday entry' });
     }
   });
 

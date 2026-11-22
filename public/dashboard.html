@@ -332,6 +332,13 @@
               <i class="fa-solid fa-bell w-5 text-center text-yellow-400"></i>
               <span>Live Notifications</span>
             </button>
+            <button onclick="switchTab('birthdays')" id="btn-birthdays" class="tab-btn w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition text-slate-400 hover:bg-dark-850 hover:text-white">
+              <div class="flex items-center gap-3">
+                <i class="fa-solid fa-cake-candles w-5 text-center text-rose-400"></i>
+                <span>Birthday Wishes</span>
+              </div>
+              <span id="badge-birthdays-status" class="px-2 py-0.5 text-[10px] rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 font-bold">New</span>
+            </button>
           </div>
         </div>
 
@@ -1975,6 +1982,126 @@
                 </thead>
                 <tbody id="dashboard-live-feed-table" class="divide-y divide-dark-800 text-xs">
                   <tr><td colspan="4" class="py-6 text-center text-slate-500">Fetching live feed stream...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 10.5. BIRTHDAY WISHES AUTOMATION PANEL -->
+      <div id="panel-birthdays" class="module-panel space-y-6 hidden">
+        <div class="glass-panel rounded-3xl p-8 space-y-8">
+          
+          <!-- Header and Action Buttons -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-dark-700/60 gap-4">
+            <div>
+              <div class="flex items-center gap-2.5">
+                <h2 class="font-heading font-extrabold text-2xl text-white">Birthday Celebrations</h2>
+                <span id="badge-birthdays-status-pill" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[10px] font-bold">
+                  <span class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span> Auto Wish Active
+                </span>
+              </div>
+              <p class="text-sm text-slate-400 mt-1">Automate midnight birthday wishes (12:00 AM IST) with celebration embeds, avatar spotlight, custom messages, and optional 24-hour VIP birthday roles.</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <button onclick="testBirthdayAnnouncement()" id="btn-test-birthday" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-dark-800 hover:bg-dark-750 text-rose-300 hover:text-white border border-rose-500/30 font-bold text-xs shadow-md transition">
+                <i class="fa-solid fa-cake-candles text-rose-400"></i> Test Announcement
+              </button>
+              <button onclick="saveBirthdaySettings()" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-xs shadow-lg shadow-brand/25 transition">
+                <i class="fa-solid fa-floppy-disk"></i> Save Birthday Config
+              </button>
+            </div>
+          </div>
+
+          <!-- Configuration Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- 1. Master Toggle & Channel -->
+            <div class="p-6 rounded-2xl bg-dark-850/60 border border-dark-700/60 space-y-5">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="font-bold text-white text-base">Automated Daily Wishes</h3>
+                  <p class="text-xs text-slate-400 mt-0.5">Dispatches celebratory embeds every midnight (12:00 AM IST)</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="check-birthdays-enabled" class="sr-only peer" checked>
+                  <div class="w-11 h-6 bg-dark-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-500"></div>
+                </label>
+              </div>
+
+              <!-- Channel Selector -->
+              <div class="space-y-2">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Announcement Channel</label>
+                <select id="select-birthdays-channel" class="channel-dropdown w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-rose-500 transition">
+                  <option value="">Disabled / Select Announcement Channel</option>
+                </select>
+                <p class="text-[11px] text-slate-500">The public text channel where celebratory birthday cards will be posted.</p>
+              </div>
+
+              <!-- Role Selector -->
+              <div class="space-y-2">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Birthday VIP Role (Optional)</label>
+                <select id="select-birthdays-role" class="role-dropdown w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-rose-500 transition">
+                  <option value="">Disabled / Select a Role</option>
+                </select>
+                <p class="text-[11px] text-slate-500">Granted to the member for 24 hours on their special day, then automatically removed.</p>
+              </div>
+            </div>
+
+            <!-- 2. Wish Time & Message Template -->
+            <div class="p-6 rounded-2xl bg-dark-850/60 border border-dark-700/60 space-y-5">
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Dispatch Time</label>
+                  <span class="text-[10px] px-2 py-0.5 rounded bg-dark-750 text-slate-300 font-mono">IST (UTC+5:30)</span>
+                </div>
+                <input type="text" id="input-birthdays-time" value="00:00" readonly class="w-full bg-dark-900/60 border border-dark-700/80 rounded-xl px-4 py-3 text-sm text-slate-300 font-mono cursor-not-allowed">
+                <p class="text-[11px] text-slate-500">Scheduled automatically for 12:00 AM Indian Standard Time every night.</p>
+              </div>
+
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Custom Celebration Message</label>
+                  <div class="flex items-center gap-1">
+                    <button type="button" onclick="insertBirthdayTag('{user}')" class="text-[10px] px-2 py-0.5 rounded bg-dark-800 hover:bg-dark-700 text-rose-300 font-mono border border-rose-500/20">{user}</button>
+                    <button type="button" onclick="insertBirthdayTag('{server}')" class="text-[10px] px-2 py-0.5 rounded bg-dark-800 hover:bg-dark-700 text-indigo-300 font-mono border border-indigo-500/20">{server}</button>
+                  </div>
+                </div>
+                <textarea id="textarea-birthdays-msg" rows="3" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-rose-500 transition resize-none" placeholder="Wishing you a fantastic birthday filled with joy and success! 🎂🎈"></textarea>
+                <p class="text-[11px] text-slate-500">Variables: <code class="text-rose-400">{user}</code> (mention), <code class="text-rose-400">{username}</code> (name), <code class="text-rose-400">{server}</code> (server name).</p>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- 3. Registered Upcoming Birthdays -->
+          <div class="space-y-4 pt-4 border-t border-dark-700/60">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 class="font-bold text-white text-lg flex items-center gap-2">
+                  <i class="fa-solid fa-calendar-days text-rose-400"></i> Server Upcoming Birthdays
+                </h3>
+                <p class="text-xs text-slate-400">Members can register their birthday anytime using the <code class="text-rose-400 font-mono">/birthday set</code> slash command in Discord.</p>
+              </div>
+              <span id="badge-total-birthdays" class="text-xs px-3 py-1 rounded-xl bg-dark-850 text-slate-300 border border-dark-700 font-semibold self-start sm:self-auto">
+                0 Registered
+              </span>
+            </div>
+
+            <div class="overflow-x-auto rounded-2xl border border-dark-700/60 bg-dark-850/40">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="border-b border-dark-700/80 text-[11px] uppercase tracking-wider text-slate-400 bg-dark-900/60">
+                    <th class="py-3 px-4">Member</th>
+                    <th class="py-3 px-4">Date</th>
+                    <th class="py-3 px-4">Status / Countdown</th>
+                    <th class="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="table-birthdays-body" class="divide-y divide-dark-800 text-xs">
+                  <tr><td colspan="4" class="py-6 text-center text-slate-500">Loading birthdays...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -3678,6 +3805,8 @@
         loadGiveaways();
       } else if (tabName === 'notifications') {
         pollLiveFeed(true);
+      } else if (tabName === 'birthdays') {
+        loadBirthdaySettings();
       } else if (tabName === 'streams') {
         loadStreamTrackers();
       } else if (tabName === 'invites') {
@@ -8716,5 +8845,175 @@
     init();
   </script>
   <script src="/nexus-bg.js?v=3.0" defer></script>
+<script>
+    // --- BIRTHDAY MODULE HANDLERS ---
+    async function loadBirthdaySettings() {
+      if (!guildId) return;
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/modules/birthdays`);
+        if (res.ok) {
+          const data = await res.json();
+          const s = data.settings || {};
+          const upcoming = data.upcoming || [];
+
+          const enabledEl = document.getElementById('check-birthdays-enabled');
+          if (enabledEl) enabledEl.checked = s.enabled ?? true;
+
+          const chanEl = document.getElementById('select-birthdays-channel');
+          if (chanEl && s.channel_id) chanEl.value = s.channel_id;
+
+          const roleEl = document.getElementById('select-birthdays-role');
+          if (roleEl && s.role_id) roleEl.value = s.role_id;
+
+          const msgEl = document.getElementById('textarea-birthdays-msg');
+          if (msgEl && s.wish_message) msgEl.value = s.wish_message;
+
+          const timeEl = document.getElementById('input-birthdays-time');
+          if (timeEl) timeEl.value = s.wish_time || '00:00';
+
+          const pill = document.getElementById('badge-birthdays-status-pill');
+          if (pill) {
+            pill.innerHTML = s.enabled !== false
+              ? '<span class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span> Auto Wish Active'
+              : '<span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> Disabled';
+            pill.className = s.enabled !== false
+              ? 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[10px] font-bold'
+              : 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 text-[10px] font-bold';
+          }
+
+          renderUpcomingBirthdaysTable(upcoming);
+        }
+      } catch (err) {
+        console.error('Failed to load birthday settings', err);
+      }
+    }
+
+    function renderUpcomingBirthdaysTable(upcoming) {
+      const tbody = document.getElementById('table-birthdays-body');
+      const badge = document.getElementById('badge-total-birthdays');
+      if (badge) badge.innerText = `${(upcoming || []).length} Registered`;
+      if (!tbody) return;
+
+      if (!upcoming || upcoming.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="py-8 text-center text-slate-500">No birthdays registered yet. Members can use <code class="text-rose-400">/birthday set</code> in Discord!</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = upcoming.map((b, i) => {
+        const isToday = b.daysLeft === 0;
+        const countdownBadge = isToday
+          ? `<span class="px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 font-bold border border-rose-500/30 text-[10px] animate-pulse">🎉 TODAY!</span>`
+          : `<span class="px-2 py-0.5 rounded-md bg-dark-750 text-slate-300 font-mono text-[11px]">in ${b.daysLeft}d</span>`;
+
+        const monthName = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][b.birth_month - 1] || b.birth_month;
+        const dateStr = `${b.birth_day} ${monthName}${b.birth_year ? `, ${b.birth_year}` : ''}`;
+
+        return `
+          <tr class="hover:bg-dark-800/50 transition">
+            <td class="py-3 px-4 font-semibold text-white flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center justify-center text-[10px] font-bold">${i+1}</span>
+              <span>&lt;@${b.user_id}&gt;</span>
+            </td>
+            <td class="py-3 px-4 text-slate-300 font-mono">${dateStr}</td>
+            <td class="py-3 px-4">${countdownBadge}</td>
+            <td class="py-3 px-4 text-right">
+              <button onclick="deleteBirthdayUser('${b.user_id}')" class="px-2.5 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-[11px] font-semibold transition" title="Delete Entry">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function saveBirthdaySettings() {
+      if (!guildId) return;
+      const payload = {
+        enabled: document.getElementById('check-birthdays-enabled')?.checked ?? true,
+        channel_id: document.getElementById('select-birthdays-channel')?.value || null,
+        role_id: document.getElementById('select-birthdays-role')?.value || null,
+        wish_message: document.getElementById('textarea-birthdays-msg')?.value.trim() || 'Wishing you a fantastic birthday filled with joy and success! 🎂🎈',
+        wish_time: '00:00'
+      };
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/modules/birthdays`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(data.message || 'Birthday configuration saved successfully!', 'success');
+          loadBirthdaySettings();
+        } else {
+          showToast(data.error || 'Failed to save birthday configuration.', 'error');
+        }
+      } catch (err) {
+        showToast('Connection error while saving settings.', 'error');
+      }
+    }
+
+    async function testBirthdayAnnouncement() {
+      if (!guildId) return;
+      const btn = document.getElementById('btn-test-birthday');
+      const orig = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Broadcasting...`;
+      }
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/birthdays/test`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(data.message || 'Test birthday announcement sent to channel!', 'success');
+        } else {
+          showToast(data.error || 'Failed to send test announcement. Please configure channel first.', 'error');
+        }
+      } catch (err) {
+        showToast('Connection error while testing birthday announcement.', 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = orig;
+        }
+      }
+    }
+
+    async function deleteBirthdayUser(userId) {
+      if (!guildId || !userId) return;
+      if (!confirm('Remove this member birthday from the server?')) return;
+
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/birthdays/${userId}`, {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast('Birthday removed successfully!', 'success');
+          loadBirthdaySettings();
+        } else {
+          showToast(data.error || 'Failed to remove birthday.', 'error');
+        }
+      } catch (err) {
+        showToast('Connection error while deleting birthday.', 'error');
+      }
+    }
+
+    function insertBirthdayTag(tag) {
+      const textarea = document.getElementById('textarea-birthdays-msg');
+      if (!textarea) return;
+      const start = textarea.selectionStart || 0;
+      const end = textarea.selectionEnd || 0;
+      const text = textarea.value;
+      textarea.value = text.substring(0, start) + tag + text.substring(end);
+      textarea.focus();
+      textarea.setSelectionRange(start + tag.length, start + tag.length);
+    }
+</script>
 </body>
 </html>
