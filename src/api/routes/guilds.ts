@@ -1205,11 +1205,15 @@ export async function guildRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Platform, streamer name, and Discord notification channel are required.' });
     }
 
-    const cleanChannel = channelName
+    let cleanChannel = channelName
       .replace(/^https?:\/\/(www\.)?(twitch\.tv|kick\.com|youtube\.com)\//i, '')
       .replace(/[\/@]/g, '')
-      .trim()
-      .toLowerCase();
+      .trim();
+
+    // Preserve exact case for 24-character YouTube Channel IDs (UC...), lowercase handles and other platforms
+    if (!(/^UC[a-zA-Z0-9_-]{22}$/.test(cleanChannel))) {
+      cleanChannel = cleanChannel.toLowerCase();
+    }
 
     try {
       // Check for duplicates

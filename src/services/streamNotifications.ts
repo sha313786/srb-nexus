@@ -62,7 +62,7 @@ export async function getYouTubeChannelProfile(cleanName: string, knownId?: stri
   }
 
   let channelId = knownId || '';
-  if (cleanName.startsWith('uc') && cleanName.length === 24) {
+  if (/^UC[a-zA-Z0-9_-]{22}$/i.test(cleanName)) {
     channelId = cleanName;
   }
 
@@ -81,11 +81,18 @@ export async function getYouTubeChannelProfile(cleanName: string, knownId?: stri
     const html = await res.text();
 
     const titleMatch =
+      html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
       html.match(/"channelMetadataRenderer":\s*\{[\s\S]*?"title":\s*"([^"]+)"/i) ||
-      html.match(/"ownerChannelName":"([^"]+)"/i) ||
-      html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i);
+      html.match(/"ownerChannelName":"([^"]+)"/i);
 
-    const cidMatch = html.match(/"channelId":"(UC[a-zA-Z0-9_-]{22})"/);
+    // Strictly extract the channel's OWN canonical ID, NEVER third-party recommendations from raw JSON!
+    const cidMatch =
+      html.match(/<meta\s+itemprop="channelId"\s+content="(UC[a-zA-Z0-9_-]{22})"/i) ||
+      html.match(/<meta\s+itemprop="identifier"\s+content="(UC[a-zA-Z0-9_-]{22})"/i) ||
+      html.match(/<link\s+rel="canonical"\s+href="https:\/\/www\.youtube\.com\/channel\/(UC[a-zA-Z0-9_-]{22})"/i) ||
+      html.match(/<meta\s+property="og:url"\s+content="https:\/\/www\.youtube\.com\/channel\/(UC[a-zA-Z0-9_-]{22})"/i) ||
+      html.match(/"channelMetadataRenderer":\s*\{[\s\S]*?"externalId":\s*"(UC[a-zA-Z0-9_-]{22})"/i) ||
+      html.match(/"externalChannelId":\s*"(UC[a-zA-Z0-9_-]{22})"/i);
 
     const avatarMatch =
       html.match(/"channelMetadataRenderer":\s*\{[\s\S]*?"avatar":\s*\{\s*"thumbnails":\s*\[\s*\{\s*"url":\s*"([^"]+)"/i) ||
@@ -343,15 +350,24 @@ export async function fetchStreamInfo(
               // STRICT OWNERSHIP VERIFICATION:
               // The stream MUST belong to the tracked creator, never a third-party recommended video!
               const streamAuthor = (vd.author || micro.ownerChannelName || '').trim().toLowerCase();
-              const profileTitle = profile.displayName.toLowerCase();
-              const cleanLower = cleanName.toLowerCase();
+              const profileTitle = profile.displayName.trim().toLowerCase();
+              const cleanLower = cleanName.trim().toLowerCase();
 
-              const isAuthorMatch =
-                streamAuthor.includes(profileTitle) ||
-                profileTitle.includes(streamAuthor) ||
-                streamAuthor.includes(cleanLower) ||
-                cleanLower.includes(streamAuthor) ||
-                (channelId && (vd.channelId === channelId || micro.externalChannelId === channelId));
+              const hasCidMatch = Boolean(
+                channelId &&
+                (vd.channelId === channelId || micro.externalChannelId === channelId)
+              );
+
+              const hasAuthorMatch = Boolean(
+                streamAuthor &&
+                streamAuthor.length >= 2 &&
+                (
+                  (profileTitle && profileTitle.length >= 2 && (streamAuthor === profileTitle || streamAuthor.includes(profileTitle) || profileTitle.includes(streamAuthor))) ||
+                  (cleanLower && cleanLower.length >= 2 && (streamAuthor === cleanLower || streamAuthor.includes(cleanLower) || cleanLower.includes(streamAuthor)))
+                )
+              );
+
+              const isAuthorMatch = hasCidMatch || hasAuthorMatch;
 
               if (isAuthorMatch) {
                 const streamEnded = liveHtml.includes('"status":"ENDED"') || playability.status === 'LIVE_STREAM_OFFLINE';
