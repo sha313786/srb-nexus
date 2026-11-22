@@ -290,7 +290,7 @@ export function startPlayerProgressTicker(
   queue.metadata.lastPlayerMessage = msg;
   queue.metadata.progressActive = true;
 
-  logger.info({ guildId: queue.guild.id, track: track?.title }, '[MUSIC] Starting live player progress ticker (1s interval)');
+  logger.info({ guildId: queue.guild.id, track: track?.title }, '[MUSIC] Starting live player progress ticker (8s cadence to protect voice UDP stream)');
 
   const tick = async () => {
     if (!queue.metadata?.progressActive) return;
@@ -318,7 +318,6 @@ export function startPlayerProgressTicker(
     } catch (err: any) {
       // If message was deleted (10008) or channel missing (10003) or 404
       if (err?.code === 10008 || err?.code === 10003 || err?.status === 404) {
-        logger.info({ guildId: queue.guild.id, code: err?.code }, '[MUSIC] Player card message deleted, stopping ticker');
         stopPlayerProgressTicker(queue);
         if (queue.metadata?.lastPlayerMessage?.id === msg?.id) {
           queue.metadata.lastPlayerMessage = null;
@@ -328,32 +327,23 @@ export function startPlayerProgressTicker(
 
       // If rate limited (429), respect retry_after and back off gracefully
       if (err?.status === 429) {
-        const retryAfterSec = Number(err?.retry_after ?? 3);
-        const backoffMs = Math.max(3000, Math.ceil(retryAfterSec * 1000) + 500);
-        logger.warn(
-          { retryAfterSec, backoffMs, guildId: queue.guild.id },
-          '[MUSIC] Rate limited updating player progress card, backing off'
-        );
+        const retryAfterSec = Number(err?.retry_after ?? 5);
+        const backoffMs = Math.max(5000, Math.ceil(retryAfterSec * 1000) + 1000);
         if (queue.metadata?.progressActive) {
           queue.metadata.progressTimer = setTimeout(tick, backoffMs);
         }
         return;
       }
-
-      logger.warn(
-        { err: err?.message, guildId: queue.guild.id },
-        '[MUSIC] Error while updating player progress card'
-      );
     }
 
-    // Schedule next tick after 1000ms (1-second live duration cadence)
+    // Schedule next tick after 8000ms (prevents Discord REST rate-limits from starving the 20ms voice packet loop)
     if (queue.metadata?.progressActive) {
-      queue.metadata.progressTimer = setTimeout(tick, 1000);
+      queue.metadata.progressTimer = setTimeout(tick, 8000);
     }
   };
 
-  // Schedule initial tick after 1000ms
-  queue.metadata.progressTimer = setTimeout(tick, 1000);
+  // Schedule initial tick after 8000ms
+  queue.metadata.progressTimer = setTimeout(tick, 8000);
 }
 
 export async function initMusicService(client: Client): Promise<Player> {
@@ -608,7 +598,14 @@ export async function playTrack(
         pauseOnEmpty: false,
         maxSize: settings.max_queue_length,
         skipFFmpeg: false,
-        bufferingTimeout: 10_000,
+        bufferingTimeout: 15_000,
+        connectionTimeout: 30_000,
+        disableEqualizer: true,
+        disableBiquad: true,
+        disableFilterer: true,
+        disableResampler: true,
+        disableCompressor: true,
+        disableReverb: true,
       } as any,
       requestedBy: member.user,
     });
