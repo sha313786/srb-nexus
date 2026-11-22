@@ -78,11 +78,12 @@ export function buildStickyPayload(config: StickyConfig): {
   embeds?: EmbedBuilder[];
 } {
   const header = '__Stickied Message:__';
+  const cleanContent = (config.content || '').replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n');
 
   if (config.embed) {
     const embed = new EmbedBuilder()
       .setTitle(config.embed_title || '📌 Stickied Message')
-      .setDescription(config.content)
+      .setDescription(cleanContent)
       .setColor((config.embed_color as any) || 0x5865f2)
       .setFooter({ text: 'Stickied Message • SRB NEXUS' })
       .setTimestamp();
@@ -94,7 +95,7 @@ export function buildStickyPayload(config: StickyConfig): {
   }
 
   return {
-    content: `${header}\n\n${config.content}`,
+    content: `${header}\n\n${cleanContent}`,
   };
 }
 
@@ -241,10 +242,14 @@ export async function setStickyMessage(options: {
       }
     }
 
+    const cleanContent = (content || '')
+      .replace(/\\r\\n/g, '\n')
+      .replace(/\\n/g, '\n');
+
     const config: StickyConfig = {
       guild_id: guildId,
       channel_id: channelId,
-      content,
+      content: cleanContent,
       last_message_id: null,
       embed,
       embed_title: embedTitle,
