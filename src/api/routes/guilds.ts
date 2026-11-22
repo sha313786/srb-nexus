@@ -922,6 +922,8 @@ export async function guildRoutes(fastify: FastifyInstance) {
       return reply.status(403).send({ error: 'You do not have permission to manage this server' });
     }
 
+    const body = (request.body as Record<string, any>) || {};
+
     try {
       const config = await getGuildBirthdayConfig(id);
       const discordGuild = bot.guilds.cache.get(id);
@@ -929,13 +931,19 @@ export async function guildRoutes(fastify: FastifyInstance) {
         return reply.status(404).send({ error: 'Discord bot is not present in this server' });
       }
 
-      const targetChannel = config.channel_id
-        ? (discordGuild.channels.cache.get(config.channel_id) as TextChannel)
-        : (discordGuild.channels.cache.find(c => c.isTextBased()) as TextChannel);
+      const targetChannelId = (body.channel_id ? String(body.channel_id).replace(/[<#@!&>]/g, '').trim() : null) || config.channel_id;
 
-      if (!targetChannel) {
-        return reply.status(400).send({ error: 'Please configure a valid announcement channel first in the Birthday settings' });
+      if (!targetChannelId) {
+        return reply.status(400).send({ error: 'Please select an Announcement Channel from the dropdown first' });
       }
+
+      const targetChannel = discordGuild.channels.cache.get(targetChannelId) as TextChannel;
+
+      if (!targetChannel || !targetChannel.isTextBased()) {
+        return reply.status(400).send({ error: 'Selected announcement channel not found or is not a text channel' });
+      }
+
+      const wishMsgTemplate = body.message || config.wish_message || 'Wishing you a fantastic birthday filled with joy and success! 🎂🎈';
 
       const avatarUrl = user.avatar
         ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=256`
@@ -946,7 +954,7 @@ export async function guildRoutes(fastify: FastifyInstance) {
         .setTitle(`🎂 [DASHBOARD TEST] HAPPY BIRTHDAY! 🎈`)
         .setDescription(
           `Today is a very special day! Everyone join us in wishing <@${user.id}>!\n\n` +
-          `> ${config.wish_message?.replace(/{user}/g, `<@${user.id}>`).replace(/{username}/g, user.username).replace(/{server}/g, discordGuild.name) || 'Wishing you a fantastic birthday filled with joy and success! 🎂🎈'}\n\n` +
+          `> ${wishMsgTemplate.replace(/{user}/g, `<@${user.id}>`).replace(/{username}/g, user.username).replace(/{server}/g, discordGuild.name)}\n\n` +
           `🎁 Drop your hearty wishes and love below for <@${user.id}>! 🥳🥂`
         )
         .setThumbnail(avatarUrl)

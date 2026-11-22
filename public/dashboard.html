@@ -8966,10 +8966,17 @@
         btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Broadcasting...`;
       }
 
+      const selectedChannel = document.getElementById('select-birthdays-channel')?.value;
+      const customMsg = document.getElementById('textarea-birthdays-msg')?.value;
+
       try {
         const res = await fetch(`/api/guilds/${guildId}/birthdays/test`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            channel_id: selectedChannel || null,
+            message: customMsg || null
+          })
         });
         const data = await res.json();
         if (res.ok) {
