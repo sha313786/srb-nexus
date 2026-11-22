@@ -66,6 +66,7 @@ import { modmailCommand } from './modmail';
 import { serverownerCommand } from './serverowner';
 import { spamcatcherCommand } from './spamcatcher';
 import { stickyCommand } from './sticky';
+import { fontSyncCommand, fontSyncHyphenCommand } from './fontSync';
 
 // Voice Management Commands
 import { muteallCommand, nexusMuteallCommand } from './muteall';
@@ -145,6 +146,8 @@ const allCommands = [
   serverownerCommand,
   spamcatcherCommand,
   stickyCommand,
+  fontSyncCommand,
+  fontSyncHyphenCommand,
   xmdTraineeCommand,
   xmdPromotionCommand,
 
