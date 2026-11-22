@@ -526,11 +526,36 @@ export async function guildRoutes(fastify: FastifyInstance) {
     const body = (request.body as Record<string, any>) || {};
 
     try {
+      if (module === 'birthdays' || module === 'birthday') {
+        const cleanChan = body.channel_id ? String(body.channel_id).replace(/[<#@!&>]/g, '').trim() : null;
+        const cleanRole = body.role_id ? String(body.role_id).replace(/[<#@!&>]/g, '').trim() : null;
+        const cleanMsg = body.wish_message ? String(body.wish_message).trim() : 'Wishing you a fantastic birthday filled with joy and success! 🎂🎈';
+        const isEnabled = body.enabled !== undefined ? Boolean(body.enabled) : true;
+        const wishTime = body.wish_time ? String(body.wish_time).trim() : '00:00';
+
+        await setGuildBirthdayConfig({
+          guild_id: id,
+          channel_id: cleanChan,
+          role_id: cleanRole,
+          wish_message: cleanMsg,
+          wish_time: wishTime,
+          enabled: isEnabled,
+        });
+
+        return reply.send({ success: true, message: 'Birthday configuration saved successfully!' });
+      }
+
       // Upsert shell row if not exists
-      await db.query(
-        `INSERT INTO guild_settings (guild_id) VALUES ($1) ON CONFLICT (guild_id) DO NOTHING`,
-        [id]
-      );
+      try {
+        if (db.isConnected) {
+          await db.query(
+            `INSERT INTO guild_settings (guild_id) VALUES ($1) ON CONFLICT (guild_id) DO NOTHING`,
+            [id]
+          );
+        }
+      } catch (dbErr: any) {
+        request.log.warn({ err: dbErr?.message }, 'Skipped guild_settings shell insert');
+      }
 
       if (module === 'overview') {
         const cleanPrefix = body.prefix ? String(body.prefix).trim() : '!';
@@ -872,21 +897,6 @@ export async function guildRoutes(fastify: FastifyInstance) {
             id,
           ]
         );
-      } else if (module === 'birthdays' || module === 'birthday') {
-        const cleanChan = body.channel_id ? String(body.channel_id).replace(/[<#@!&>]/g, '').trim() : null;
-        const cleanRole = body.role_id ? String(body.role_id).replace(/[<#@!&>]/g, '').trim() : null;
-        const cleanMsg = body.wish_message ? String(body.wish_message).trim() : 'Wishing you a fantastic birthday filled with joy and success! 🎂🎈';
-        const isEnabled = body.enabled !== undefined ? Boolean(body.enabled) : true;
-        const wishTime = body.wish_time ? String(body.wish_time).trim() : '00:00';
-
-        await setGuildBirthdayConfig({
-          guild_id: id,
-          channel_id: cleanChan,
-          role_id: cleanRole,
-          wish_message: cleanMsg,
-          wish_time: wishTime,
-          enabled: isEnabled,
-        });
       } else {
         return reply.status(400).send({ error: `Unknown configuration module: ${module}` });
       }

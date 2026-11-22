@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { Client, TextChannel, EmbedBuilder, GuildMember, PermissionFlagsBits } from 'discord.js';
 import { db } from '../core/database';
 import { logger } from '../core/logger';
@@ -23,45 +24,78 @@ export interface BirthdayGuildConfig {
   enabled: boolean;
 }
 
-const DATA_DIR = path.resolve(process.cwd(), 'data');
-const BIRTHDAYS_FILE = path.join(DATA_DIR, 'birthdays.json');
-const CONFIG_FILE = path.join(DATA_DIR, 'birthday_config.json');
+let cachedDataDir: string | null = null;
 
-// Ensure local data storage exists as resilient fallback
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+function getDataDir(): string {
+  if (cachedDataDir) return cachedDataDir;
+  const localDir = path.resolve(process.cwd(), 'data');
+  try {
+    if (!fs.existsSync(localDir)) {
+      fs.mkdirSync(localDir, { recursive: true });
+    }
+    const testFile = path.join(localDir, '.write-test');
+    fs.writeFileSync(testFile, '');
+    fs.unlinkSync(testFile);
+    cachedDataDir = localDir;
+    return cachedDataDir;
+  } catch {
+    const tmpDir = path.join(os.tmpdir(), 'srb-nexus-data');
+    try {
+      if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+      }
+    } catch {
+      // fallback
+    }
+    cachedDataDir = tmpDir;
+    return cachedDataDir;
   }
 }
 
+function getBirthdaysFile(): string {
+  return path.join(getDataDir(), 'birthdays.json');
+}
+
+function getConfigFile(): string {
+  return path.join(getDataDir(), 'birthday_config.json');
+}
+
 function loadLocalBirthdays(): UserBirthday[] {
-  ensureDataDir();
-  if (!fs.existsSync(BIRTHDAYS_FILE)) return [];
+  const file = getBirthdaysFile();
+  if (!fs.existsSync(file)) return [];
   try {
-    return JSON.parse(fs.readFileSync(BIRTHDAYS_FILE, 'utf-8'));
+    return JSON.parse(fs.readFileSync(file, 'utf-8'));
   } catch {
     return [];
   }
 }
 
 function saveLocalBirthdays(list: UserBirthday[]) {
-  ensureDataDir();
-  fs.writeFileSync(BIRTHDAYS_FILE, JSON.stringify(list, null, 2), 'utf-8');
+  const file = getBirthdaysFile();
+  try {
+    fs.writeFileSync(file, JSON.stringify(list, null, 2), 'utf-8');
+  } catch (err: any) {
+    logger.warn({ err: err?.message }, '[BIRTHDAY] Failed to write local birthdays file');
+  }
 }
 
 function loadLocalConfigs(): Record<string, BirthdayGuildConfig> {
-  ensureDataDir();
-  if (!fs.existsSync(CONFIG_FILE)) return {};
+  const file = getConfigFile();
+  if (!fs.existsSync(file)) return {};
   try {
-    return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+    return JSON.parse(fs.readFileSync(file, 'utf-8'));
   } catch {
     return {};
   }
 }
 
 function saveLocalConfigs(configs: Record<string, BirthdayGuildConfig>) {
-  ensureDataDir();
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(configs, null, 2), 'utf-8');
+  const file = getConfigFile();
+  try {
+    fs.writeFileSync(file, JSON.stringify(configs, null, 2), 'utf-8');
+  } catch (err: any) {
+    logger.warn({ err: err?.message }, '[BIRTHDAY] Failed to write local configs file');
+  }
 }
 
 // Month name helper

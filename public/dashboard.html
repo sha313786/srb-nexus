@@ -8882,9 +8882,12 @@
           }
 
           renderUpcomingBirthdaysTable(upcoming);
+        } else {
+          renderUpcomingBirthdaysTable([]);
         }
       } catch (err) {
         console.error('Failed to load birthday settings', err);
+        renderUpcomingBirthdaysTable([]);
       }
     }
 

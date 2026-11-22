@@ -44,6 +44,9 @@ COPY --chown=nexususer:nexusgroup --from=builder /app/dist ./dist
 COPY --chown=nexususer:nexusgroup --from=builder /app/public ./public
 COPY --chown=nexususer:nexusgroup assets ./assets
 
+# Ensure app directories and data storage are writable by non-root user
+RUN mkdir -p /app/data && chown -R nexususer:nexusgroup /app
+
 # Switch to non-privileged user
 USER nexususer
 
