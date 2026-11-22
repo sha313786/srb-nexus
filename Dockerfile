@@ -5,6 +5,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Install native compilation dependencies
+RUN apk add --no-cache libc6-compat gcompat python3 make g++
+
 # Copy dependency manifests
 COPY package*.json tsconfig.json tailwind.config.js ./
 
@@ -31,8 +34,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Install system libraries for @napi-rs/canvas and health check utilities
-RUN apk add --no-cache libc6-compat wget ca-certificates
+# Install system libraries for canvas, native audio transcoding (ffmpeg), yt-dlp, and health utilities
+RUN apk add --no-cache libc6-compat gcompat ffmpeg yt-dlp wget ca-certificates
 
 # Security: Create non-root system user
 RUN addgroup -S nexusgroup && adduser -S nexususer -G nexusgroup

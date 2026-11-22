@@ -363,6 +363,10 @@ export async function initMusicService(client: Client): Promise<Player> {
 
   logger.info('[MUSIC] Initializing Discord Player music engine...');
 
+  if (!process.env.FFMPEG_PATH && process.platform === 'linux') {
+    process.env.FFMPEG_PATH = '/usr/bin/ffmpeg';
+  }
+
   const player = new Player(client as any, {
     skipFFmpeg: false,
   });
@@ -377,8 +381,12 @@ export async function initMusicService(client: Client): Promise<Player> {
 
   // Register YoutubeExtractor from discord-player-youtubei
   try {
-    await player.extractors.register(YoutubeExtractor, {});
-    logger.info('[MUSIC] Registered YoutubeExtractor successfully.');
+    await player.extractors.register(YoutubeExtractor, {
+      downloads: {
+        trialOrder: ['yt-dlp', 'adaptive', 'sabr', 'peer'],
+      },
+    });
+    logger.info('[MUSIC] Registered YoutubeExtractor with prioritized stream order.');
   } catch (err) {
     logger.error({ err }, '[MUSIC] Error registering YoutubeExtractor');
   }
@@ -541,19 +549,19 @@ export async function playTrack(
 
   // Detect if query is an explicit URL (Spotify, SoundCloud, YouTube, direct link) or search keywords
   const isUrl = /^https?:\/\//i.test(query.trim());
-  const searchEngine = isUrl ? QueryType.AUTO : QueryType.YOUTUBE_SEARCH;
+  const searchEngine = QueryType.AUTO;
 
-  // Pre-search to check results and queue capacity
+  // Pre-search across all extractors (YouTube, Spotify, SoundCloud)
   let searchResult: SearchResult = await player.search(query, {
     requestedBy: member.user,
     searchEngine,
   });
 
-  if (!searchResult.hasTracks() && !isUrl) {
-    // Fallback to auto search if YouTube search had no match
+  if (!searchResult.hasTracks()) {
+    // Fallback directly to SoundCloud search if initial search returned empty
     searchResult = await player.search(query, {
       requestedBy: member.user,
-      searchEngine: QueryType.AUTO,
+      searchEngine: QueryType.SOUNDCLOUD_SEARCH,
     });
   }
 
