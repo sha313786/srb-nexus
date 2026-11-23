@@ -1,3 +1,6 @@
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 import { Client, TextChannel, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { db } from '../core/database';
 import { logger } from '../core/logger';
@@ -50,6 +53,82 @@ export interface YouTubeProfile {
 
 // In-memory cache to strictly persist verified YouTube channel profiles (title, avatar, channelId)
 const ytProfileCache = new Map<string, YouTubeProfile>();
+
+let cachedStreamDataDir: string | null = null;
+function getStreamDataDir(): string {
+  if (cachedStreamDataDir) return cachedStreamDataDir;
+  const localDir = path.resolve(process.cwd(), 'data');
+  try {
+    if (!fs.existsSync(localDir)) {
+      fs.mkdirSync(localDir, { recursive: true });
+    }
+    const testFile = path.join(localDir, '.write-test-streams');
+    fs.writeFileSync(testFile, '');
+    fs.unlinkSync(testFile);
+    cachedStreamDataDir = localDir;
+    return cachedStreamDataDir;
+  } catch {
+    const tmpDir = path.join(os.tmpdir(), 'srb-nexus-data');
+    try {
+      if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+      }
+    } catch {
+      // fallback
+    }
+    cachedStreamDataDir = tmpDir;
+    return cachedStreamDataDir;
+  }
+}
+
+function getDispatchedStreamsFile(): string {
+  return path.join(getStreamDataDir(), 'dispatched_streams.json');
+}
+
+// In-memory deduplication cache: key format `${guildId}:${channelId}:${streamId || cleanTitle}` -> timestamp
+const dispatchedStreamCache = new Map<string, number>();
+
+function loadDispatchedStreams(): void {
+  try {
+    const file = getDispatchedStreamsFile();
+    if (fs.existsSync(file)) {
+      const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
+      if (Array.isArray(data)) {
+        for (const item of data) {
+          if (item?.key && item?.time) {
+            dispatchedStreamCache.set(item.key, item.time);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn({ err }, '[RADAR] Failed to load dispatched_streams cache from file');
+  }
+}
+
+function saveDispatchedStreams(): void {
+  try {
+    const file = getDispatchedStreamsFile();
+    const now = Date.now();
+    const cutoff = now - 48 * 60 * 60 * 1000; // 48h retention
+    const entries: Array<{ key: string; time: number }> = [];
+
+    for (const [key, time] of dispatchedStreamCache.entries()) {
+      if (time >= cutoff) {
+        entries.push({ key, time });
+      } else {
+        dispatchedStreamCache.delete(key);
+      }
+    }
+
+    fs.writeFileSync(file, JSON.stringify(entries.slice(-200), null, 2), 'utf-8');
+  } catch (err) {
+    logger.warn({ err }, '[RADAR] Failed to save dispatched_streams cache to file');
+  }
+}
+
+loadDispatchedStreams();
+
 
 /**
  * Fetch authoritative YouTube channel profile directly from the channel home page.
@@ -676,6 +755,36 @@ export async function dispatchStreamNotification(
   tracker: StreamTrackerRow,
   info: StreamInfo
 ): Promise<boolean> {
+  const targetId = info.streamId;
+  const cleanTitle = (info.title || '').trim().toLowerCase();
+
+  const idKey = targetId ? `${tracker.guild_id}:${tracker.discord_channel_id}:${targetId}` : null;
+  const titleKey = cleanTitle ? `${tracker.guild_id}:${tracker.discord_channel_id}:${cleanTitle}` : null;
+
+  const now = Date.now();
+  const DEDUPLICATION_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours cooldown
+
+  if (idKey && dispatchedStreamCache.has(idKey)) {
+    const elapsed = now - dispatchedStreamCache.get(idKey)!;
+    if (elapsed < DEDUPLICATION_WINDOW_MS) {
+      logger.warn({ trackerId: tracker.id, videoId: targetId, elapsed }, '[RADAR] Blocked duplicate notification by Video ID');
+      return false;
+    }
+  }
+
+  if (titleKey && dispatchedStreamCache.has(titleKey)) {
+    const elapsed = now - dispatchedStreamCache.get(titleKey)!;
+    if (elapsed < DEDUPLICATION_WINDOW_MS) {
+      logger.warn({ trackerId: tracker.id, title: cleanTitle, elapsed }, '[RADAR] Blocked duplicate notification by Title');
+      return false;
+    }
+  }
+
+  // Pre-claim keys immediately before sending to block any concurrent dispatch
+  if (idKey) dispatchedStreamCache.set(idKey, now);
+  if (titleKey) dispatchedStreamCache.set(titleKey, now);
+  saveDispatchedStreams();
+
   try {
     const channel = (await bot.channels.fetch(tracker.discord_channel_id).catch(() => null)) as TextChannel;
     if (!channel || !channel.isTextBased()) return false;
@@ -798,8 +907,21 @@ export async function testStreamNotification(
  * Background Stream Radar Polling Loop
  * Runs every 25 seconds for sub-minute live detection
  */
+let isStreamPollingActive = false;
+
 export function startStreamWatcher(bot: Client) {
   logger.info('[RADAR] Initializing Multi-Platform Stream Radar watcher (Twitch, Kick, YouTube at 25s polling frequency)...');
+
+  // Clean historical duplicate tracker rows in database if any exist
+  db.query(`
+    DELETE FROM stream_trackers a
+    USING stream_trackers b
+    WHERE a.id > b.id
+      AND a.guild_id = b.guild_id
+      AND a.platform = b.platform
+      AND a.discord_channel_id = b.discord_channel_id
+      AND LOWER(a.channel_name) = LOWER(b.channel_name)
+  `).catch(() => {});
 
   // Initial check after 3 seconds, then every 25 seconds
   setTimeout(() => pollTrackedStreams(bot), 3000);
@@ -807,6 +929,13 @@ export function startStreamWatcher(bot: Client) {
 }
 
 async function pollTrackedStreams(bot: Client) {
+  if (isStreamPollingActive) {
+    logger.debug('[RADAR] Previous stream polling loop still active, skipping overlapping cycle');
+    return;
+  }
+
+  isStreamPollingActive = true;
+
   try {
     // Select tracked streamers with guild settings to check if stream notifications are enabled
     const res = await db.query<StreamTrackerRow & { notif_stream_alerts?: boolean }>(
@@ -818,7 +947,21 @@ async function pollTrackedStreams(bot: Client) {
 
     if (res.rows.length === 0) return;
 
-    for (const tracker of res.rows) {
+    // Deduplicate any duplicate database tracker rows for the same target channel + platform + creator
+    const seenTrackerKeys = new Set<string>();
+    const uniqueTrackers: (StreamTrackerRow & { notif_stream_alerts?: boolean })[] = [];
+
+    for (const t of res.rows) {
+      const canonicalKey = `${t.guild_id}:${t.discord_channel_id}:${t.platform}:${t.channel_name.toLowerCase().trim()}`;
+      if (seenTrackerKeys.has(canonicalKey)) {
+        logger.warn({ canonicalKey, duplicateId: t.id }, '[RADAR] Skipping duplicate tracker row in memory');
+        continue;
+      }
+      seenTrackerKeys.add(canonicalKey);
+      uniqueTrackers.push(t);
+    }
+
+    for (const tracker of uniqueTrackers) {
       try {
         const streamInfo = await fetchStreamInfo(tracker.platform, tracker.channel_name);
 
@@ -830,6 +973,11 @@ async function pollTrackedStreams(bot: Client) {
           const isNewStream = streamInfo.isLive && (!tracker.is_live || (streamInfo.streamId && tracker.last_stream_id !== streamInfo.streamId));
           if (isNewStream) {
             logger.info(`[RADAR] Streamer ${tracker.channel_name} (${tracker.platform}) went LIVE: ${streamInfo.title}`);
+
+            // Pre-update tracker in-memory immediately
+            tracker.is_live = true;
+            tracker.last_stream_id = streamInfo.streamId || tracker.last_stream_id;
+            tracker.last_title = streamInfo.title;
 
             if (streamAlertsGloballyEnabled) {
               const sent = await dispatchStreamNotification(bot, tracker, streamInfo);
@@ -890,6 +1038,10 @@ async function pollTrackedStreams(bot: Client) {
           if (isNewUpload) {
             logger.info(`[RADAR] New video upload detected for ${tracker.channel_name} (YouTube): ${streamInfo.title}`);
 
+            // Pre-update tracker in-memory immediately
+            tracker.last_stream_id = streamInfo.streamId;
+            tracker.last_title = streamInfo.title;
+
             if (streamAlertsGloballyEnabled) {
               const sent = await dispatchStreamNotification(bot, tracker, streamInfo);
               logger.info({ sent, trackerId: tracker.id }, '[RADAR] Video upload alert dispatched');
@@ -919,5 +1071,7 @@ async function pollTrackedStreams(bot: Client) {
     }
   } catch (err) {
     logger.error({ err }, '[RADAR] Error in pollTrackedStreams batch query');
+  } finally {
+    isStreamPollingActive = false;
   }
 }
