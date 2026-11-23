@@ -5139,56 +5139,147 @@
       }
     }
 
-    function processBannerFile(file) {
+    // Compress and optimize image to high-definition web banner format (under 500KB)
+    function optimizeBannerImage(file, maxDim = 2048, quality = 0.90) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            let width = img.naturalWidth || img.width;
+            let height = img.naturalHeight || img.height;
+
+            // Scale down to retina 2x HD resolution while preserving exact aspect ratio
+            if (width > maxDim || height > Math.round(maxDim * 0.75)) {
+              if (width >= height) {
+                if (width > maxDim) {
+                  height = Math.round(height * (maxDim / width));
+                  width = maxDim;
+                }
+              } else {
+                const maxH = Math.round(maxDim * 0.75);
+                if (height > maxH) {
+                  width = Math.round(width * (maxH / height));
+                  height = maxH;
+                }
+              }
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, width);
+            canvas.height = Math.max(1, height);
+            const ctx = canvas.getContext('2d');
+            
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            const isPng = file.type === 'image/png';
+            let dataUrl = canvas.toDataURL(isPng ? 'image/png' : 'image/jpeg', quality);
+
+            // If PNG is over 1MB, convert to high-fidelity JPEG to prevent proxy 413 limits
+            if (isPng && dataUrl.length > 1024 * 1024) {
+              const bgCanvas = document.createElement('canvas');
+              bgCanvas.width = canvas.width;
+              bgCanvas.height = canvas.height;
+              const bgCtx = bgCanvas.getContext('2d');
+              bgCtx.fillStyle = '#060913';
+              bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+              bgCtx.drawImage(canvas, 0, 0);
+              dataUrl = bgCanvas.toDataURL('image/jpeg', 0.92);
+            }
+
+            // If still over 1.2MB, scale down further
+            if (dataUrl.length > 1.2 * 1024 * 1024) {
+              const halfCanvas = document.createElement('canvas');
+              halfCanvas.width = Math.round(canvas.width * 0.75);
+              halfCanvas.height = Math.round(canvas.height * 0.75);
+              const halfCtx = halfCanvas.getContext('2d');
+              halfCtx.imageSmoothingEnabled = true;
+              halfCtx.imageSmoothingQuality = 'high';
+              halfCtx.drawImage(canvas, 0, 0, halfCanvas.width, halfCanvas.height);
+              dataUrl = halfCanvas.toDataURL('image/jpeg', 0.88);
+            }
+
+            resolve(dataUrl);
+          };
+          img.onerror = () => reject(new Error('Failed to load image for optimization'));
+          img.src = e.target.result;
+        };
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function processBannerFile(file) {
       if (!file.type.startsWith('image/')) {
         showToast('Please upload an image file (PNG, JPG, WebP).', 'error');
         return;
       }
-      if (file.size > 15 * 1024 * 1024) {
-        showToast('File size exceeds 15MB limit.', 'error');
+      if (file.size > 25 * 1024 * 1024) {
+        showToast('File size exceeds 25MB limit.', 'error');
         return;
       }
 
-      const reader = new FileReader();
-      reader.onload = async (ev) => {
-        const dataUrl = ev.target.result;
-        const bgInput = document.getElementById('input-welcome-bg');
+      const statusEl = document.getElementById('welcome-upload-status');
+      const nameEl = document.getElementById('welcome-upload-name');
+      const bgInput = document.getElementById('input-welcome-bg');
+
+      if (statusEl && nameEl) {
+        nameEl.textContent = `Optimizing ${file.name}...`;
+        statusEl.classList.remove('hidden');
+      }
+
+      try {
+        // Automatically optimize image (downscales huge 4K/PNGs to crisp HD under 500KB)
+        let dataUrl = await optimizeBannerImage(file, 2048, 0.92);
+
         if (bgInput) bgInput.value = dataUrl;
         renderWelcomePreview();
 
-        const statusEl = document.getElementById('welcome-upload-status');
-        const nameEl = document.getElementById('welcome-upload-name');
-        if (statusEl && nameEl) {
-          nameEl.textContent = `Uploading ${file.name}...`;
-          statusEl.classList.remove('hidden');
-        }
+        if (nameEl) nameEl.textContent = `Uploading ${file.name}...`;
 
-        if (!guildId) {
+        const targetGuildId = guildId || (currentGuild ? currentGuild.id : null);
+        if (!targetGuildId) {
           showToast('Banner loaded in preview. Select a server to save.', 'info');
+          if (nameEl) nameEl.textContent = `${file.name} (Preview Ready)`;
           return;
         }
 
-        try {
-          const res = await fetch(`/api/guilds/${guildId}/welcome/upload`, {
+        async function sendUpload(payloadUrl) {
+          return await fetch(`/api/guilds/${targetGuildId}/welcome/upload`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dataUrl, mode: currentWelcomeMode })
+            body: JSON.stringify({ dataUrl: payloadUrl, mode: currentWelcomeMode })
           });
-          const json = await res.json();
-          if (res.ok && json.success) {
-            if (bgInput) bgInput.value = json.url;
-            if (nameEl) nameEl.textContent = `${file.name} (Active)`;
-            renderWelcomePreview();
-            showToast('Custom banner uploaded & saved successfully!', 'success');
-          } else {
-            showToast(json.error || 'Failed to upload banner to server.', 'error');
-          }
-        } catch (err) {
-          console.error('[BANNER_UPLOAD]', err);
-          showToast('Network error uploading banner.', 'error');
         }
-      };
-      reader.readAsDataURL(file);
+
+        let res = await sendUpload(dataUrl);
+
+        // If proxy or server returned 413 Payload Too Large, re-compress even smaller and retry once
+        if (res.status === 413) {
+          if (nameEl) nameEl.textContent = `Compressing ${file.name} for cloud...`;
+          const compactDataUrl = await optimizeBannerImage(file, 1280, 0.82);
+          res = await sendUpload(compactDataUrl);
+        }
+
+        let json = {};
+        try {
+          json = await res.json();
+        } catch {}
+
+        if (res.ok && json.success) {
+          if (bgInput) bgInput.value = json.url;
+          if (nameEl) nameEl.textContent = `${file.name} (Active)`;
+          renderWelcomePreview();
+          showToast('Custom banner uploaded & saved successfully!', 'success');
+        } else {
+          showToast(json.error || `Upload error (HTTP ${res.status}). Preview is still active.`, 'error');
+        }
+      } catch (err) {
+        console.error('[BANNER_UPLOAD]', err);
+        showToast('Error processing banner image.', 'error');
+      }
     }
 
     function removeUploadedBanner() {

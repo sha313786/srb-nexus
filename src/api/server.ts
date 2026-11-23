@@ -13,7 +13,7 @@ import fastifyCors from '@fastify/cors';
 
 export const apiServer: FastifyInstance = Fastify({
   logger: false,
-  bodyLimit: 25 * 1024 * 1024,
+  bodyLimit: 50 * 1024 * 1024,
 });
 
 // Resolve correct public folder path whether running TS source or compiled JS in dist/

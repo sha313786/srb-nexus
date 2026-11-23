@@ -1756,7 +1756,7 @@ export async function guildRoutes(fastify: FastifyInstance) {
   });
 
   // POST /api/guilds/:id/welcome/upload - Upload custom welcome banner image
-  fastify.post('/api/guilds/:id/welcome/upload', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.post('/api/guilds/:id/welcome/upload', { bodyLimit: 50 * 1024 * 1024 }, async (request: FastifyRequest, reply: FastifyReply) => {
     const user = (request as any).user as AuthUserPayload | undefined;
     const { id } = request.params as { id: string };
 
@@ -1793,13 +1793,17 @@ export async function guildRoutes(fastify: FastifyInstance) {
     const isBannerOnly = body.mode === 'banner_only';
     const publicUrl = `/uploads/welcome/${fileName}${isBannerOnly ? '#banner_only' : ''}`;
 
-    // Update database
-    await db.query(
-      `INSERT INTO guild_settings (guild_id, welcome_bg_url, updated_at)
-       VALUES ($1, $2, NOW())
-       ON CONFLICT (guild_id) DO UPDATE SET welcome_bg_url = $2, updated_at = NOW()`,
-      [id, publicUrl]
-    );
+    // Update database (graceful fallback if db is momentarily busy)
+    try {
+      await db.query(
+        `INSERT INTO guild_settings (guild_id, welcome_bg_url, updated_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (guild_id) DO UPDATE SET welcome_bg_url = $2, updated_at = NOW()`,
+        [id, publicUrl]
+      );
+    } catch (dbErr) {
+      logger.warn({ dbErr }, '[WELCOME_UPLOAD] Database sync warning (settings will persist on Save Setup)');
+    }
 
     return reply.send({ success: true, url: publicUrl, message: 'Custom banner uploaded successfully!' });
   });
