@@ -163,7 +163,42 @@ export async function createWelcomeCard(
     }
 
   // ----------------------------------------------------
-  // 2. DEFAULT NEXUS CYBER CANVAS GENERATOR (Fallback)
+  // 2. STRANGE IS LIVE - PURE BANNER ONLY
+  // ----------------------------------------------------
+  const isStrangeIsLive =
+    member.guild.id === '1573665822025449592' ||
+    customBgUrl === 'strange' ||
+    customBgUrl === 'strange_is_live' ||
+    customBgUrl === 'banner_only' ||
+    (customBgUrl && customBgUrl.toLowerCase().includes('strange'));
+
+  if (isStrangeIsLive) {
+    if (customBgUrl && customBgUrl.startsWith('http')) {
+      try {
+        const res = await axios.get(customBgUrl, { responseType: 'arraybuffer', timeout: 7000 });
+        return new AttachmentBuilder(Buffer.from(res.data as any), { name: 'welcome-banner.jpg' });
+      } catch (err) {
+        console.error('[BOT] Failed to fetch remote custom banner URL, falling back to local banner', err);
+      }
+    }
+
+    const templateCandidates = [
+      path.join(__dirname, '../../assets/templates/strange_is_live_official_banner.jpg'),
+      path.join(__dirname, '../assets/templates/strange_is_live_official_banner.jpg'),
+      path.join(process.cwd(), 'assets/templates/strange_is_live_official_banner.jpg'),
+      path.join(process.cwd(), 'dist/assets/templates/strange_is_live_official_banner.jpg'),
+      path.join(process.cwd(), 'public/strange_banner.jpg'),
+    ];
+    const bannerPath = templateCandidates.find((p) => fs.existsSync(p));
+
+    if (bannerPath) {
+      const bannerBuffer = fs.readFileSync(bannerPath);
+      return new AttachmentBuilder(bannerBuffer, { name: 'welcome-banner.jpg' });
+    }
+  }
+
+  // ----------------------------------------------------
+  // 3. DEFAULT NEXUS CYBER CANVAS GENERATOR (Fallback)
   // ----------------------------------------------------
   const canvas = createCanvas(1024, 450);
   const ctx = canvas.getContext('2d');
