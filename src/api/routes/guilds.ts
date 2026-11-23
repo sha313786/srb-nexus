@@ -1,4 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import path from 'path';
+import fs from 'fs';
 import axios from 'axios';
 import { getDiscordApiBase } from './auth';
 import { db } from '../../core/database';
@@ -1751,6 +1753,55 @@ export async function guildRoutes(fastify: FastifyInstance) {
 
     await channel.send({ content: `🧪 **[TEST WELCOME CARD]**\n${welcomeText}`, files: [card] });
     return reply.send({ success: true, message: `Test welcome card sent to #${channel.name}!` });
+  });
+
+  // POST /api/guilds/:id/welcome/upload - Upload custom welcome banner image
+  fastify.post('/api/guilds/:id/welcome/upload', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as AuthUserPayload | undefined;
+    const { id } = request.params as { id: string };
+
+    if (!user || !user.accessToken) return reply.status(401).send({ error: 'Unauthorized' });
+    const hasAccess = await verifyUserGuildAccess(user.accessToken, id);
+    if (!hasAccess) return reply.status(403).send({ error: 'Forbidden' });
+
+    const body = request.body as { dataUrl?: string; mode?: string } | undefined;
+    if (!body || !body.dataUrl) {
+      return reply.status(400).send({ error: 'Missing image dataUrl' });
+    }
+
+    const matches = body.dataUrl.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
+    if (!matches) {
+      return reply.status(400).send({ error: 'Invalid data URL format. Expected base64 image.' });
+    }
+
+    const ext = matches[1] === 'jpeg' ? 'jpg' : (matches[1] || 'png');
+    const base64Data = matches[2];
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    const uploadsDir = path.join(process.cwd(), 'public/uploads/welcome');
+    const distUploadsDir = path.join(process.cwd(), 'dist/public/uploads/welcome');
+    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+    if (!fs.existsSync(distUploadsDir)) fs.mkdirSync(distUploadsDir, { recursive: true });
+
+    const fileName = `banner_${id}_${Date.now()}.${ext}`;
+    const filePath = path.join(uploadsDir, fileName);
+    const distFilePath = path.join(distUploadsDir, fileName);
+
+    fs.writeFileSync(filePath, buffer);
+    try { fs.writeFileSync(distFilePath, buffer); } catch {}
+
+    const isBannerOnly = body.mode === 'banner_only';
+    const publicUrl = `/uploads/welcome/${fileName}${isBannerOnly ? '#banner_only' : ''}`;
+
+    // Update database
+    await db.query(
+      `INSERT INTO guild_settings (guild_id, welcome_bg_url, updated_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (guild_id) DO UPDATE SET welcome_bg_url = $2, updated_at = NOW()`,
+      [id, publicUrl]
+    );
+
+    return reply.send({ success: true, url: publicUrl, message: 'Custom banner uploaded successfully!' });
   });
 
   // POST /api/guilds/:id/tickets/deploy - Deploy interactive ticket panel embed & button

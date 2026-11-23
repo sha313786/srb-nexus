@@ -163,19 +163,21 @@ export async function createWelcomeCard(
     }
 
   // ----------------------------------------------------
-  // 2. STRANGE IS LIVE - PURE BANNER ONLY
+  // 2. BANNER ONLY / STRANGE IS LIVE
   // ----------------------------------------------------
-  const isStrangeIsLive =
+  const isBannerOnly =
+    customBgUrl?.includes('#banner_only') ||
+    customBgUrl === 'banner_only' ||
     member.guild.id === '1573665822025449592' ||
     customBgUrl === 'strange' ||
     customBgUrl === 'strange_is_live' ||
-    customBgUrl === 'banner_only' ||
     (customBgUrl && customBgUrl.toLowerCase().includes('strange'));
 
-  if (isStrangeIsLive) {
-    if (customBgUrl && customBgUrl.startsWith('http')) {
+  if (isBannerOnly) {
+    const cleanUrl = (customBgUrl || '').replace('#banner_only', '').trim();
+    if (cleanUrl.startsWith('http')) {
       try {
-        const res = await axios.get(customBgUrl, { responseType: 'arraybuffer', timeout: 7000 });
+        const res = await axios.get(cleanUrl, { responseType: 'arraybuffer', timeout: 7000 });
         return new AttachmentBuilder(Buffer.from(res.data as any), { name: 'welcome-banner.jpg' });
       } catch (err) {
         console.error('[BOT] Failed to fetch remote custom banner URL, falling back to local banner', err);
@@ -183,6 +185,11 @@ export async function createWelcomeCard(
     }
 
     const templateCandidates = [
+      ...(cleanUrl ? [
+        path.join(process.cwd(), cleanUrl.replace(/^\//, '')),
+        path.join(process.cwd(), 'public', cleanUrl.replace(/^\//, '')),
+        path.join(process.cwd(), 'dist/public', cleanUrl.replace(/^\//, '')),
+      ] : []),
       path.join(__dirname, '../../assets/templates/strange_is_live_official_banner.jpg'),
       path.join(__dirname, '../assets/templates/strange_is_live_official_banner.jpg'),
       path.join(process.cwd(), 'assets/templates/strange_is_live_official_banner.jpg'),
@@ -205,7 +212,7 @@ export async function createWelcomeCard(
 
   let bgLoaded = false;
 
-  // Base Wallpaper
+  // Base Wallpaper (Remote or Local)
   if (customBgUrl && customBgUrl.startsWith('http')) {
     try {
       const bgImage = await loadImage(customBgUrl);
@@ -215,6 +222,25 @@ export async function createWelcomeCard(
       bgLoaded = true;
     } catch (err) {
       console.error('[BOT] Failed to load custom background image, using procedural theme', err);
+    }
+  } else if (customBgUrl && !customBgUrl.startsWith('http') && customBgUrl !== 'cyber' && customBgUrl !== 'space') {
+    const cleanUrl = customBgUrl.replace('#banner_only', '').trim();
+    const localCandidates = [
+      path.join(process.cwd(), cleanUrl.replace(/^\//, '')),
+      path.join(process.cwd(), 'public', cleanUrl.replace(/^\//, '')),
+      path.join(process.cwd(), 'dist/public', cleanUrl.replace(/^\//, '')),
+    ];
+    const foundPath = localCandidates.find((p) => fs.existsSync(p));
+    if (foundPath) {
+      try {
+        const bgImage = await loadImage(foundPath);
+        ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'rgba(5, 7, 12, 0.60)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        bgLoaded = true;
+      } catch (err) {
+        console.error('[BOT] Failed to load local custom background', err);
+      }
     }
   }
 

@@ -930,7 +930,10 @@
                 <i class="fa-solid fa-eye"></i> Real-Time Canvas Banner Preview
               </span>
               <div class="flex flex-wrap items-center gap-2 text-xs">
-                <span class="text-slate-400 font-semibold mr-1 text-[11px]">HD Presets:</span>
+                <button type="button" onclick="triggerBannerUpload()" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-brand hover:from-indigo-500 hover:to-brand-hover text-white transition flex items-center gap-1.5 text-xs font-bold shadow-md shadow-brand/20">
+                  <i class="fa-solid fa-cloud-arrow-up"></i> Upload Banner
+                </button>
+                <span class="text-slate-400 font-semibold mr-1 text-[11px] ml-1">Presets:</span>
                 <button type="button" onclick="setWelcomePreset('strange')" class="px-3 py-1.5 rounded-xl bg-dark-800 hover:bg-dark-750 text-red-400 border border-dark-700 hover:border-red-500/40 transition flex items-center gap-1.5 text-xs font-bold shadow-sm">
                   <i class="fa-solid fa-gamepad text-red-500"></i> Strange Is Live
                 </button>
@@ -981,11 +984,47 @@
               </select>
             </div>
 
-            <!-- Custom Background URL -->
-            <div class="md:col-span-2">
-              <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">Custom Background Image URL (Optional)</label>
-              <input type="url" id="input-welcome-bg" oninput="renderWelcomePreview()" placeholder="https://example.com/banner.png (Recommended: 1024x450)" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
-              <p class="text-xs text-slate-500 mt-1">Image URL is loaded dynamically and drawn onto the high-resolution Canvas with a translucent backdrop.</p>
+            <!-- Custom Welcome Banner & Upload Zone -->
+            <div class="md:col-span-2 space-y-3 bg-dark-950/60 p-5 rounded-2xl border border-dark-700/80">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-200">Custom Welcome Banner</label>
+                  <p class="text-xs text-slate-400 mt-0.5">Upload your server's custom banner graphic or pick a display style.</p>
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                  <span class="text-slate-400 font-semibold text-[11px]">Display Mode:</span>
+                  <button type="button" id="btn-mode-banner-only" onclick="setWelcomeBannerMode('banner_only')" class="px-3 py-1 rounded-lg bg-brand/20 text-brand border border-brand/40 font-bold text-xs transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-image"></i> Pure Banner Only
+                  </button>
+                  <button type="button" id="btn-mode-card" onclick="setWelcomeBannerMode('card')" class="px-3 py-1 rounded-lg bg-dark-800 text-slate-400 hover:text-white border border-dark-700 font-bold text-xs transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-id-card"></i> Card Overlay
+                  </button>
+                </div>
+              </div>
+
+              <!-- Drag & Drop / File Input Box -->
+              <input type="file" id="file-welcome-banner" accept="image/png, image/jpeg, image/jpg, image/webp" class="hidden" onchange="handleBannerFileSelect(event)">
+              <div id="welcome-dropzone" onclick="triggerBannerUpload()" ondragover="handleBannerDragOver(event)" ondragleave="handleBannerDragLeave(event)" ondrop="handleBannerDrop(event)" class="border-2 border-dashed border-dark-700 hover:border-brand/60 rounded-xl p-5 text-center cursor-pointer transition bg-dark-900/60 hover:bg-dark-900/90 group">
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <div class="w-10 h-10 rounded-xl bg-dark-800 border border-dark-700 flex items-center justify-center text-brand group-hover:scale-110 transition shadow-inner">
+                    <i class="fa-solid fa-cloud-arrow-up text-lg"></i>
+                  </div>
+                  <div class="text-left sm:text-left text-center">
+                    <p class="text-xs font-bold text-white group-hover:text-brand transition">Click here to upload banner or drag & drop</p>
+                    <p class="text-[11px] text-slate-500">Supports PNG, JPG, or WebP (Recommended: 1024×450 or 3:1 landscape, max 15MB)</p>
+                  </div>
+                </div>
+                <div id="welcome-upload-status" class="hidden mt-2 text-xs font-semibold text-emerald-400 flex items-center justify-center gap-2">
+                  <i class="fa-solid fa-circle-check"></i> <span id="welcome-upload-name">Custom banner uploaded & active</span>
+                  <button type="button" onclick="event.stopPropagation(); removeUploadedBanner()" class="text-slate-400 hover:text-rose-400 ml-2 text-[11px]"><i class="fa-solid fa-trash-can"></i> Reset to Default</button>
+                </div>
+              </div>
+
+              <!-- Direct URL Fallback -->
+              <div class="flex items-center gap-2 pt-1">
+                <span class="text-[11px] text-slate-500 whitespace-nowrap">Image URL / Path:</span>
+                <input type="text" id="input-welcome-bg" oninput="renderWelcomePreview()" placeholder="https://example.com/banner.png or /uploads/..." class="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-brand transition">
+              </div>
             </div>
 
             <!-- Welcome Message Text & Token Insertion Chips -->
@@ -4187,7 +4226,23 @@
           if (autorole) autorole.value = s.autorole_id || '';
 
           const welBg = document.getElementById('input-welcome-bg');
-          if (welBg) welBg.value = s.welcome_bg_url || '';
+          if (welBg) {
+            welBg.value = s.welcome_bg_url || '';
+            const isBannerOnly = (s.welcome_bg_url || '').includes('#banner_only');
+            if (typeof setWelcomeBannerMode === 'function') {
+              setWelcomeBannerMode(isBannerOnly ? 'banner_only' : 'card', false);
+            }
+            const statusEl = document.getElementById('welcome-upload-status');
+            const nameEl = document.getElementById('welcome-upload-name');
+            if (s.welcome_bg_url && (s.welcome_bg_url.startsWith('/uploads/') || s.welcome_bg_url.startsWith('http') || s.welcome_bg_url.startsWith('data:'))) {
+              if (statusEl && nameEl) {
+                nameEl.textContent = 'Custom banner active';
+                statusEl.classList.remove('hidden');
+              }
+            } else if (statusEl) {
+              statusEl.classList.add('hidden');
+            }
+          }
 
           const welMsg = document.getElementById('textarea-welcome-msg');
           if (welMsg) welMsg.value = s.welcome_message || '';
@@ -5025,6 +5080,130 @@
     // Canvas Welcome Banner - Cybernetic Studio
     let avatarPreviewImage = null;
     let strangeBannerImg = null;
+    let currentWelcomeMode = 'banner_only';
+
+    function triggerBannerUpload() {
+      const fi = document.getElementById('file-welcome-banner');
+      if (fi) fi.click();
+    }
+
+    function setWelcomeBannerMode(mode, triggerRender = true) {
+      currentWelcomeMode = mode;
+      const btnBanner = document.getElementById('btn-mode-banner-only');
+      const btnCard = document.getElementById('btn-mode-card');
+      const bgInput = document.getElementById('input-welcome-bg');
+
+      if (mode === 'banner_only') {
+        if (btnBanner) {
+          btnBanner.className = 'px-3 py-1 rounded-lg bg-brand/20 text-brand border border-brand/40 font-bold text-xs transition flex items-center gap-1.5';
+        }
+        if (btnCard) {
+          btnCard.className = 'px-3 py-1 rounded-lg bg-dark-800 text-slate-400 hover:text-white border border-dark-700 font-bold text-xs transition flex items-center gap-1.5';
+        }
+        if (bgInput && bgInput.value && !bgInput.value.includes('#banner_only') && !bgInput.value.startsWith('data:')) {
+          bgInput.value = bgInput.value.trim() + '#banner_only';
+        }
+      } else {
+        if (btnCard) {
+          btnCard.className = 'px-3 py-1 rounded-lg bg-brand/20 text-brand border border-brand/40 font-bold text-xs transition flex items-center gap-1.5';
+        }
+        if (btnBanner) {
+          btnBanner.className = 'px-3 py-1 rounded-lg bg-dark-800 text-slate-400 hover:text-white border border-dark-700 font-bold text-xs transition flex items-center gap-1.5';
+        }
+        if (bgInput && bgInput.value) {
+          bgInput.value = bgInput.value.replace('#banner_only', '').trim();
+        }
+      }
+      if (triggerRender) renderWelcomePreview();
+    }
+
+    function handleBannerDragOver(e) {
+      e.preventDefault();
+      const dropzone = document.getElementById('welcome-dropzone');
+      if (dropzone) dropzone.classList.add('border-brand', 'bg-dark-900');
+    }
+
+    function handleBannerDragLeave(e) {
+      e.preventDefault();
+      const dropzone = document.getElementById('welcome-dropzone');
+      if (dropzone) dropzone.classList.remove('border-brand', 'bg-dark-900');
+    }
+
+    function handleBannerDrop(e) {
+      e.preventDefault();
+      handleBannerDragLeave(e);
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+        processBannerFile(e.dataTransfer.files[0]);
+      }
+    }
+
+    function handleBannerFileSelect(e) {
+      if (e.target.files && e.target.files[0]) {
+        processBannerFile(e.target.files[0]);
+      }
+    }
+
+    function processBannerFile(file) {
+      if (!file.type.startsWith('image/')) {
+        showToast('Please upload an image file (PNG, JPG, WebP).', 'error');
+        return;
+      }
+      if (file.size > 15 * 1024 * 1024) {
+        showToast('File size exceeds 15MB limit.', 'error');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const dataUrl = ev.target.result;
+        const bgInput = document.getElementById('input-welcome-bg');
+        if (bgInput) bgInput.value = dataUrl;
+        renderWelcomePreview();
+
+        const statusEl = document.getElementById('welcome-upload-status');
+        const nameEl = document.getElementById('welcome-upload-name');
+        if (statusEl && nameEl) {
+          nameEl.textContent = `Uploading ${file.name}...`;
+          statusEl.classList.remove('hidden');
+        }
+
+        if (!guildId) {
+          showToast('Banner loaded in preview. Select a server to save.', 'info');
+          return;
+        }
+
+        try {
+          const res = await fetch(`/api/guilds/${guildId}/welcome/upload`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dataUrl, mode: currentWelcomeMode })
+          });
+          const json = await res.json();
+          if (res.ok && json.success) {
+            if (bgInput) bgInput.value = json.url;
+            if (nameEl) nameEl.textContent = `${file.name} (Active)`;
+            renderWelcomePreview();
+            showToast('Custom banner uploaded & saved successfully!', 'success');
+          } else {
+            showToast(json.error || 'Failed to upload banner to server.', 'error');
+          }
+        } catch (err) {
+          console.error('[BANNER_UPLOAD]', err);
+          showToast('Network error uploading banner.', 'error');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeUploadedBanner() {
+      const bgInput = document.getElementById('input-welcome-bg');
+      if (bgInput) bgInput.value = '';
+      const statusEl = document.getElementById('welcome-upload-status');
+      if (statusEl) statusEl.classList.add('hidden');
+      renderWelcomePreview();
+      showToast('Custom banner removed. Reverted to default.', 'info');
+    }
+
     function getPreviewAvatarImg() {
       if (!avatarPreviewImage) {
         avatarPreviewImage = new Image();
@@ -5042,9 +5221,10 @@
       const rawServerName = currentGuild ? currentGuild.name.toUpperCase() : 'YOUR SERVER';
       const serverName = rawServerName.length > 24 ? rawServerName.slice(0, 22) + '...' : rawServerName;
       const isStrange = bgUrl === 'strange' || bgUrl === 'strange_is_live' || bgUrl.toLowerCase().includes('strange') || (currentGuild && currentGuild.id === '1573665822025449592');
+      const isBannerOnly = currentWelcomeMode === 'banner_only' || bgUrl.includes('#banner_only') || bgUrl === 'banner_only' || isStrange;
 
       function drawContent() {
-        if (isStrange) {
+        if (isBannerOnly) {
           // Banner-Only Mode: Pure, untouched banner with zero overlays, zero text, zero avatar
           return;
         }
@@ -5208,19 +5388,16 @@
       ctx.fillStyle = '#05070c';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      if (bgUrl && bgUrl.startsWith('http')) {
+      const cleanUrl = bgUrl.replace('#banner_only', '').trim();
+      const isCustomImage = cleanUrl.startsWith('http') || cleanUrl.startsWith('data:image') || cleanUrl.startsWith('/uploads/');
+
+      if (isCustomImage) {
         const img = new Image();
-        img.crossOrigin = 'anonymous';
+        if (cleanUrl.startsWith('http')) img.crossOrigin = 'anonymous';
         img.onload = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          if (isStrange) {
-            const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            grad.addColorStop(0, 'rgba(5, 7, 12, 0.35)');
-            grad.addColorStop(0.65, 'rgba(5, 7, 12, 0.65)');
-            grad.addColorStop(1, 'rgba(5, 7, 12, 0.88)');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-          } else {
+          if (!isBannerOnly) {
             ctx.fillStyle = 'rgba(5, 7, 12, 0.60)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
           }
@@ -5230,9 +5407,9 @@
           drawThemeBackground(isStrange ? 'strange' : 'cyber');
           drawContent();
         };
-        img.src = bgUrl;
+        img.src = cleanUrl;
       } else {
-        drawThemeBackground(bgUrl || (isStrange ? 'strange' : 'cyber'));
+        drawThemeBackground(cleanUrl || (isStrange ? 'strange' : 'cyber'));
         drawContent();
       }
 
