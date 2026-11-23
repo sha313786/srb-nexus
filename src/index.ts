@@ -434,7 +434,7 @@ bot.on(Events.GuildMemberAdd, async (member: GuildMember) => {
             { name: 'Created', value: `<t:${createdTimestamp}:R>`, inline: true }
           )
           .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
-          .setImage('attachment://welcome-card.png')
+          .setImage(`attachment://${(welcomeCardAttachment as any).name || 'welcome-card.png'}`)
           .setFooter({
             text: `© ${member.guild.name}`,
             iconURL: member.guild.iconURL() || undefined,

@@ -934,6 +934,9 @@
                   <i class="fa-solid fa-cloud-arrow-up"></i> Upload Banner
                 </button>
                 <span class="text-slate-400 font-semibold mr-1 text-[11px] ml-1">Presets:</span>
+                <button type="button" onclick="setWelcomePreset('naadan')" class="px-3 py-1.5 rounded-xl bg-dark-800 hover:bg-dark-750 text-amber-500 border border-dark-700 hover:border-amber-500/40 transition flex items-center gap-1.5 text-xs font-bold shadow-sm">
+                  <i class="fa-solid fa-fire text-amber-500"></i> Naadan Legacy
+                </button>
                 <button type="button" onclick="setWelcomePreset('cyber')" class="px-3 py-1.5 rounded-xl bg-dark-800 hover:bg-dark-750 text-brand-cyan border border-dark-700 hover:border-brand-cyan/40 transition flex items-center gap-1.5 text-xs font-bold shadow-sm">
                   <i class="fa-solid fa-bolt text-brand-cyan"></i> Cyber Neon
                 </button>
@@ -4224,8 +4227,9 @@
 
           const welBg = document.getElementById('input-welcome-bg');
           if (welBg) {
-            welBg.value = s.welcome_bg_url || '';
-            const isBannerOnly = (s.welcome_bg_url || '').includes('#banner_only');
+            const isNaadanGuild = currentGuild && (currentGuild.id === '1558245529417293884' || (currentGuild.name && currentGuild.name.toLowerCase().includes('naadan')));
+            welBg.value = s.welcome_bg_url || (isNaadanGuild ? 'naadan' : '');
+            const isBannerOnly = (welBg.value || '').includes('#banner_only');
             if (typeof setWelcomeBannerMode === 'function') {
               setWelcomeBannerMode(isBannerOnly ? 'banner_only' : 'card', false);
             }
@@ -5076,6 +5080,7 @@
 
     // Canvas Welcome Banner - Cybernetic Studio
     let avatarPreviewImage = null;
+    let naadanBannerImg = null;
     let currentWelcomeMode = 'banner_only';
 
     function triggerBannerUpload() {
@@ -5476,8 +5481,74 @@
 
       const cleanUrl = bgUrl.replace('#banner_only', '').trim();
       const isCustomImage = cleanUrl.startsWith('http') || cleanUrl.startsWith('data:image') || cleanUrl.startsWith('/uploads/');
+      const isNaadan =
+        cleanUrl === 'naadan' ||
+        cleanUrl.toLowerCase().includes('naadan') ||
+        (!cleanUrl && currentGuild && (currentGuild.id === '1558245529417293884' || (currentGuild.name && currentGuild.name.toLowerCase().includes('naadan'))));
 
-      if (isCustomImage) {
+      function drawNaadanContent() {
+        if (isBannerOnly) return;
+
+        // Slot coordinates for Naadan Legacy
+        const cx = 163, cy = 193, r = 80;
+        const av = getPreviewAvatarImg();
+        if (av.complete && av.naturalWidth > 0) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, 0, Math.PI * 2);
+          ctx.closePath();
+          ctx.clip();
+          ctx.drawImage(av, cx - r, cy - r, r * 2, r * 2);
+          ctx.restore();
+
+          // Fiery blend ring
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(255, 68, 0, 0.45)';
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Username in glowing hexagonal nameplate
+        const uname = 'NewMember#0001';
+        const boxCx = 162, boxCy = 296, maxW = 180;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        let fontSize = 16;
+        ctx.font = `bold ${fontSize}px Outfit, sans-serif`;
+        while (ctx.measureText(uname).width > maxW && fontSize > 10) {
+          fontSize -= 1;
+          ctx.font = `bold ${fontSize}px Outfit, sans-serif`;
+        }
+        ctx.shadowColor = '#ff2200';
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(uname, boxCx, boxCy);
+
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#fff7ed';
+        ctx.fillText(uname, boxCx, boxCy);
+        ctx.restore();
+      }
+
+      if (isNaadan && !isCustomImage) {
+        if (!naadanBannerImg) {
+          naadanBannerImg = new Image();
+          naadanBannerImg.src = '/naadan_welcome.jpg';
+          naadanBannerImg.onload = () => renderWelcomePreview();
+        }
+        if (naadanBannerImg.complete && naadanBannerImg.naturalWidth > 0) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(naadanBannerImg, 0, 0, canvas.width, canvas.height);
+          drawNaadanContent();
+        } else {
+          drawThemeBackground('obsidian');
+          drawContent();
+        }
+      } else if (isCustomImage) {
         const img = new Image();
         if (cleanUrl.startsWith('http')) img.crossOrigin = 'anonymous';
         img.onload = () => {
@@ -5665,8 +5736,22 @@
         btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Rendering & Dispatching...`;
       }
 
+      const targetGuildId = guildId || (currentGuild ? currentGuild.id : null);
+      const chosenChannel = document.getElementById('select-welcome-channel')?.value || '';
+      const chosenBg = document.getElementById('input-welcome-bg')?.value || '';
+
+      if (!targetGuildId) {
+        showToast('Please select a server first.', 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+        return;
+      }
+
       try {
-        const res = await fetch(`/api/guilds/${guildId}/welcome/test`, { method: 'POST' });
+        const res = await fetch(`/api/guilds/${targetGuildId}/welcome/test`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channelId: chosenChannel, bgUrl: chosenBg })
+        });
         const data = await res.json();
         if (res.ok) {
           showToast(data.message || '🎉 Test welcome card rendered and sent to Discord channel!');

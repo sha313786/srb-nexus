@@ -38,34 +38,58 @@ export async function createWelcomeCard(
   member: GuildMember,
   customBgUrl?: string | null
 ): Promise<AttachmentBuilder> {
+  const guildName = member.guild?.name || '';
+  const guildId = member.guild?.id || '';
   const isNaadan =
-    member.guild.id === '1558245529417293884' ||
+    guildId === '1558245529417293884' ||
+    guildName.toLowerCase().includes('naadan') ||
     customBgUrl === 'naadan' ||
     (customBgUrl && customBgUrl.toLowerCase().includes('naadan'));
+
+  const isBannerOnly =
+    customBgUrl?.includes('#banner_only') ||
+    customBgUrl === 'banner_only';
 
   // ----------------------------------------------------
   // 1. NAADAN LEGACY ESPORTS CUSTOM BANNER TEMPLATE
   // ----------------------------------------------------
   if (isNaadan) {
     const templateCandidates = [
+      path.join(process.cwd(), 'assets/templates/naadan_welcome.jpg'),
+      path.join(process.cwd(), 'public/naadan_welcome.jpg'),
+      path.join(process.cwd(), 'dist/public/naadan_welcome.jpg'),
+      path.join(process.cwd(), 'dist/assets/templates/naadan_welcome.jpg'),
       path.join(__dirname, '../../assets/templates/naadan_welcome.jpg'),
       path.join(__dirname, '../assets/templates/naadan_welcome.jpg'),
-      path.join(process.cwd(), 'assets/templates/naadan_welcome.jpg'),
-      path.join(process.cwd(), 'dist/assets/templates/naadan_welcome.jpg'),
     ];
-    const naadanTemplatePath = templateCandidates.find((p) => fs.existsSync(p));
+    const naadanTemplatePath = templateCandidates.find((p) => p && fs.existsSync(p));
 
     const canvas = createCanvas(1024, 425);
     const ctx = canvas.getContext('2d');
 
     let bgLoaded = false;
-    if (customBgUrl && customBgUrl.startsWith('http')) {
+    if (customBgUrl && customBgUrl.startsWith('http') && customBgUrl !== 'naadan') {
       try {
-        const bgImg = await loadImage(customBgUrl);
+        const bgImg = await loadImage(customBgUrl.replace('#banner_only', '').trim());
         ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
         bgLoaded = true;
       } catch {
         // fallback to local or remote template
+      }
+    } else if (customBgUrl && (customBgUrl.startsWith('/uploads/') || customBgUrl.startsWith('uploads/'))) {
+      const cleanPath = customBgUrl.replace('#banner_only', '').trim();
+      const localCandidates = [
+        path.join(process.cwd(), cleanPath.replace(/^\//, '')),
+        path.join(process.cwd(), 'public', cleanPath.replace(/^\//, '')),
+        path.join(process.cwd(), 'dist/public', cleanPath.replace(/^\//, '')),
+      ];
+      const foundPath = localCandidates.find((p) => fs.existsSync(p));
+      if (foundPath) {
+        try {
+          const bgImg = await loadImage(foundPath);
+          ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+          bgLoaded = true;
+        } catch {}
       }
     }
 
@@ -97,84 +121,86 @@ export async function createWelcomeCard(
     }
 
     if (bgLoaded) {
-        // Precision slot coordinates:
-        // Fiery Flame Ring Outer Avatar
-        const cx = 163;
-        const cy = 193;
-        const r = 80;
-
-        try {
-          const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 256 });
-          const avatar = await loadImage(avatarUrl);
-
-          // Clipped circular avatar
-          ctx.save();
-          ctx.beginPath();
-          ctx.arc(cx, cy, r, 0, Math.PI * 2);
-          ctx.closePath();
-          ctx.clip();
-          ctx.drawImage(avatar, cx - r, cy - r, r * 2, r * 2);
-          ctx.restore();
-
-          // Subtle fiery blend ring along avatar border
-          ctx.save();
-          ctx.beginPath();
-          ctx.arc(cx, cy, r, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(255, 68, 0, 0.45)';
-          ctx.lineWidth = 2.5;
-          ctx.stroke();
-          ctx.restore();
-        } catch (err) {
-          console.error('[BOT] Failed to draw avatar on Naadan welcome card', err);
-        }
-
-        // Username inside the glowing hexagonal name plate
-        const username = member.user.username;
-        const boxCx = 162;
-        const boxCy = 296;
-        const maxW = 180;
-
-        ctx.save();
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        let fontSize = 16;
-        ctx.font = `bold ${fontSize}px Outfit, sans-serif`;
-        while (ctx.measureText(username).width > maxW && fontSize > 10) {
-          fontSize -= 1;
-          ctx.font = `bold ${fontSize}px Outfit, sans-serif`;
-        }
-
-        // Fiery red outer glow
-        ctx.shadowColor = '#ff2200';
-        ctx.shadowBlur = 10;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(username, boxCx, boxCy);
-
-        // Crisp white text overlay
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = '#fff7ed';
-        ctx.fillText(username, boxCx, boxCy);
-        ctx.restore();
-
+      // If Pure Banner Only mode requested, return pristine background directly
+      if (isBannerOnly) {
         const buffer = await canvas.encode('png');
         return new AttachmentBuilder(buffer, { name: 'welcome-card.png' });
       }
+
+      // Precision slot coordinates:
+      // Fiery Flame Ring Outer Avatar
+      const cx = 163;
+      const cy = 193;
+      const r = 80;
+
+      try {
+        const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 256 });
+        const avatar = await loadImage(avatarUrl);
+
+        // Clipped circular avatar
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(avatar, cx - r, cy - r, r * 2, r * 2);
+        ctx.restore();
+
+        // Subtle fiery blend ring along avatar border
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 68, 0, 0.45)';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.restore();
+      } catch (err) {
+        console.error('[BOT] Failed to draw avatar on Naadan welcome card', err);
+      }
+
+      // Username inside the glowing hexagonal name plate
+      const username = member.user.username;
+      const boxCx = 162;
+      const boxCy = 296;
+      const maxW = 180;
+
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      let fontSize = 16;
+      ctx.font = `bold ${fontSize}px Outfit, sans-serif`;
+      while (ctx.measureText(username).width > maxW && fontSize > 10) {
+        fontSize -= 1;
+        ctx.font = `bold ${fontSize}px Outfit, sans-serif`;
+      }
+
+      // Fiery red outer glow
+      ctx.shadowColor = '#ff2200';
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(username, boxCx, boxCy);
+
+      // Crisp white text overlay
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#fff7ed';
+      ctx.fillText(username, boxCx, boxCy);
+      ctx.restore();
+
+      const buffer = await canvas.encode('png');
+      return new AttachmentBuilder(buffer, { name: 'welcome-card.png' });
     }
+  }
 
   // ----------------------------------------------------
   // 2. BANNER ONLY MODE (Direct Image Delivery)
   // ----------------------------------------------------
-  const isBannerOnly =
-    customBgUrl?.includes('#banner_only') ||
-    customBgUrl === 'banner_only';
-
   if (isBannerOnly && customBgUrl) {
     const cleanUrl = customBgUrl.replace('#banner_only', '').trim();
     if (cleanUrl.startsWith('http')) {
       try {
         const res = await axios.get(cleanUrl, { responseType: 'arraybuffer', timeout: 7000 });
-        return new AttachmentBuilder(Buffer.from(res.data as any), { name: 'welcome-banner.jpg' });
+        return new AttachmentBuilder(Buffer.from(res.data as any), { name: 'welcome-card.png' });
       } catch (err) {
         console.error('[BOT] Failed to fetch remote custom banner URL', err);
       }
@@ -189,7 +215,7 @@ export async function createWelcomeCard(
 
     if (bannerPath) {
       const bannerBuffer = fs.readFileSync(bannerPath);
-      return new AttachmentBuilder(bannerBuffer, { name: 'welcome-banner.jpg' });
+      return new AttachmentBuilder(bannerBuffer, { name: 'welcome-card.png' });
     }
   }
 

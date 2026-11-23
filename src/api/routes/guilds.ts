@@ -1729,11 +1729,16 @@ export async function guildRoutes(fastify: FastifyInstance) {
     const guild = bot.guilds.cache.get(id);
     if (!guild) return reply.status(404).send({ error: 'Bot not in guild' });
 
-    const sRes = await db.query('SELECT welcome_channel_id, welcome_bg_url, welcome_message FROM guild_settings WHERE guild_id = $1', [id]);
-    const s = sRes.rows[0];
-    const channelId = s?.welcome_channel_id;
+    const body = (request.body as Record<string, any>) || {};
+    let s: any = null;
+    try {
+      const sRes = await db.query('SELECT welcome_channel_id, welcome_bg_url, welcome_message FROM guild_settings WHERE guild_id = $1', [id]);
+      s = sRes.rows[0];
+    } catch {}
+
+    const channelId = body.channelId || s?.welcome_channel_id;
     if (!channelId) {
-      return reply.status(400).send({ error: 'No Welcome Channel configured in settings! Please select a channel and save first.' });
+      return reply.status(400).send({ error: 'No Welcome Channel selected! Please select a channel and try again.' });
     }
 
     const channel = (await guild.channels.fetch(channelId).catch(() => null)) as TextChannel;
@@ -1744,7 +1749,8 @@ export async function guildRoutes(fastify: FastifyInstance) {
     const member = await guild.members.fetch(user.id).catch(() => guild.members.me);
     if (!member) return reply.status(400).send({ error: 'Could not fetch member for test card' });
 
-    const card = await createWelcomeCard(member, s?.welcome_bg_url);
+    const bgToUse = body.bgUrl !== undefined ? body.bgUrl : s?.welcome_bg_url;
+    const card = await createWelcomeCard(member, bgToUse);
     const welcomeText = (s?.welcome_message || 'Welcome to the server, {user}!')
       .replace('{user}', `<@${member.id}>`)
       .replace('{server}', guild.name)
