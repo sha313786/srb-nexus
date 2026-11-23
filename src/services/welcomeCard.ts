@@ -163,40 +163,29 @@ export async function createWelcomeCard(
     }
 
   // ----------------------------------------------------
-  // 2. BANNER ONLY / STRANGE IS LIVE
+  // 2. BANNER ONLY MODE (Direct Image Delivery)
   // ----------------------------------------------------
   const isBannerOnly =
     customBgUrl?.includes('#banner_only') ||
-    customBgUrl === 'banner_only' ||
-    member.guild.id === '1573665822025449592' ||
-    customBgUrl === 'strange' ||
-    customBgUrl === 'strange_is_live' ||
-    (customBgUrl && customBgUrl.toLowerCase().includes('strange'));
+    customBgUrl === 'banner_only';
 
-  if (isBannerOnly) {
-    const cleanUrl = (customBgUrl || '').replace('#banner_only', '').trim();
+  if (isBannerOnly && customBgUrl) {
+    const cleanUrl = customBgUrl.replace('#banner_only', '').trim();
     if (cleanUrl.startsWith('http')) {
       try {
         const res = await axios.get(cleanUrl, { responseType: 'arraybuffer', timeout: 7000 });
         return new AttachmentBuilder(Buffer.from(res.data as any), { name: 'welcome-banner.jpg' });
       } catch (err) {
-        console.error('[BOT] Failed to fetch remote custom banner URL, falling back to local banner', err);
+        console.error('[BOT] Failed to fetch remote custom banner URL', err);
       }
     }
 
     const templateCandidates = [
-      ...(cleanUrl ? [
-        path.join(process.cwd(), cleanUrl.replace(/^\//, '')),
-        path.join(process.cwd(), 'public', cleanUrl.replace(/^\//, '')),
-        path.join(process.cwd(), 'dist/public', cleanUrl.replace(/^\//, '')),
-      ] : []),
-      path.join(__dirname, '../../assets/templates/strange_is_live_official_banner.jpg'),
-      path.join(__dirname, '../assets/templates/strange_is_live_official_banner.jpg'),
-      path.join(process.cwd(), 'assets/templates/strange_is_live_official_banner.jpg'),
-      path.join(process.cwd(), 'dist/assets/templates/strange_is_live_official_banner.jpg'),
-      path.join(process.cwd(), 'public/strange_banner.jpg'),
+      path.join(process.cwd(), cleanUrl.replace(/^\//, '')),
+      path.join(process.cwd(), 'public', cleanUrl.replace(/^\//, '')),
+      path.join(process.cwd(), 'dist/public', cleanUrl.replace(/^\//, '')),
     ];
-    const bannerPath = templateCandidates.find((p) => fs.existsSync(p));
+    const bannerPath = templateCandidates.find((p) => p && fs.existsSync(p));
 
     if (bannerPath) {
       const bannerBuffer = fs.readFileSync(bannerPath);

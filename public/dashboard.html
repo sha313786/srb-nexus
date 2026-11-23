@@ -934,9 +934,6 @@
                   <i class="fa-solid fa-cloud-arrow-up"></i> Upload Banner
                 </button>
                 <span class="text-slate-400 font-semibold mr-1 text-[11px] ml-1">Presets:</span>
-                <button type="button" onclick="setWelcomePreset('strange')" class="px-3 py-1.5 rounded-xl bg-dark-800 hover:bg-dark-750 text-red-400 border border-dark-700 hover:border-red-500/40 transition flex items-center gap-1.5 text-xs font-bold shadow-sm">
-                  <i class="fa-solid fa-gamepad text-red-500"></i> Strange Is Live
-                </button>
                 <button type="button" onclick="setWelcomePreset('cyber')" class="px-3 py-1.5 rounded-xl bg-dark-800 hover:bg-dark-750 text-brand-cyan border border-dark-700 hover:border-brand-cyan/40 transition flex items-center gap-1.5 text-xs font-bold shadow-sm">
                   <i class="fa-solid fa-bolt text-brand-cyan"></i> Cyber Neon
                 </button>
@@ -5079,7 +5076,6 @@
 
     // Canvas Welcome Banner - Cybernetic Studio
     let avatarPreviewImage = null;
-    let strangeBannerImg = null;
     let currentWelcomeMode = 'banner_only';
 
     function triggerBannerUpload() {
@@ -5220,8 +5216,7 @@
       const bgUrl = document.getElementById('input-welcome-bg')?.value.trim() || '';
       const rawServerName = currentGuild ? currentGuild.name.toUpperCase() : 'YOUR SERVER';
       const serverName = rawServerName.length > 24 ? rawServerName.slice(0, 22) + '...' : rawServerName;
-      const isStrange = bgUrl === 'strange' || bgUrl === 'strange_is_live' || bgUrl.toLowerCase().includes('strange') || (currentGuild && currentGuild.id === '1573665822025449592');
-      const isBannerOnly = currentWelcomeMode === 'banner_only' || bgUrl.includes('#banner_only') || bgUrl === 'banner_only' || isStrange;
+      const isBannerOnly = currentWelcomeMode === 'banner_only' || bgUrl.includes('#banner_only') || bgUrl === 'banner_only';
 
       function drawContent() {
         if (isBannerOnly) {
@@ -5404,41 +5399,17 @@
           drawContent();
         };
         img.onerror = () => {
-          drawThemeBackground(isStrange ? 'strange' : 'cyber');
+          drawThemeBackground('cyber');
           drawContent();
         };
         img.src = cleanUrl;
       } else {
-        drawThemeBackground(cleanUrl || (isStrange ? 'strange' : 'cyber'));
+        drawThemeBackground(cleanUrl || 'cyber');
         drawContent();
       }
 
       function drawThemeBackground(theme) {
         const t = (theme || 'cyber').toLowerCase();
-        if (t === 'strange' || t === 'strange_is_live') {
-          if (!strangeBannerImg) {
-            strangeBannerImg = new Image();
-            strangeBannerImg.src = '/strange_banner.jpg';
-            strangeBannerImg.onload = () => renderWelcomePreview();
-          }
-          if (strangeBannerImg.complete && strangeBannerImg.naturalWidth > 0) {
-            ctx.drawImage(strangeBannerImg, 0, 0, canvas.width, canvas.height);
-            const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            grad.addColorStop(0, 'rgba(5, 7, 12, 0.35)');
-            grad.addColorStop(0.65, 'rgba(5, 7, 12, 0.65)');
-            grad.addColorStop(1, 'rgba(5, 7, 12, 0.88)');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-          } else {
-            const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-            grad.addColorStop(0, '#0a0204');
-            grad.addColorStop(0.5, '#1e0509');
-            grad.addColorStop(1, '#080102');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-          }
-          return;
-        }
         if (t === 'space') {
           // Deep Space Nebula & Procedural Starfield
           const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
