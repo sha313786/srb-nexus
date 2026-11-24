@@ -97,8 +97,11 @@ export function extractTeamTag(teamName: string, teamTag?: string, captainIGN?: 
     if (sepMatch) return sepMatch[1].toUpperCase();
   }
 
-  // Explicit override: Staff roles receive the uniform "STF" tag
+  // Explicit override: Staff roles receive uniform tags
   const upper = teamName.trim().toUpperCase();
+  if (upper === 'NL CORE' || upper.includes('NL CORE')) return 'NLC';
+  if (upper === 'NL APEX' || upper.includes('NL APEX')) return 'NLA';
+  if (upper === 'NL PRIME' || upper.includes('NL PRIME')) return 'NLP';
   if (upper === 'STAFF' || upper.endsWith('STAFF') || upper.includes('STAFF')) {
     return 'STF';
   }

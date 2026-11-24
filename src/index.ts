@@ -93,6 +93,7 @@ import {
   handleStaffNicknameUpdate,
   syncAllSupportStaffNicknames,
 } from './services/staffNicknameService';
+import { handleNaadanStaffNicknameUpdate } from './services/naadanStaffService';
 import {
   initStickyService,
   handleStickyOnMessage,
@@ -495,6 +496,7 @@ bot.on(Events.GuildMemberRemove, async (member) => {
 bot.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
   try {
     await handleStaffNicknameUpdate(oldMember as GuildMember, newMember as GuildMember);
+    await handleNaadanStaffNicknameUpdate(oldMember as GuildMember, newMember as GuildMember);
     const { handleTeamMemberRoleUpdate } = await import('./services/teamRegistrationService.js');
     await handleTeamMemberRoleUpdate(oldMember, newMember);
   } catch (err) {
