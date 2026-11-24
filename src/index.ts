@@ -502,6 +502,28 @@ bot.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
   }
 });
 
+// 5.5 Channel Create Listener (Auto-routes tickets to SUPPORT category)
+bot.on(Events.ChannelCreate, async (channel) => {
+  try {
+    if (!channel.isTextBased() || !('parentId' in channel)) return;
+    const guild = channel.guild;
+    if (guild && guild.id === '1558245529417293884') {
+      const name = channel.name.toLowerCase();
+      if (name.includes('ticket') || name.includes('ᴛɪᴄᴋᴇᴛ')) {
+        const SUPPORT_CAT_ID = '1558765305076125716';
+        if (channel.parentId !== SUPPORT_CAT_ID) {
+          setTimeout(async () => {
+            await (channel as any).setParent(SUPPORT_CAT_ID, { lockPermissions: false }).catch(() => {});
+            app.log.info(`[TICKET-ROUTER] Auto-moved ticket #${channel.name} to SUPPORT category (${SUPPORT_CAT_ID})`);
+          }, 1500);
+        }
+      }
+    }
+  } catch (err) {
+    app.log.error({ err }, '[TICKET-ROUTER] Error auto-routing ticket channel');
+  }
+});
+
 // 6. Voice State Update Listener (Temp Voice / Join to Create)
 bot.on(Events.VoiceStateUpdate, async (oldState: VoiceState, newState: VoiceState) => {
   await handleTempVoiceStateUpdate(oldState, newState);
