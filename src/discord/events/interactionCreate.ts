@@ -490,6 +490,31 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
   if (interaction.isButton()) {
     const cid = interaction.customId;
     const chanName = (interaction.channel as any)?.name || '';
+
+    // Game Self-Roles Toggle Buttons
+    if (cid.startsWith('selfrole_')) {
+      const member = interaction.member as any;
+      if (!member || !member.roles) return;
+
+      const roleMap: Record<string, { id: string; name: string }> = {
+        selfrole_valo: { id: '1558743856952905758', name: 'Valorant' },
+        selfrole_pubg: { id: '1574803857454923828', name: 'PUBG PC' },
+        selfrole_efootball: { id: '1574803859698880552', name: 'eFootball' },
+        selfrole_coc: { id: '1567197063039688866', name: 'Clash of Clans' },
+      };
+
+      const target = roleMap[cid];
+      if (target) {
+        if (member.roles.cache.has(target.id)) {
+          await member.roles.remove(target.id).catch(() => {});
+          await interaction.reply({ content: `➖ Removed **${target.name}** role from your profile.`, ephemeral: true });
+        } else {
+          await member.roles.add(target.id).catch(() => {});
+          await interaction.reply({ content: `➕ Added **${target.name}** role to your profile! You now have access to ${target.name} scrims and channels.`, ephemeral: true });
+        }
+        return;
+      }
+    }
     // Music Player Control Buttons
     if (cid.startsWith('music_')) {
       const member = interaction.member as any;
