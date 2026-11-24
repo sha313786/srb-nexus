@@ -97,6 +97,12 @@ export function extractTeamTag(teamName: string, teamTag?: string, captainIGN?: 
     if (sepMatch) return sepMatch[1].toUpperCase();
   }
 
+  // Explicit override: Staff roles receive the uniform "STF" tag
+  const upper = teamName.trim().toUpperCase();
+  if (upper === 'STAFF' || upper.endsWith('STAFF') || upper.includes('STAFF')) {
+    return 'STF';
+  }
+
   // Derive acronym or short tag from teamName
   const words = teamName.trim().split(/\s+/).filter(Boolean);
   if (words.length > 1) {
