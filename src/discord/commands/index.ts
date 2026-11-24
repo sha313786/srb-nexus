@@ -16,7 +16,8 @@ import { lockdownCommand } from './lockdown';
 import { kickCommand } from './kick';
 import { banCommand } from './ban';
 import { timeoutCommand } from './timeout';
-import { purgeCommand } from './purge';
+import { clearCommand, nexusClearCommand } from './clear';
+import { purgeCommand, nexusPurgeCommand } from './purge';
 import { slowmodeCommand } from './slowmode';
 import { warnCommand } from './warn';
 import { warningsCommand } from './warnings';
@@ -106,7 +107,10 @@ const allCommands = [
   kickCommand,
   banCommand,
   timeoutCommand,
+  clearCommand,
+  nexusClearCommand,
   purgeCommand,
+  nexusPurgeCommand,
   slowmodeCommand,
   warnCommand,
   warningsCommand,
