@@ -504,7 +504,7 @@ bot.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
   }
 });
 
-// 5.5 Channel Create Listener (Auto-routes tickets to SUPPORT category)
+// 5.5 Channel Create Listener (Auto-routes tickets to SUPPORT category & restricts access to Ticket Supporter only)
 bot.on(Events.ChannelCreate, async (channel) => {
   try {
     if (!channel.isTextBased() || !('parentId' in channel)) return;
@@ -513,12 +513,52 @@ bot.on(Events.ChannelCreate, async (channel) => {
       const name = channel.name.toLowerCase();
       if (name.includes('ticket') || name.includes('ᴛɪᴄᴋᴇᴛ')) {
         const SUPPORT_CAT_ID = '1558765305076125716';
-        if (channel.parentId !== SUPPORT_CAT_ID) {
-          setTimeout(async () => {
+        const TICKET_SUPPORTER_ROLE_ID = '1574850114755887125';
+
+        setTimeout(async () => {
+          // 1. Move to SUPPORT category if not already there
+          if (channel.parentId !== SUPPORT_CAT_ID) {
             await (channel as any).setParent(SUPPORT_CAT_ID, { lockPermissions: false }).catch(() => {});
             app.log.info(`[TICKET-ROUTER] Auto-moved ticket #${channel.name} to SUPPORT category (${SUPPORT_CAT_ID})`);
-          }, 1500);
-        }
+          }
+
+          // 2. Lock down permissions so ONLY Ticket Supporter role + Ticket Creator have access
+          try {
+            // Explicitly deny @everyone
+            await (channel as any).permissionOverwrites.edit(guild.id, {
+              ViewChannel: false,
+            }).catch(() => {});
+
+            // Explicitly grant Ticket Supporter role
+            await (channel as any).permissionOverwrites.edit(TICKET_SUPPORTER_ROLE_ID, {
+              ViewChannel: true,
+              SendMessages: true,
+              ReadMessageHistory: true,
+              AttachFiles: true,
+              EmbedLinks: true,
+              AddReactions: true,
+              ManageMessages: true,
+            }).catch(() => {});
+
+            // Strip ViewChannel from any other role (except Administrators and bot)
+            const overwrites = (channel as any).permissionOverwrites.cache;
+            for (const [id, ow] of overwrites) {
+              // ow.type 0 = Role, ow.type 1 = Member (ticket creator)
+              if (ow.type === 0 && id !== TICKET_SUPPORTER_ROLE_ID && id !== guild.id) {
+                const role = guild.roles.cache.get(id);
+                if (role && !role.permissions.has(PermissionFlagsBits.Administrator) && !role.managed) {
+                  await (channel as any).permissionOverwrites.edit(id, {
+                    ViewChannel: false,
+                  }).catch(() => {});
+                }
+              }
+            }
+
+            app.log.info(`[TICKET-ROUTER] Secured #${channel.name} with exclusive @Ticket Supporter access`);
+          } catch (secErr: any) {
+            app.log.error({ err: secErr }, `[TICKET-ROUTER] Failed securing ticket #${channel.name}`);
+          }
+        }, 1500);
       }
     }
   } catch (err) {
