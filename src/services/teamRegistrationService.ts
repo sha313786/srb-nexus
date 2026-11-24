@@ -138,6 +138,7 @@ export function extractCleanPlayerName(rawName: string, tag: string): string {
  * 1. Open the Discord Registration Modal (if triggered via Discord)
  */
 export async function openTeamRegistrationModal(interaction: ButtonInteraction): Promise<void> {
+  if (interaction.guildId !== GUILD_ID) return;
   const modal = new ModalBuilder()
     .setCustomId('ndl_team_reg_modal')
     .setTitle('🏆 Squad & Team Registration');
@@ -197,6 +198,7 @@ export async function openTeamRegistrationModal(interaction: ButtonInteraction):
  * 2. Handle Discord Modal Submit
  */
 export async function handleTeamRegModalSubmit(interaction: ModalSubmitInteraction): Promise<void> {
+  if (interaction.guildId !== GUILD_ID) return;
   await interaction.deferReply({ ephemeral: true });
 
   const teamName = interaction.fields.getTextInputValue('team_name').trim();
@@ -666,7 +668,7 @@ export async function provisionTeamDiscordSpace(
  */
 export async function handleTeamApproval(interaction: ButtonInteraction, regId: string): Promise<void> {
   const guild = interaction.guild;
-  if (!guild) return;
+  if (!guild || guild.id !== GUILD_ID) return;
 
   // Check Staff Permission
   const member = interaction.member as any;
@@ -751,6 +753,7 @@ export async function handleTeamApproval(interaction: ButtonInteraction, regId: 
  * 6. Handle Staff Button Rejection in Discord
  */
 export async function handleTeamRejection(interaction: ButtonInteraction, regId: string): Promise<void> {
+  if (interaction.guildId !== GUILD_ID) return;
   const member = interaction.member as any;
   const isStaff =
     member?.permissions?.has(PermissionFlagsBits.ManageChannels) ||

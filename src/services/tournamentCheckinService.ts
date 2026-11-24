@@ -2,6 +2,7 @@ import { ButtonInteraction, EmbedBuilder, GuildMember, PermissionFlagsBits } fro
 import { db } from '../core/database';
 import { logger } from '../core/logger';
 
+const GUILD_ID = '1558245529417293884'; // NAADAN LEGACY ESPORTS
 const CHECKIN_CHANNEL_ID = '1571085804053205113'; // 【✅】ᴍᴀᴛᴄʜ-ᴄʜᴇᴄᴋɪɴ
 const TEAM_LEADER_ROLE_ID = '1571071414448955564'; // 👑 TEAM LEADER
 const REGISTERED_ROLE_ID = '1566440573513244682'; // @registered
@@ -33,6 +34,7 @@ async function ensureTable(): Promise<void> {
  * Handle Squad Ready Check-In Button
  */
 export async function handleSquadCheckin(interaction: ButtonInteraction): Promise<void> {
+  if (interaction.guildId !== GUILD_ID) return;
   // 1. Immediately acknowledge interaction to avoid Discord 3-second timeout
   if (!interaction.deferred && !interaction.replied) {
     await interaction.deferReply({ ephemeral: true }).catch(() => {});
@@ -135,6 +137,7 @@ export async function handleSquadCheckin(interaction: ButtonInteraction): Promis
  * Handle View Check-In Roster Button
  */
 export async function handleCheckinStatus(interaction: ButtonInteraction): Promise<void> {
+  if (interaction.guildId !== GUILD_ID) return;
   // Immediately acknowledge interaction
   if (!interaction.deferred && !interaction.replied) {
     await interaction.deferReply({ ephemeral: true }).catch(() => {});

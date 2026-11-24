@@ -491,8 +491,8 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
     const cid = interaction.customId;
     const chanName = (interaction.channel as any)?.name || '';
 
-    // Game Self-Roles Toggle Buttons
-    if (cid.startsWith('selfrole_')) {
+    // Game Self-Roles Toggle Buttons (Naadan Legacy Esports Exclusive)
+    if (cid.startsWith('selfrole_') && interaction.guildId === '1558245529417293884') {
       const member = interaction.member as any;
       if (!member || !member.roles) return;
 
@@ -2300,23 +2300,23 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
     }
   }
 
-  // 7. HANDLE TOURNAMENT TEAM REGISTRATION BUTTONS (Approve & Reject)
-  if (interaction.isButton() && interaction.customId.startsWith('team_approve_')) {
+  // 7. HANDLE TOURNAMENT TEAM REGISTRATION BUTTONS (Approve & Reject - Naadan Legacy Esports Exclusive)
+  if (interaction.isButton() && interaction.customId.startsWith('team_approve_') && interaction.guildId === '1558245529417293884') {
     const regId = interaction.customId.replace('team_approve_', '');
     const { handleTeamApproval } = await import('../../services/teamRegistrationService.js');
     await handleTeamApproval(interaction, regId);
     return;
   }
 
-  if (interaction.isButton() && interaction.customId.startsWith('team_reject_')) {
+  if (interaction.isButton() && interaction.customId.startsWith('team_reject_') && interaction.guildId === '1558245529417293884') {
     const regId = interaction.customId.replace('team_reject_', '');
     const { handleTeamRejection } = await import('../../services/teamRegistrationService.js');
     await handleTeamRejection(interaction, regId);
     return;
   }
 
-  // 8. HANDLE TOURNAMENT MATCH CHECK-IN BUTTONS
-  if (interaction.isButton() && interaction.customId === 'tourney_squad_checkin') {
+  // 8. HANDLE TOURNAMENT MATCH CHECK-IN BUTTONS (Naadan Legacy Esports Exclusive)
+  if (interaction.isButton() && interaction.customId === 'tourney_squad_checkin' && interaction.guildId === '1558245529417293884') {
     try {
       const { handleSquadCheckin } = await import('../../services/tournamentCheckinService.js');
       await handleSquadCheckin(interaction);
@@ -2331,7 +2331,7 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
     return;
   }
 
-  if (interaction.isButton() && interaction.customId === 'tourney_checkin_status') {
+  if (interaction.isButton() && interaction.customId === 'tourney_checkin_status' && interaction.guildId === '1558245529417293884') {
     try {
       const { handleCheckinStatus } = await import('../../services/tournamentCheckinService.js');
       await handleCheckinStatus(interaction);
