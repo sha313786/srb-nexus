@@ -86,6 +86,7 @@ const FIXED_SERVER_CATEGORY_IDS = new Set([
 const PROTECTED_STAFF_TAG_RE = /^(NLC|NLA|NLP|AD|DIR|DEV|STF)\s*[|・•\-_:]/i;
 
 const COMMUNITY_ROLE_ID = '1558424066401116170'; // @Community (hoisted at pos 16)
+const STAFF_TEAM_ROLE_ID = '1574344826680508488'; // @STAFF TEAM (needs access to all team VCs without Admin)
 
 export const TEAM_COLORS = [
   '#00F0FF', // Cyber Cyan
@@ -710,6 +711,16 @@ export async function provisionTeamDiscordSpace(
             ],
           },
           {
+            id: STAFF_TEAM_ROLE_ID,
+            allow: [
+              PermissionFlagsBits.ViewChannel,
+              PermissionFlagsBits.Connect,
+              PermissionFlagsBits.Speak,
+              PermissionFlagsBits.Stream,
+              PermissionFlagsBits.UseVAD,
+            ],
+          },
+          {
             id: guild.members.me?.id || clientAppId(guild),
             allow: [
               PermissionFlagsBits.ViewChannel,
@@ -1242,14 +1253,43 @@ export async function applyTeamNicknameToMember(member: any, teamRole: any): Pro
 }
 
 /**
- * Styles/hoists team roles and syncs nicknames (if enabled) when a new team category/channel is created.
- * Bridges the race condition where external portals assign roles before creating channels.
+ * Grants @STAFF TEAM role ViewChannel + Connect + Speak + Stream on any dedicated team voice channel.
+ * Does NOT grant Administrator permission on the role.
+ */
+export async function grantStaffTeamAccessToTeamVC(channel: any, guild: any): Promise<boolean> {
+  if (!channel || !guild || guild.id !== GUILD_ID) return false;
+  if (channel.type !== ChannelType.GuildVoice && channel.type !== ChannelType.GuildStageVoice) return false;
+  if (!isDedicatedTeamChannel(channel)) return false;
+  if (!guild.roles.cache.has(STAFF_TEAM_ROLE_ID)) return false;
+
+  try {
+    await channel.permissionOverwrites.edit(STAFF_TEAM_ROLE_ID, {
+      ViewChannel: true,
+      Connect: true,
+      Speak: true,
+      Stream: true,
+      UseVAD: true,
+    });
+    logger.info(`[TEAM-REG] Granted @STAFF TEAM access to team VC #${channel.name} (${channel.id})`);
+    return true;
+  } catch (err: any) {
+    logger.warn({ err: err.message }, `[TEAM-REG] Failed granting @STAFF TEAM access on VC #${channel.name}`);
+    return false;
+  }
+}
+
+/**
+ * Styles/hoists team roles, grants @STAFF TEAM access to team VCs, and syncs nicknames (if enabled)
+ * when a new team category/channel is created.
  */
 export async function syncTeamRoleNicknamesFromChannel(channel: any): Promise<void> {
   const guild = channel?.guild;
   if (!guild || guild.id !== GUILD_ID || !isDedicatedTeamChannel(channel)) return;
 
   await guild.roles.fetch().catch(() => {});
+
+  // Ensure @STAFF TEAM has access if this is a team VC
+  await grantStaffTeamAccessToTeamVC(channel, guild);
 
   const overwrites = channel.permissionOverwrites?.cache;
   if (!overwrites) return;
