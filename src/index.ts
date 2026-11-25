@@ -558,13 +558,32 @@ bot.on(Events.ChannelCreate, async (channel) => {
       return;
     }
 
-    // Sync nicknames for newly created team channels/categories (handles website race condition)
+    // Style/hoist team roles and sync nicknames for newly created team channels/categories
     setTimeout(async () => {
       const { syncTeamRoleNicknamesFromChannel } = await import('./services/teamRegistrationService.js');
       await syncTeamRoleNicknamesFromChannel(channel).catch(() => {});
     }, 2500);
   } catch (err) {
     app.log.error({ err }, '[TICKET-ROUTER] Error auto-routing ticket channel');
+  }
+});
+
+// 5.6 Role Create Listener (Ensures newly created team roles get distinct color, hoist=true, and position above Community)
+bot.on(Events.GuildRoleCreate, async (role) => {
+  try {
+    if (role.guild.id !== '1558245529417293884') return;
+    // Wait briefly so external portals have time to create associated team channels/overwrites
+    setTimeout(async () => {
+      await role.guild.channels.fetch().catch(() => {});
+      await role.guild.roles.fetch().catch(() => {});
+      const freshRole = role.guild.roles.cache.get(role.id) || role;
+      const { isTeamRole, styleAndHoistTeamRole } = await import('./services/teamRegistrationService.js');
+      if (isTeamRole(freshRole, role.guild)) {
+        await styleAndHoistTeamRole(freshRole, role.guild);
+      }
+    }, 8000);
+  } catch (err) {
+    app.log.error({ err }, '[TEAM-REG] Error handling GuildRoleCreate for team role styling');
   }
 });
 

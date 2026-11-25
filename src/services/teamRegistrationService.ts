@@ -66,6 +66,8 @@ const FIXED_SERVER_CATEGORY_IDS = new Set([
 
 const PROTECTED_STAFF_TAG_RE = /^(NLC|NLA|NLP|AD|DIR|DEV|STF)\s*[|・•\-_:]/i;
 
+const COMMUNITY_ROLE_ID = '1558424066401116170'; // @Community (hoisted at pos 16)
+
 export const TEAM_COLORS = [
   '#00F0FF', // Cyber Cyan
   '#FF2E93', // Neon Fuchsia / Pink
@@ -77,19 +79,81 @@ export const TEAM_COLORS = [
   '#FB923C', // Bright Orange
   '#84CC16', // Electric Lime
   '#E11D48', // Ruby Rose
-  '#06B6D4', // Aqua
+  '#FACC15', // Vivid Yellow
   '#8B5CF6', // Violet
+  '#EC4899', // Hot Pink
+  '#22D3EE', // Electric Sky
+  '#34D399', // Mint Green
+  '#F97316', // Sunset Orange
 ];
 
 export function getDistinctTeamColor(guild: any, teamName: string): string {
-  const existingTeamRoles = guild.roles.cache.filter((r: any) => r.name.toLowerCase().startsWith('team '));
+  const usedColors = new Set<string>(['#000000', '#ffffff', '#0fa5be']); // exclude default + @Community teal
+  guild.roles.cache.forEach((r: any) => {
+    if (isTeamRole(r, guild) && r.hexColor) {
+      usedColors.add(r.hexColor.toLowerCase());
+    }
+  });
+
   let hash = 0;
   for (let i = 0; i < teamName.length; i++) {
     hash = (hash << 5) - hash + teamName.charCodeAt(i);
     hash |= 0;
   }
-  const index = Math.abs((existingTeamRoles.size + hash) % TEAM_COLORS.length);
-  return TEAM_COLORS[index];
+  const startIdx = Math.abs(hash) % TEAM_COLORS.length;
+  for (let offset = 0; offset < TEAM_COLORS.length; offset++) {
+    const candidate = TEAM_COLORS[(startIdx + offset) % TEAM_COLORS.length];
+    if (!usedColors.has(candidate.toLowerCase())) {
+      return candidate;
+    }
+  }
+  return TEAM_COLORS[startIdx];
+}
+
+/**
+ * Ensures a team role has a distinct vivid color, is hoisted separately in the sidebar,
+ * and is positioned above @Community so its color and section grouping actually display!
+ */
+export async function styleAndHoistTeamRole(teamRole: any, guild: any): Promise<void> {
+  if (!teamRole || !guild || guild.id !== GUILD_ID) return;
+
+  const needsColor =
+    !teamRole.hexColor ||
+    teamRole.hexColor.toLowerCase() === '#000000' ||
+    teamRole.hexColor.toLowerCase() === '#ffffff' ||
+    teamRole.hexColor.toLowerCase() === '#eab308';
+
+  const newColor = needsColor ? getDistinctTeamColor(guild, teamRole.name) : undefined;
+  const needsHoist = !teamRole.hoist;
+
+  if (newColor || needsHoist) {
+    await teamRole
+      .edit({
+        ...(newColor ? { color: newColor as any } : {}),
+        hoist: true,
+        mentionable: true,
+        reason: `Separate team display & distinct color for ${teamRole.name}`,
+      })
+      .catch((err: any) => {
+        logger.warn({ err: err.message }, `[TEAM-REG] Failed styling role ${teamRole.name}`);
+      });
+    logger.info(
+      `[TEAM-REG] Styled team role @${teamRole.name} (color=${newColor || teamRole.hexColor}, hoist=true)`
+    );
+  }
+
+  // Position above @Community (and @registered) so the team section & color override @Community
+  const communityRole = guild.roles.cache.get(COMMUNITY_ROLE_ID) || guild.roles.cache.get(REGISTERED_ROLE_ID);
+  const botHighest = guild.members.me?.roles?.highest;
+  if (communityRole && teamRole.position <= communityRole.position) {
+    const targetPos = communityRole.position + 1;
+    if (!botHighest || targetPos < botHighest.position) {
+      await teamRole.setPosition(targetPos).catch((err: any) => {
+        logger.warn({ err: err.message }, `[TEAM-REG] Failed positioning role ${teamRole.name}`);
+      });
+      logger.info(`[TEAM-REG] Positioned @${teamRole.name} above @Community (pos=${targetPos})`);
+    }
+  }
 }
 
 // Helper to sanitize team name into a clean discord channel slug
@@ -409,19 +473,11 @@ export async function provisionTeamDiscordSpace(
         mentionable: true,
         reason: `Tournament Team Approval for ${teamName} (${data.approvedBy || 'Admin'})`,
       });
-
-      // Position above registered role so team color displays prominently on member name
-      const regRole = guild.roles.cache.get(REGISTERED_ROLE_ID);
-      if (regRole && teamRole.position < regRole.position) {
-        await teamRole.setPosition(regRole.position + 1).catch(() => {});
-      }
       logger.info(`[TEAM-REG] Created role ${teamRole.name} with color ${distinctColor} (${teamRole.id})`);
-    } else {
-      // Ensure existing team role has distinct color and is hoisted
-      if (teamRole.hexColor === '#000000' || teamRole.hexColor === '#ffffff' || teamRole.hexColor === '#eab308') {
-        await teamRole.edit({ color: distinctColor as any, hoist: true }).catch(() => {});
-      }
     }
+
+    // Ensure distinct color, hoist=true, and position above @Community
+    await styleAndHoistTeamRole(teamRole, guild);
 
     const teamTag = extractTeamTag(teamName, data.teamTag, data.captainIGN);
 
@@ -1158,16 +1214,14 @@ export async function applyTeamNicknameToMember(member: any, teamRole: any): Pro
 }
 
 /**
- * Syncs nicknames for all members of a team role discovered on a newly created team category/channel.
+ * Styles/hoists team roles and syncs nicknames (if enabled) when a new team category/channel is created.
  * Bridges the race condition where external portals assign roles before creating channels.
  */
 export async function syncTeamRoleNicknamesFromChannel(channel: any): Promise<void> {
-  if (!TEAM_NICKNAME_AUTO_CHANGE_ENABLED) return;
   const guild = channel?.guild;
   if (!guild || guild.id !== GUILD_ID || !isDedicatedTeamChannel(channel)) return;
 
   await guild.roles.fetch().catch(() => {});
-  await guild.members.fetch().catch(() => {});
 
   const overwrites = channel.permissionOverwrites?.cache;
   if (!overwrites) return;
@@ -1176,8 +1230,15 @@ export async function syncTeamRoleNicknamesFromChannel(channel: any): Promise<vo
     if (ow.type !== 0) continue;
     const role = guild.roles.cache.get(id);
     if (!role || !isTeamRole(role, guild)) continue;
-    for (const member of role.members.values()) {
-      await applyTeamNicknameToMember(member, role);
+
+    // Always ensure team role is distinctly colored, hoisted separately, and above @Community
+    await styleAndHoistTeamRole(role, guild);
+
+    if (TEAM_NICKNAME_AUTO_CHANGE_ENABLED) {
+      await guild.members.fetch().catch(() => {});
+      for (const member of role.members.values()) {
+        await applyTeamNicknameToMember(member, role);
+      }
     }
   }
 }
