@@ -39,6 +39,25 @@ const NON_TEAM_ROLE_IDS = new Set([
   '1558780001283997777', // CTRL+R
   '1558849788156321823', // DRAG
   '1574850114755887125', // TICKET SUPPORTER
+  '1574344826680508488', // STAFF TEAM
+  '1574344822859505685', // EVENT COORDINATOR
+  '1574344824545607771', // EVENT ADMIN
+  '1558414169362006106', // NL APEX
+  '1570479143823610006', // NL PRIME
+  '1570482996765524129', // NL CORE
+  '1574344821080858635', // EVENT DIRECTOR
+  '1574344814047141899', // MEDIA AUTHORITY
+  '1574344818912657440', // FINANCE DIRECTORATE
+  '1558414237007876136', // LEGACY BROADCAST
+  '1574344811744333835', // WEB SCOUT
+  '1574344809701843045', // WEB VANGUARD
+  '1558762448176025651', // ADMINISTRATOR
+  '1558416269429055590', // PROTOCOL GUARDS
+  '1558428081260072980', // MANAGEMENT
+  '1558247194090537162', // DEV
+  '1558776105606053948', // PVT
+  '1558246978889187458', // DIRECTOR
+  '1566426963625779361', // +
 ]);
 
 const FIXED_SERVER_CATEGORY_IDS = new Set([
@@ -142,16 +161,18 @@ export async function styleAndHoistTeamRole(teamRole: any, guild: any): Promise<
     );
   }
 
-  // Position above @Community (and @registered) so the team section & color override @Community
+  // Position above @Community so the team section & color override @Community
   const communityRole = guild.roles.cache.get(COMMUNITY_ROLE_ID) || guild.roles.cache.get(REGISTERED_ROLE_ID);
   const botHighest = guild.members.me?.roles?.highest;
-  if (communityRole && teamRole.position <= communityRole.position) {
-    const targetPos = communityRole.position + 1;
-    if (!botHighest || targetPos < botHighest.position) {
-      await teamRole.setPosition(targetPos).catch((err: any) => {
+  if (communityRole && teamRole.rawPosition <= communityRole.rawPosition) {
+    const targetPos = communityRole.rawPosition + 1;
+    if (!botHighest || targetPos < botHighest.rawPosition) {
+      try {
+        await teamRole.setPosition(targetPos);
+        logger.info(`[TEAM-REG] Positioned @${teamRole.name} above @Community (pos=${targetPos})`);
+      } catch (err: any) {
         logger.warn({ err: err.message }, `[TEAM-REG] Failed positioning role ${teamRole.name}`);
-      });
-      logger.info(`[TEAM-REG] Positioned @${teamRole.name} above @Community (pos=${targetPos})`);
+      }
     }
   }
 }
@@ -1176,6 +1197,13 @@ export function isDedicatedTeamChannel(ch: any): boolean {
 export function isTeamRole(role: any, guild: any): boolean {
   if (!role || role.managed || NON_TEAM_ROLE_IDS.has(role.id)) return false;
   if (role.name.toLowerCase().startsWith('team ')) return true;
+  if (
+    role.permissions?.has(PermissionFlagsBits.Administrator) ||
+    role.permissions?.has(PermissionFlagsBits.ManageGuild) ||
+    role.permissions?.has(PermissionFlagsBits.ManageChannels)
+  ) {
+    return false;
+  }
   // Check if role has explicit overwrites in dedicated team categories/channels (including website-created ones)
   return guild.channels.cache.some(
     (c: any) =>
