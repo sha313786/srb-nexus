@@ -17,6 +17,8 @@ import { db } from '../core/database';
 import { logger } from '../core/logger';
 
 const GUILD_ID = '1558245529417293884'; // NAADAN LEGACY ESPORTS
+// Temporarily disabled per user request; set ENABLE_TEAM_NICKNAME_CHANGE=true in env (or true here) to re-enable
+export const TEAM_NICKNAME_AUTO_CHANGE_ENABLED = process.env.ENABLE_TEAM_NICKNAME_CHANGE === 'true';
 const STAFF_REVIEW_CHANNEL_ID = '1570853707317379185'; // 📋・ᴛᴇᴀᴍ-ʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴꜱ
 const TEAM_ZONE_CATEGORY_ID = '1570853712459604179'; // 🏆 ══════ 𝐓𝐎𝐔𝐑𝐍𝐀𝐌𝐄𝐍𝐓 𝐙𝐎𝐍𝐄 ══════ 🏆
 const REGISTERED_ROLE_ID = '1566440573513244682'; // @registered
@@ -476,14 +478,14 @@ export async function provisionTeamDiscordSpace(
             .catch(() => {});
         }
 
-        if (captainMember.id !== guild.ownerId) {
+        if (TEAM_NICKNAME_AUTO_CHANGE_ENABLED && captainMember.id !== guild.ownerId) {
           try {
             await captainMember.setNickname(newNickname, `Tournament squad approval: ${newNickname}`);
             logger.info(`[TEAM-REG] Updated captain nickname: ${captainMember.user.tag} -> "${newNickname}"`);
           } catch (nickErr: any) {
             logger.warn({ err: nickErr.message }, `[TEAM-REG] Failed setting nickname "${newNickname}" on ${captainMember.user.tag}`);
           }
-        } else {
+        } else if (TEAM_NICKNAME_AUTO_CHANGE_ENABLED) {
           logger.info(`[TEAM-REG] Skipped nickname change for Server Owner ${captainMember.user.tag}`);
         }
       }
@@ -502,7 +504,7 @@ export async function provisionTeamDiscordSpace(
           const regRole = guild.roles.cache.get(REGISTERED_ROLE_ID);
           if (regRole) await tm.roles.add(regRole).catch(() => {});
 
-          if (tm.id !== guild.ownerId) {
+          if (TEAM_NICKNAME_AUTO_CHANGE_ENABLED && tm.id !== guild.ownerId) {
             const cleanTmName = extractCleanPlayerName(tm.displayName || tm.user.username, teamTag);
             const tmNick = `${teamTag} | ${cleanTmName}`.slice(0, 32);
             await tm.setNickname(tmNick, `Tournament squad teammate approval: ${tmNick}`).catch(() => {});
@@ -940,7 +942,7 @@ export async function deprovisionOrDisqualifyTeam(
         }
 
         // Reset Nickname
-        if (member.id !== guild.ownerId) {
+        if (TEAM_NICKNAME_AUTO_CHANGE_ENABLED && member.id !== guild.ownerId) {
           const currentNick = member.nickname || '';
           if (currentNick.includes('|')) {
             const restoredNick = reg?.original_nickname || currentNick.split('|').slice(1).join('|').trim();
@@ -1130,6 +1132,7 @@ export function isTeamRole(role: any, guild: any): boolean {
  * Shared helper to format and apply "TAG | Name" nickname for a team role member.
  */
 export async function applyTeamNicknameToMember(member: any, teamRole: any): Promise<boolean> {
+  if (!TEAM_NICKNAME_AUTO_CHANGE_ENABLED) return false;
   const guild = member?.guild;
   if (!guild || guild.id !== GUILD_ID || !teamRole) return false;
   if (member.id === guild.ownerId || !member.manageable) return false;
@@ -1159,6 +1162,7 @@ export async function applyTeamNicknameToMember(member: any, teamRole: any): Pro
  * Bridges the race condition where external portals assign roles before creating channels.
  */
 export async function syncTeamRoleNicknamesFromChannel(channel: any): Promise<void> {
+  if (!TEAM_NICKNAME_AUTO_CHANGE_ENABLED) return;
   const guild = channel?.guild;
   if (!guild || guild.id !== GUILD_ID || !isDedicatedTeamChannel(channel)) return;
 
@@ -1214,7 +1218,7 @@ export async function handleTeamMemberRoleUpdate(oldMember: any, newMember: any)
         await newMember.roles.remove(REGISTERED_ROLE_ID, 'Team role removed').catch(() => {});
       }
       // Reset Nickname (remove "TAG | " prefix)
-      if (newMember.id !== guild.ownerId) {
+      if (TEAM_NICKNAME_AUTO_CHANGE_ENABLED && newMember.id !== guild.ownerId) {
         const currentNick = newMember.nickname || '';
         if (currentNick.includes('|') && !PROTECTED_STAFF_TAG_RE.test(currentNick)) {
           const clean = currentNick.split('|').slice(1).join('|').trim();
