@@ -22,6 +22,48 @@ const TEAM_ZONE_CATEGORY_ID = '1570853712459604179'; // 🏆 ══════ 
 const REGISTERED_ROLE_ID = '1566440573513244682'; // @registered
 const TEAM_LEADER_ROLE_ID = '1571071414448955564'; // 👑 TEAM LEADER
 
+const NON_TEAM_ROLE_IDS = new Set([
+  GUILD_ID,
+  REGISTERED_ROLE_ID,
+  TEAM_LEADER_ROLE_ID,
+  '1558424066401116170', // Community
+  '1566427236113064008', // verified
+  '1558743856952905758', // VALO
+  '1567197063039688866', // COC
+  '1574803857454923828', // PUBG PC
+  '1574803859698880552', // eFootball
+  '1570483729317765371', // VALO HEAD
+  '1570483606814466128', // COC HEAD
+  '1558780001283997777', // CTRL+R
+  '1558849788156321823', // DRAG
+  '1574850114755887125', // TICKET SUPPORTER
+]);
+
+const FIXED_SERVER_CATEGORY_IDS = new Set([
+  '1558245533238427748', // COMMUNITY
+  '1558420666246635700', // TEMP VOICE
+  '1558420851827802222', // STAFF ONLY
+  '1558422503674744902', // LOGS
+  '1558504301138153573', // MANAGEMENT
+  '1558728942675042355', // VALO
+  '1558728976330137661', // PUBG PC
+  '1558762922153353339', // ADMINISTRATOR
+  '1558764230000508978', // PUBLIC ZONE
+  '1558765305076125716', // SUPPORT
+  '1558776368974663760', // PVT ZONE
+  '1558778834797600778', // LIVE AREA
+  '1558783912551907398', // EFOOTBALL
+  '1558785327169020035', // MUSIC
+  '1558787531380760606', // STAGE
+  '1559197806005063710', // SERVER STATS
+  '1567456201275482192', // COC
+  '1567498405033283584', // LOGO
+  '1570853712459604179', // TOURNAMENT ZONE
+  '1574838857357197458', // AFK
+]);
+
+const PROTECTED_STAFF_TAG_RE = /^(NLC|NLA|NLP|AD|DIR|DEV|STF)\s*[|・•\-_:]/i;
+
 export const TEAM_COLORS = [
   '#00F0FF', // Cyber Cyan
   '#FF2E93', // Neon Fuchsia / Pink
@@ -1064,23 +1106,83 @@ export async function deprovisionOrDisqualifyTeam(
   }
 }
 
+export function isDedicatedTeamChannel(ch: any): boolean {
+  if (!ch) return false;
+  if (ch.name?.startsWith('【🛡️】') || ch.parent?.name?.startsWith('【🛡️】')) return true;
+  if (ch.parentId === TEAM_ZONE_CATEGORY_ID) return true;
+  if (ch.type === ChannelType.GuildCategory && !FIXED_SERVER_CATEGORY_IDS.has(ch.id)) return true;
+  if (ch.parentId && !FIXED_SERVER_CATEGORY_IDS.has(ch.parentId)) return true;
+  return false;
+}
+
 export function isTeamRole(role: any, guild: any): boolean {
-  if (!role || role.id === guild.id || role.id === REGISTERED_ROLE_ID || role.id === TEAM_LEADER_ROLE_ID) return false;
+  if (!role || role.managed || NON_TEAM_ROLE_IDS.has(role.id)) return false;
   if (role.name.toLowerCase().startsWith('team ')) return true;
-  // Check if role has explicit permissions in tournament category channels or dedicated team categories
+  // Check if role has explicit overwrites in dedicated team categories/channels (including website-created ones)
   return guild.channels.cache.some(
     (c: any) =>
-      (c.parentId === TEAM_ZONE_CATEGORY_ID || (c.parent && c.parent.name.startsWith('【🛡️】')) || c.name.startsWith('【🛡️】')) &&
+      isDedicatedTeamChannel(c) &&
       c.permissionOverwrites?.cache?.has(role.id)
   );
+}
+
+/**
+ * Shared helper to format and apply "TAG | Name" nickname for a team role member.
+ */
+export async function applyTeamNicknameToMember(member: any, teamRole: any): Promise<boolean> {
+  const guild = member?.guild;
+  if (!guild || guild.id !== GUILD_ID || !teamRole) return false;
+  if (member.id === guild.ownerId || !member.manageable) return false;
+
+  const currentNick = member.nickname || '';
+  if (PROTECTED_STAFF_TAG_RE.test(currentNick)) return false;
+
+  const teamName = teamRole.name.replace(/^team\s+/i, '').trim();
+  const tag = extractTeamTag(teamName);
+  const cleanPlayerName = extractCleanPlayerName(member.displayName || member.user.username, tag);
+  const formattedNick = `${tag} | ${cleanPlayerName}`.slice(0, 32);
+
+  if (currentNick.startsWith(`${tag} |`)) return false;
+
+  try {
+    await member.setNickname(formattedNick, `Tournament squad role assigned: ${formattedNick}`);
+    logger.info(`[TEAM-REG] Auto-updated teammate nickname: ${member.user.tag} -> "${formattedNick}"`);
+    return true;
+  } catch (err: any) {
+    logger.warn({ err: err.message }, `[TEAM-REG] Failed auto-updating teammate nickname for ${member.user.tag}`);
+    return false;
+  }
+}
+
+/**
+ * Syncs nicknames for all members of a team role discovered on a newly created team category/channel.
+ * Bridges the race condition where external portals assign roles before creating channels.
+ */
+export async function syncTeamRoleNicknamesFromChannel(channel: any): Promise<void> {
+  const guild = channel?.guild;
+  if (!guild || guild.id !== GUILD_ID || !isDedicatedTeamChannel(channel)) return;
+
+  await guild.roles.fetch().catch(() => {});
+  await guild.members.fetch().catch(() => {});
+
+  const overwrites = channel.permissionOverwrites?.cache;
+  if (!overwrites) return;
+
+  for (const [id, ow] of overwrites) {
+    if (ow.type !== 0) continue;
+    const role = guild.roles.cache.get(id);
+    if (!role || !isTeamRole(role, guild)) continue;
+    for (const member of role.members.values()) {
+      await applyTeamNicknameToMember(member, role);
+    }
+  }
 }
 
 /**
  * 8. GuildMemberUpdate listener for team roles
  * Guarantees that ANY squad member assigned a Team role automatically gets:
  * - Nickname formatted as: TAG | NAME
- * - @registered role
- * And when the team role is removed:
+ * And when all team roles are removed:
  * - Nickname reverted back to normal
  * - Team Leader & Registered roles revoked
  */
@@ -1095,29 +1197,7 @@ export async function handleTeamMemberRoleUpdate(oldMember: any, newMember: any)
   if (newTeamRoles.size > oldTeamRoles.size) {
     const addedRole = newTeamRoles.find((r: any) => !oldTeamRoles.has(r.id));
     if (addedRole) {
-      const teamName = addedRole.name.replace(/^team\s+/i, '').trim();
-      const tag = extractTeamTag(teamName);
-      const cleanPlayerName = extractCleanPlayerName(newMember.displayName || newMember.user.username, tag);
-      const formattedNick = `${tag} | ${cleanPlayerName}`.slice(0, 32);
-
-      // Auto-set nickname if not already having this tag
-      if (newMember.id !== guild.ownerId) {
-        const currentNick = newMember.nickname || '';
-        if (!currentNick.startsWith(`${tag} |`)) {
-          try {
-            await newMember.setNickname(formattedNick, `Tournament squad role assigned: ${formattedNick}`);
-            logger.info(`[TEAM-REG] Auto-updated teammate nickname: ${newMember.user.tag} -> "${formattedNick}"`);
-          } catch (err: any) {
-            logger.warn({ err: err.message }, `[TEAM-REG] Failed auto-updating teammate nickname for ${newMember.user.tag}`);
-          }
-        }
-      }
-
-      // Also ensure @registered role
-      const regRole = guild.roles.cache.get(REGISTERED_ROLE_ID);
-      if (regRole && !newMember.roles.cache.has(regRole.id)) {
-        await newMember.roles.add(regRole, `Teammate added to ${teamName}`).catch(() => {});
-      }
+      await applyTeamNicknameToMember(newMember, addedRole);
     }
   }
 
@@ -1136,7 +1216,7 @@ export async function handleTeamMemberRoleUpdate(oldMember: any, newMember: any)
       // Reset Nickname (remove "TAG | " prefix)
       if (newMember.id !== guild.ownerId) {
         const currentNick = newMember.nickname || '';
-        if (currentNick.includes('|')) {
+        if (currentNick.includes('|') && !PROTECTED_STAFF_TAG_RE.test(currentNick)) {
           const clean = currentNick.split('|').slice(1).join('|').trim();
           await newMember.setNickname(clean.length > 0 ? clean : null, 'Team role removed: Resetting nickname').catch(() => {});
           logger.info(`[TEAM-REG] Reset teammate nickname: ${newMember.user.tag} -> "${clean || 'Default'}"`);
