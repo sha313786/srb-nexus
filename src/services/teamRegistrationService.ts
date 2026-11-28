@@ -593,13 +593,15 @@ export async function provisionTeamDiscordSpace(
     }
 
     // C. Create or Find Dedicated Team Category
-    const categoryName = `【🛡️】TEAM ${teamName.toUpperCase()}`.slice(0, 100);
+    const categoryName = `🔰 ${teamName.toUpperCase()}`.slice(0, 100);
     let category = guild.channels.cache.find(
       (c) =>
         c.type === ChannelType.GuildCategory &&
         (c.name.toLowerCase() === categoryName.toLowerCase() ||
+          c.name.toLowerCase() === `【🛡️】team ${teamName.toLowerCase()}` ||
           c.name.toLowerCase() === `【🛡️】${teamName.toLowerCase()}` ||
-          c.name.toLowerCase() === `team ${teamName.toLowerCase()}`)
+          c.name.toLowerCase() === `team ${teamName.toLowerCase()}` ||
+          c.name.toLowerCase() === teamName.toLowerCase())
     ) as any;
 
     if (!category) {
@@ -637,21 +639,22 @@ export async function provisionTeamDiscordSpace(
     const categoryId = category ? category.id : undefined;
 
     // D. Create or Find Private Text Channel
+    const textChannelName = `💬-${slug}`.slice(0, 100);
     const isNewTextChannel = !guild.channels.cache.some(
       (c) =>
         (c.parentId === categoryId || c.parentId === TEAM_ZONE_CATEGORY_ID) &&
-        (c.name === `💬・${slug}` || c.name === slug)
+        (c.name === textChannelName || c.name === `💬・${slug}` || c.name === slug)
     );
 
     let textChannel = guild.channels.cache.find(
       (c) =>
         (c.parentId === categoryId || c.parentId === TEAM_ZONE_CATEGORY_ID) &&
-        (c.name === `💬・${slug}` || c.name === slug)
+        (c.name === textChannelName || c.name === `💬・${slug}` || c.name === slug)
     ) as TextChannel;
 
     if (!textChannel) {
       textChannel = await guild.channels.create({
-        name: `💬・${slug}`,
+        name: textChannelName,
         type: ChannelType.GuildText,
         parent: categoryId,
         permissionOverwrites: [
@@ -684,15 +687,16 @@ export async function provisionTeamDiscordSpace(
     }
 
     // E. Create or Find Private Voice Channel
+    const voiceChannelName = `🔊 ${teamName.toUpperCase()}`.slice(0, 100);
     let voiceChannel = guild.channels.cache.find(
       (c) =>
         (c.parentId === categoryId || c.parentId === TEAM_ZONE_CATEGORY_ID) &&
-        (c.name === `🔊・${slug}` || c.name === slug)
+        (c.name.toLowerCase() === voiceChannelName.toLowerCase() || c.name === `🔊・${slug}` || c.name === slug)
     );
 
     if (!voiceChannel) {
       voiceChannel = await guild.channels.create({
-        name: `🔊・${slug}`,
+        name: voiceChannelName,
         type: ChannelType.GuildVoice,
         parent: categoryId,
         userLimit: 6,
@@ -1279,14 +1283,59 @@ export async function grantStaffTeamAccessToTeamVC(channel: any, guild: any): Pr
 }
 
 /**
- * Styles/hoists team roles, grants @STAFF TEAM access to team VCs, and syncs nicknames (if enabled)
- * when a new team category/channel is created.
+ * Ensures dedicated team categories & channels follow the standardized emoji naming format:
+ * - Category: 🔰 <TEAM NAME>
+ * - Text Channel: 💬-<team-name>
+ * - Voice Channel: 🔊 <team name>
+ */
+export async function formatTeamCategoryAndChannel(channel: any): Promise<boolean> {
+  if (!channel || !isDedicatedTeamChannel(channel)) return false;
+  const currentName = (channel.name || '').trim();
+  if (!currentName) return false;
+
+  let desiredName: string | null = null;
+  if (channel.type === ChannelType.GuildCategory) {
+    if (!currentName.startsWith('🔰') && !currentName.startsWith('【🛡️】')) {
+      desiredName = `🔰 ${currentName}`.slice(0, 100);
+    }
+  } else if (channel.type === ChannelType.GuildText) {
+    if (currentName.startsWith('💬') && !currentName.startsWith('💬-')) {
+      const stripped = currentName.replace(/^💬[\s・\-_]*/, '');
+      desiredName = `💬-${stripped}`.slice(0, 100);
+    } else if (!currentName.startsWith('💬')) {
+      desiredName = `💬-${currentName}`.slice(0, 100);
+    }
+  } else if (channel.type === ChannelType.GuildVoice || channel.type === ChannelType.GuildStageVoice) {
+    if (!currentName.startsWith('🔊')) {
+      const stripped = currentName.replace(/^🔊[\s・\-_]*/, '');
+      desiredName = `🔊 ${stripped}`.slice(0, 100);
+    }
+  }
+
+  if (desiredName && desiredName !== currentName) {
+    try {
+      await channel.setName(desiredName, 'Standardized NDL team channel formatting');
+      logger.info(`[TEAM-REG] Formatted channel "${currentName}" -> "${desiredName}"`);
+      return true;
+    } catch (err: any) {
+      logger.warn({ err: err.message }, `[TEAM-REG] Failed formatting channel "${currentName}"`);
+    }
+  }
+  return false;
+}
+
+/**
+ * Styles/hoists team roles, formats team channel names, grants @STAFF TEAM access to team VCs,
+ * and syncs nicknames (if enabled) when a new team category/channel is created.
  */
 export async function syncTeamRoleNicknamesFromChannel(channel: any): Promise<void> {
   const guild = channel?.guild;
   if (!guild || guild.id !== GUILD_ID || !isDedicatedTeamChannel(channel)) return;
 
   await guild.roles.fetch().catch(() => {});
+
+  // Ensure standardized 🔰 / 💬- / 🔊 channel naming
+  await formatTeamCategoryAndChannel(channel);
 
   // Ensure @STAFF TEAM has access if this is a team VC
   await grantStaffTeamAccessToTeamVC(channel, guild);

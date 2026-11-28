@@ -558,11 +558,12 @@ bot.on(Events.ChannelCreate, async (channel) => {
       return;
     }
 
-    // Style/hoist team roles and sync nicknames for newly created team channels/categories
+    // Style/hoist team roles, format channels (🔰/💬-/🔊), and sync nicknames after ZENTRA font updates settle
     setTimeout(async () => {
+      const freshChannel = guild.channels.cache.get(channel.id) || (await guild.channels.fetch(channel.id).catch(() => null)) || channel;
       const { syncTeamRoleNicknamesFromChannel } = await import('./services/teamRegistrationService.js');
-      await syncTeamRoleNicknamesFromChannel(channel).catch(() => {});
-    }, 2500);
+      await syncTeamRoleNicknamesFromChannel(freshChannel).catch(() => {});
+    }, 5000);
   } catch (err) {
     app.log.error({ err }, '[TICKET-ROUTER] Error auto-routing ticket channel');
   }
