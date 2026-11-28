@@ -1290,6 +1290,11 @@ export async function grantStaffTeamAccessToTeamVC(channel: any, guild: any): Pr
  */
 export async function formatTeamCategoryAndChannel(channel: any): Promise<boolean> {
   if (!channel || !isDedicatedTeamChannel(channel)) return false;
+  // NEVER format fixed server categories or channels inside fixed server categories (e.g. TOURNAMENT ZONE, STAFF ONLY)
+  if (FIXED_SERVER_CATEGORY_IDS.has(channel.id)) return false;
+  if (channel.parentId && FIXED_SERVER_CATEGORY_IDS.has(channel.parentId)) return false;
+  if (!channel.parentId && channel.type !== ChannelType.GuildCategory) return false;
+
   const currentName = (channel.name || '').trim();
   if (!currentName) return false;
 
@@ -1299,6 +1304,7 @@ export async function formatTeamCategoryAndChannel(channel: any): Promise<boolea
       desiredName = `🔰 ${currentName}`.slice(0, 100);
     }
   } else if (channel.type === ChannelType.GuildText) {
+    if (currentName.startsWith('【')) return false;
     if (currentName.startsWith('💬') && !currentName.startsWith('💬-')) {
       const stripped = currentName.replace(/^💬[\s・\-_]*/, '');
       desiredName = `💬-${stripped}`.slice(0, 100);
@@ -1306,6 +1312,7 @@ export async function formatTeamCategoryAndChannel(channel: any): Promise<boolea
       desiredName = `💬-${currentName}`.slice(0, 100);
     }
   } else if (channel.type === ChannelType.GuildVoice || channel.type === ChannelType.GuildStageVoice) {
+    if (currentName.startsWith('【')) return false;
     if (!currentName.startsWith('🔊')) {
       const stripped = currentName.replace(/^🔊[\s・\-_]*/, '');
       desiredName = `🔊 ${stripped}`.slice(0, 100);
